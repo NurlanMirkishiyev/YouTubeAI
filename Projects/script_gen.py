@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -21,6 +22,7 @@ WORDS_MIN, WORDS_MAX = 1700, 2050
 WPM = 199.0          # OLCULMUS: Kokoro am_fenrir speed=1.0 -> 199 soz/deq (1550 soz = 7.8 deq danisiq)
 OVERSHOOT = 1.18     # model hedefin ~85-95%-ni verir - bolme hedefleri bu qeder boyudulur
 SHORT_RATIO = 0.90   # bolme hedefin bu qederinden az cixarsa yenidden yazdirilir
+LENGTH_MARGIN = 1.05  # TTS bosluqlarina ve tehmin xetasina ehtiyat
 
 SYSTEM = """You write scripts for an ELI5 Business YouTube channel.
 The host is a friendly cartoon owl in a suit who explains business and money topics
@@ -86,6 +88,19 @@ Write flowing narration paragraphs separated by blank lines.
 Do not write the heading. No bullet lists, no bold, no italics, no headings, no meta commentary.
 {tail}"""
 
+EXTEND_USER = """Topic: {topic}
+
+The video already has these teaching sections:
+{existing}
+
+Plan ONE additional teaching section that deepens the topic without repeating any of them.
+Its analogy must live in an everyday domain different from all of these: {domains}.
+Return JSON only:
+{{"title": "short title, max 5 words", "idea": "the one core idea, one sentence",
+  "domain": "the everyday world the analogy lives in, two or three words",
+  "analogy": "the everyday analogy used, one sentence",
+  "example": "a realistic mini-example, one sentence"}}"""
+
 
 def slugify(text: str) -> str:
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
@@ -102,6 +117,27 @@ def check_headings(markdown: str) -> list[str]:
     required = ["## Hook", "## Section 1", "## Section 2", "## Section 3", "## Section 4",
                 "## Common Mistakes", "## Recap", "## Call to Action"]
     return [h for h in required if h not in markdown]
+
+
+def words_to_add(current: int, min_seconds: float, wpm: float = WPM,
+                 margin: float = LENGTH_MARGIN) -> int:
+    """min_seconds danisiq ucun catismayan soz sayi (0 = kifayetdir)."""
+    return max(0, math.ceil(min_seconds / 60.0 * wpm * margin) - current)
+
+
+def words_for_seconds(seconds: float, wpm: float = WPM, margin: float = 1.10) -> int:
+    return math.ceil(seconds / 60.0 * wpm * margin)
+
+
+def teaching_headings(markdown: str) -> list[str]:
+    return re.findall(r"^## (Section \d+: .+)$", markdown, flags=re.M)
+
+
+def insert_before(markdown: str, anchor: str, block: str) -> str:
+    idx = markdown.find("\n" + anchor)
+    if idx < 0:
+        raise ValueError(f"anchor tapilmadi: {anchor}")
+    return markdown[:idx].rstrip() + "\n\n" + block.strip() + "\n" + markdown[idx:]
 
 
 def outline(topic: str, **llm_kw) -> list[dict]:
@@ -128,7 +164,7 @@ def _write_block(topic: str, outline_text: str, heading: str, words: int,
     return text.strip()
 
 
-def generate(topic: str, words: int, **llm_kw) -> str:
+def generate(topic: str, words: int, **llm_kw) -> tuple[str, list[str]]:
     """Bolme-bolme generasiya: model uzun metnde soz hedefini tutmur, ona gore paralanir."""
     secs = outline(topic, **llm_kw)
     outline_text = "\n".join(
@@ -179,14 +215,62 @@ def generate(topic: str, words: int, **llm_kw) -> str:
                                "All four teaching sections are already written above. Refer to their "
                                "analogies in at most a few words - never re-explain them.", **llm_kw)]
 
-    return "\n\n".join(parts)
+    return "\n\n".join(parts), domains
+
+
+def extend(topic: str, markdown: str, words: int, domains: list[str], **llm_kw) -> tuple[str, str]:
+    """Movcud skripte Common Mistakes-den evvel yeni tedris bolmesi elave edir -> (skript, domain)."""
+    existing = teaching_headings(markdown)
+    sec = chat_json(SYSTEM, EXTEND_USER.format(topic=topic, existing="\n".join(existing) or "(none)",
+                                               domains=", ".join(domains) or "(unknown)"),
+                    max_tokens=600, **llm_kw)
+    heading = f"Section {len(existing) + 1}: {str(sec.get('title', 'One More Thing')).strip()}"
+    guidance = (f"Core idea: {sec.get('idea', '')}\n"
+                f"Use ONLY this analogy domain: {sec.get('domain', '')}\n"
+                f"The analogy: {sec.get('analogy', '')}\n"
+                f"The mini-example: {sec.get('example', '')}\n"
+                f"Teach the one idea, make it concrete, then hand off to the next section.")
+    print(f"  [{heading}] {words} soz  <{sec.get('domain', '')}>")
+    body = _write_block(topic, "\n".join(existing + [heading]), heading, words, guidance,
+                        "Every other section is already written. Do not repeat their ideas or analogies.",
+                        **llm_kw)
+    return insert_before(markdown, "## Common Mistakes", f"## {heading}\n\n{body}"), \
+        str(sec.get("domain", "")).strip()
+
+
+def run_extend(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
+    if not os.path.isfile(script_path):
+        raise SystemExit("uzatmaq ucun script.md yoxdur: " + script_path)
+    meta_path = os.path.join(out_dir, "meta.json")
+    meta = {}
+    if os.path.isfile(meta_path):
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+    print(f"[22+] skript uzadilir: +{a.extend} soz")
+    with open(script_path, encoding="utf-8") as f:
+        current = f.read()
+    try:
+        script, domain = extend(a.topic, current, a.extend, meta.get("domains", []),
+                                provider=a.provider, model=a.model, temperature=a.temperature)
+    except (LLMError, ValueError) as e:
+        raise SystemExit("uzatma xetasi: " + str(e)) from e
+    n = word_count(script)
+    with open(script_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(script.rstrip() + "\n")
+    meta = {**meta, "words": n, "est_minutes": round(n / WPM, 1),
+            "domains": [*meta.get("domains", []), domain]}
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+    print(f"  {n} soz  ~{n / WPM:.1f} deq  -> {script_path}")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("topic")
     ap.add_argument("--slug", help="default: movzudan yaradilir")
-    ap.add_argument("--words", type=int, default=1850)   # ~10 deq @ 199 wpm
+    ap.add_argument("--words", type=int, default=2150)   # ~10.8 deq @ 199 wpm
+    ap.add_argument("--extend", type=int, metavar="SOZ",
+                    help="movcud script.md-ye bu qeder sozluk yeni tedris bolmesi elave et")
     ap.add_argument("--force", action="store_true", help="movcud script.md uzerine yaz")
     add_provider_arg(ap)
     a = ap.parse_args()
@@ -196,13 +280,16 @@ def main() -> None:
         raise SystemExit("slug bos alindi - --slug ile ver")
     out_dir = os.path.join(EPISODES, slug)
     script_path = os.path.join(out_dir, "script.md")
+    if a.extend:
+        run_extend(a, out_dir, script_path)
+        return
     if os.path.isfile(script_path) and not a.force:
         raise SystemExit(f"artiq movcuddur: {script_path}  (--force ile uzerine yaz)")
 
     print(f"[22] skript: {a.topic!r} -> {slug}")
     try:
-        script = generate(a.topic, a.words, provider=a.provider, model=a.model,
-                          temperature=a.temperature)
+        script, domains = generate(a.topic, a.words, provider=a.provider, model=a.model,
+                                   temperature=a.temperature)
     except LLMError as e:
         raise SystemExit("LLM xetasi: " + str(e)) from e
 
@@ -213,7 +300,7 @@ def main() -> None:
         f.write(script.rstrip() + "\n")
     with open(os.path.join(out_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump({"topic": a.topic, "slug": slug, "words": n,
-                   "est_minutes": round(n / WPM, 1),
+                   "est_minutes": round(n / WPM, 1), "domains": domains,
                    "provider": a.provider, "model": a.model or "default"}, f, indent=2)
 
     print(f"  {n} soz  ~{n / WPM:.1f} deq  -> {script_path}")
