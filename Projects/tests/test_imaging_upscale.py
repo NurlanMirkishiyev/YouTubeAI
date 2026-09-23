@@ -17,6 +17,15 @@ def test_fit_cover_size():
     assert imaging.fit_cover(img, 1280, 720).size == (1280, 720)
 
 
+def test_is_bust_by_missing_shadow(tmp_path):
+    full, bust = tmp_path / "front.png", tmp_path / "happy.png"
+    for p in (full, bust):
+        Image.new("RGBA", (10, 10)).save(p)
+    Image.new("RGBA", (10, 3)).save(tmp_path / "front_shadow.png")
+    assert not imaging.is_bust(str(full))
+    assert imaging.is_bust(str(bust))
+
+
 def test_build_workflow_placeholders():
     wf = upscale.build_workflow("hd_x_01.png", "4x-UltraSharp.pth", "hd_x_01")
     assert wf["1"]["inputs"]["image"] == "hd_x_01.png"
