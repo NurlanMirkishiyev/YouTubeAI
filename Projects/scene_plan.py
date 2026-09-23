@@ -101,21 +101,14 @@ def split_scenes(markdown: str) -> list[dict]:
 
 
 def assign_positions(scenes: list[dict]) -> list[str]:
-    """Sprite movqeyi deterministik: Hook ve Call to Action merkez, qalan bolmeler novbe ile
-    sag/sol. LLM-e buraxilanda butun sehneler eyni terefde qalirdi."""
+    """Sprite movqeyi deterministik: bolmeler novbe ile sag/sol. LLM-e buraxilanda butun
+    sehneler eyni terefde qalirdi. 'center' istifade olunmur - subtitr asagi-merkezdedir
+    ve merkezdeki bayqusun ustune dusurdu (FAZA F kadr yoxlamasi)."""
     order: list[str] = []
     for s in scenes:
         if s["section"] not in order:
             order.append(s["section"])
-    side = {}
-    flip = 0
-    for sec in order:
-        low = sec.lower()
-        if low.startswith("hook") or low.startswith("call to action"):
-            side[sec] = "center"
-        else:
-            side[sec] = ("right", "left")[flip % 2]
-            flip += 1
+    side = {sec: ("right", "left")[k % 2] for k, sec in enumerate(order)}
     return [side[s["section"]] for s in scenes]
 
 

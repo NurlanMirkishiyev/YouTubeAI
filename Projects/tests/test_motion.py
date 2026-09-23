@@ -8,8 +8,10 @@ def test_motion_cycle():
 
 def test_kenburns_filter_shape():
     f = motion.kenburns(3, 6.0, "pan_lr", "b3")
-    assert f.startswith("[3:v]scale=5120:2880")
-    assert "crop=5120:2880" in f
+    assert f.startswith("[3:v]scale=3840:2160")
+    assert "crop=3840:2160" in f
+    assert "loop=loop=209:size=1" in f            # (6+1)*30 kadr, sekil bir defe dekod olunur
+    assert f.index("crop=") < f.index("loop=") < f.index("zoompan")
     assert "d=1" in f and "s=1920x1080" in f and "fps=30" in f
     assert "vignette" in f
     assert f.endswith("[b3]")
