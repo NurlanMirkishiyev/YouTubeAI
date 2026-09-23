@@ -30,7 +30,9 @@ Background prompt rules:
   so never write "vector", "illustration", "flat", "3D", "render", "style", "colors", "palette".
 - The background must contain NO characters, NO people, NO animals, NO owl, NO mascot.
 - The background must contain NO written words, letters or numbers - the image model cannot
-  render text. Use icons, shapes, arrows, charts without labels instead.
+  render text. Never use signs, labels, screens, dashboards, interfaces, scoreboards,
+  charts, graphs, statements, receipts, checklists, notes, report cards, boards or posters.
+  Show physical objects instead (coins, cards, jars, boxes, tools, furniture, food).
 - Describe one clear concrete scene or object set that mirrors the narration's example.
 - A comma separated list of objects and setting, 12-25 words, English.
 - Start with the setting, then the objects in it."""
@@ -50,6 +52,27 @@ Return JSON exactly in this shape, one entry per scene, same order, no extra key
 
 Scenes:
 {scenes}"""
+
+
+# SDXL yazi cekende anlamsiz herfler cixir (FAZA F E2E, sehne 16: "game interface"). LLM
+# qadagaya tam emel etmir, ona gore yazi dasiyan hisseler deterministik atilir.
+TEXT_BEARING = re.compile(
+    r"['\"‘’“”]|\b(signs?|signage|label(?:ed|led)?|screens?|dashboards?|"
+    r"interfaces?|scoreboards?|charts?|graphs?|statements?|receipts?|checklists?|lists?|"
+    r"notes?|notepad|report cards?|chalkboards?|whiteboards?|boards?|posters?|banners?|"
+    r"menus?|icons?|planners?|apps?|display of|homework|assignments?|grades)\b", re.I)
+# "and" ile bolunende "limits", "no extra fees" kimi qirintilar qalir - yalniz isim birlesmesi saxlanir
+NOUN_START = re.compile(r"^(with|and)\s+", re.I)
+NOUN_PHRASE = re.compile(r"^(a|an|the|some|several|piles?|stacks?|rows?)\s", re.I)
+FALLBACK_BG = "a cozy tidy desk with a potted plant, a coffee mug and a warm lamp"
+
+
+def clean_bg_prompt(prompt: str) -> str:
+    """Vergul / 'and' ile bolunen hisselerden yazi teleb edenleri atir; hec ne qalmasa FALLBACK_BG."""
+    parts = [p.strip() for p in re.split(r",|\band\b", prompt) if p.strip()]
+    parts = [NOUN_START.sub("", p) for p in parts]
+    kept = [p for p in parts if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p)]
+    return ", ".join(kept) or FALLBACK_BG
 
 
 def load_poses() -> list[str]:
@@ -133,6 +156,7 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     for sc, it, pos in zip(scenes, items, positions):
         sprite = str(it.get("sprite", "")).strip()
         bg = " ".join(str(it.get("bg_prompt", "")).split())
+        bg = clean_bg_prompt(bg) if bg else bg
         if sprite not in poses:
             print(f"  DIQQET: bilinmeyen sprite {sprite!r} -> three_q")
             sprite = "three_q"

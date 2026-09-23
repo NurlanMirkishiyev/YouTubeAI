@@ -7,7 +7,7 @@ import sys
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from imaging import fit_cover, is_bust  # noqa: E402
+from imaging import cut_side, fit_cover, is_bust  # noqa: E402
 
 FONTS_DIR = r"C:\YouTubeAI\Assets\fonts"
 FALLBACK_FONT = r"C:\Windows\Fonts\segoeuib.ttf"
@@ -50,12 +50,18 @@ def backdrop(bg_path: str, size: tuple[int, int], blur: int, dim: float) -> Imag
 
 def paste_sprite(canvas: Image.Image, sprite_path: str, height: int, right: int, bottom: int) -> None:
     """Sprite-i hundurluye gore kicildib sag-asagi kunce yapisdirir (canvas yerinde deyisir).
-    Bust sprite hemise alt kenara yapisir (bottom nezere alinmir)."""
+    Bust sprite sag+alt kenara yapisir (right/bottom nezere alinmir), kesik terefi saga cevrilir."""
     with Image.open(sprite_path) as im:
         owl = im.convert("RGBA")
     owl = owl.resize((round(owl.width * height / owl.height), height), Image.LANCZOS)
-    gap = 0 if is_bust(sprite_path) else bottom
-    canvas.paste(owl, (canvas.width - owl.width - right, canvas.height - owl.height - gap), owl)
+    if is_bust(sprite_path):
+        right = bottom = 0
+        if cut_side(owl) == "left":
+            owl = owl.transpose(Image.FLIP_LEFT_RIGHT)
+    box = owl.getchannel("A").getbbox() or (0, 0, owl.width, owl.height)
+    x = canvas.width - box[2] - right       # seffaf kenar bosluqlari hesaba alinmir
+    y = canvas.height - box[3] - bottom
+    canvas.paste(owl, (x, y), owl)
 
 
 def _title_block(draw: ImageDraw.ImageDraw, lines: list[str], font, x: int, y: int, step: int) -> int:

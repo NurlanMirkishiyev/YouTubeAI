@@ -46,3 +46,27 @@ def test_thumbnail_size(tmp_path):
 def test_load_font_fallback(tmp_path, monkeypatch):
     monkeypatch.setattr(cards, "FONTS_DIR", str(tmp_path))
     assert cards.load_font("SemiBold", 30).size == 30
+
+
+def _bust_sprite(tmp_path, cut: str) -> str:
+    """Duz kesik tereli (cut) bust: ellips + kesik terefde duz dolu sutun."""
+    from PIL import ImageDraw
+    im = Image.new("RGBA", (200, 300), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((20, 20, 180, 300), fill=(200, 100, 50, 255))
+    if cut == "left":
+        d.rectangle((0, 60, 99, 299), fill=(200, 100, 50, 255))
+    else:
+        d.rectangle((100, 60, 199, 299), fill=(200, 100, 50, 255))
+    p = tmp_path / "happy.png"          # _shadow.png yoxdur -> bust
+    im.save(p)
+    return str(p)
+
+
+def test_paste_sprite_bust_is_flush_right_with_cut_side_outward(tmp_path):
+    from imaging import cut_side
+    canvas = Image.new("RGBA", (800, 600), (0, 0, 0, 0))
+    cards.paste_sprite(canvas, _bust_sprite(tmp_path, "left"), 300, 40, 30)
+    box = canvas.getchannel("A").getbbox()
+    assert box[2] == 800 and box[3] == 600          # sag ve alt kenara yapisib
+    assert cut_side(canvas) == "right"              # kesik taraf ekran kenarina baxir
