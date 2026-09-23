@@ -1,0 +1,20 @@
+# boyuk / generasiya olunan
+ComfyUI/
+Models/
+Episodes/
+Output/
+Temp/
+Music/
+Character/ELI5_Owl/sprites_hd/
+**/.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+# sirler
+.env
+# TTS / Whisper: yalniz skriptler ve konfiq
+TTS/*
+!TTS/*.py
+!TTS/config/
+Whisper/*
+!Whisper/*.py
