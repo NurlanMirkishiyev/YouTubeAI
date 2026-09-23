@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-23
+**Son yenilənmə:** 2026-09-24
 
 ---
 
@@ -16,7 +16,15 @@
 | Faza | Vəziyyət |
 |---|---|
 | FAZA A–E (addım 01–28) | **TAMAM** — ilk epizod çıxdı və oynadılır |
-| FAZA F (addım 29–36, automation) | **DİZAYN TƏSDİQ GÖZLƏYİR** — kod yazılmayıb |
+| FAZA F / Faza 1 (automation + keyfiyyət) | **Task 0–16 icra olundu, 90 test keçir** — E2E işlədi, amma **fonlarda yazı problemi açıqdır** (aşağıya bax) |
+| FAZA F / Faza 2 (LTX-Video) | başlanmayıb — ayrıca spec lazımdır |
+
+**İstifadə:** `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
+`Episodes\<slug>\<slug>.mp4` + `Episodes\<slug>\youtube\`. Yarımçıq qalsa: `python run.py --resume <slug>`.
+Musiqi: `--music Music\<trek>.mp3` (verilməsə musiqisiz).
+
+**Ölçülmüş (2026-09-23):** fon upscale 15 s/fon · sprite HD 8 ədəd 71 s · 8.14 dəq epizodun montajı ~7 dəq ·
+köhnə epizodun FAZA F versiyası (`faza1_test.mp4`) bütün A2/A3/A4/A8 yoxlamalarından keçdi.
 
 **İlk epizod:** `Episodes/trademark-copyright-patent/trademark-copyright-patent.mp4`
 1550 söz · 29 səhnə · 7.97 dəq · 1920×1080@30 · H.264 High / yuv420p / L4.1 · AAC 24 kHz mono · 137 MB
@@ -30,9 +38,31 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
 
 1. [x] Spec: `docs/superpowers/specs/2026-09-23-faza-f-automation-design.md` — istifadəçi təsdiqlədi
 2. [x] Plan: `docs/superpowers/plans/2026-09-23-faza-f-faza1-automation.md` — Task 0–16
-3. [ ] **İcra üsulu seçimi gözlənilir** (Subagent-Driven / Inline) → sonra Task 0-dan başla
-   - Task 10 Step 6-da **istifadəçinin vizual təsdiqi** mütləqdir (kadrlar köhnə f120 ilə müqayisə)
-   - Task 16-da istifadəçidən musiqi treki soruşulur
+3. [x] İcra: inline, **tam avtonom** (istifadəçi: "mövzunu verim və tam hazır video əldə edim") —
+   aralıq təsdiq yoxdur, vizual yoxlamanı Claude özü edir
+4. [x] Task 15 — inteqrasiya: `_integ-compound` (6.27 dəq, 18m23s, HAZIRDIR)
+5. [x] Task 16 — E2E: `how-credit-cards-actually-work` — 2380 söz, narration 662 s, **11.19 dəq**,
+   29m58s, `final_video_problems=[]`, `pack_problems=[]`, resume 8 mərhələni 11.5 s-də keçdi
+6. [~] **E2E-dən sonra vizual düzəliş (DAVAM EDİR — sessiya burada dayandı, 2026-09-24):**
+   - Tapıldı: 300 s-də fon "game interface" → mənasız yazı; thumbnail-da bust bayquşun kəsik tərəfi içəri baxırdı
+   - Düzəldildi, commit `5d58498`: `scene_plan.clean_bg_prompt` (yazı daşıyan hissələri atır, `TEXT_BEARING`
+     regex, `FALLBACK_BG`) + `cards.paste_sprite` (bust sağ-alt kənara yapışır, kəsik tərəf çölə flip)
+   - Epizodun scenes.json-u `clean_bg_prompt` ilə yeniləndi; bg/, bg_hd/, cards/, youtube/, mp4 silindi;
+     `python run.py --resume how-credit-cards-actually-work` arxa planda işə salındı (render_bgs 33/37-də idi)
+   - **YENİ AÇIQ PROBLEM:** `bg/sc16.png` — kredit kartının yaxın planı, üstündə mənasız yazı
+     ("Pirxirt", "COOVAUDRYOND", rəqəmlər). Filter "credit card"-ı tutmur, bu mövzuda kart hər yerdədir.
+
+**NÖVBƏTİ DƏQİQ ADDIM (yeni sessiyada):**
+1. `Episodes\how-credit-cards-actually-work\` vəziyyətini yoxla: mp4 çıxıbmı, `bg/` neçə fon var
+   (arxa plan prosesi sessiya ilə birlikdə ölmüş ola bilər → `python run.py --resume how-credit-cards-actually-work`)
+2. 37 fonun **hamısına** vizual bax, yazılı olanları siyahıla
+3. Kod düzəlişi (TDD): kart/pul kimi yazı daşıyan obyektlər üçün — "credit card" → "the back of a plain
+   blank credit card" / uzaq plan kimi yenidən yaz və ya at; SDXL negativ promptunu gücləndir
+   (`text, letters, numbers, logo, brand name, watermark, typography`)
+4. Yalnız problemli fonları sil (`bg/scNN.png` + `bg_hd/scNN.png`), `--resume --from render_bgs` ilə yenidən qur
+5. Yenidən yoxla: `final_video_problems`, `pack_problems`, kadrlar 30/120/300/500 s, thumbnail (bust sağda, kəsik çölə)
+6. progress.md commit et (hələ commit olunmayıb), `superpowers:finishing-a-development-branch`
+7. İstifadəçiyə yekun: `python run.py "Mövzu"`, ~30 dəq/video, paralel iki video yox, musiqi yoxdur (`Music/` boş)
 
 ---
 
@@ -133,6 +163,23 @@ Səbəb (aşağıdakı "Risklər"ə bax): 8 GB VRAM sərhəddədir, LTX bütün 
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-23/24 — Task 15/16 + vizual düzəlişlər
+- `_integ-compound` 6.27 dəq, E2E `how-credit-cards-actually-work` 11.19 dəq — hər iki HAZIRDIR
+- Kadr yoxlamasında 2 qüsur → commit `5d58498` (yazılı fon promptu filtri, bust thumbnail flip), 90 test
+- Yenidən qurmada 3-cü qüsur: kredit kartı yaxın planda mənasız yazı (sc16) — **açıqdır**
+- Dərs: SDXL yazı çəkə bilməz; obyektin özü yazı daşıyırsa (kart, əskinas, kitab) da gibberish çıxır →
+  yalnız söz filtri kifayət deyil, hər fon vizual yoxlanmalıdır
+
+### 2026-09-23 — Faza 1 kodu yazıldı (Task 0–14), git repo, 86 test
+- Plandan kənara çıxmalar (hamısı ölçmə/kadr yoxlamasına əsasən):
+  - **Ken Burns mənbəyi 3840×2160** (5120 → 0.6 fps idi, 10 dəq video ~8 saat); şəkillər bir dəfə dekod
+    olunur, `loop` filtri ilə təkrarlanır (`-loop 1` hər kadrda 5K PNG açırdı və qraf 361-ci kadrda ilişirdi)
+  - **Bust sprite-lər** (happy/thinking/confident — ayaqsız, yanı kəsik): kölgəsiz, kadrın alt və yan
+    kənarına yapışır, kəsik tərəf ekran kənarına baxsın deyə lazım olanda `hflip`
+  - **`center` sprite mövqeyi ləğv** (subtitr aşağı-mərkəzdə bayquşun üstünə düşürdü) — scene_plan sağ/sol
+  - SDXL pozitiv promptdan "no people" çıxarıldı (CLIP inkarı anlamır → fonda insan çıxırdı), negativ genişləndi
+  - İlk chapter adı "Intro" ("Hook" daxili termindir)
 
 ### 2026-09-23 — Faza 1 implementasiya planı yazıldı
 - 17 task (0–16), TDD, hər task-da commit; layihə git repo deyil → Task 0-da `git init`
