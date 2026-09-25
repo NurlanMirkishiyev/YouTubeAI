@@ -46,6 +46,8 @@ Picture rules:
   calendars, receipts, money bills. Show physical objects instead.
 - Every scene must look DIFFERENT from the previous scenes: a new hero subject, a new place
   or a clearly different close-up. Never reuse a subject from the recent list.
+- When the narration stays on the same thing for several scenes, change the view each time:
+  wide view of the place -> close-up of one detail -> the finished result -> a top-down view.
 - 8-20 words, English, comma separated: hero subject first, then props, then setting.
 - "subject": the hero subject in 1-3 words (used to detect repeats)."""
 
