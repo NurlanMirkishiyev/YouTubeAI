@@ -18,3 +18,6 @@ TTS/*
 !TTS/config/
 Whisper/*
 !Whisper/*.py
+# Remotion
+Remotion/node_modules/
+Remotion/out/
