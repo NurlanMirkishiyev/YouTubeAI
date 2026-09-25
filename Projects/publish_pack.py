@@ -163,11 +163,14 @@ def main() -> None:
     a = ap.parse_args()
     ep = a.episode_dir
     with open(os.path.join(ep, "scenes.json"), encoding="utf-8") as f:
-        scenes = json.load(f)["scenes"]
+        sdata = json.load(f)
+    scenes = sdata["scenes"]
+    intro_s = float(sdata.get("intro_seconds", INTRO_S))
+    outro_s = float(sdata.get("outro_seconds", OUTRO_S))
     with open(os.path.join(ep, "meta.json"), encoding="utf-8") as f:
         meta = json.load(f)
-    total = INTRO_S + sum(float(s["duration"]) for s in scenes) + OUTRO_S
-    chaps = chapters(scenes, INTRO_S, total)
+    total = intro_s + sum(float(s["duration"]) for s in scenes) + outro_s
+    chaps = chapters(scenes, intro_s, total)
     try:
         data = chat_json(SYSTEM, PACK_USER.format(topic=meta["topic"],
                                                   chapters="\n".join(t for _, t in chaps),

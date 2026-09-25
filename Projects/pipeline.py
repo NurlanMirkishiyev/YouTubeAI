@@ -25,7 +25,7 @@ from state import new_state, now_iso, read_state, with_stage, write_state  # noq
 DEFAULT_WORDS = 2150
 MIN_SECONDS = 600.0
 MAX_EXTENSIONS = 2
-INVALIDATE_DIRS = ("bg", "bg_hd", "audio", "cards", "youtube")
+INVALIDATE_DIRS = ("bg", "bg_hd", "audio", "cards", "remotion", "youtube")
 INVALIDATE_FILES = ("scenes.json", "narration.wav", "narration.srt", "narration.words.json",
                     "narration.shifted.srt")
 

@@ -95,10 +95,19 @@ def verify_tts(ctx: Ctx) -> list[str]:
         ([] if os.path.isfile(ctx.p("narration.wav")) else ["narration.wav yoxdur"])
 
 
+def spoken_extra_words(ctx: Ctx) -> int:
+    """Skriptde olmayan, amma seslendirilen sozler: intro/outro kartlari + bolme basliqlari."""
+    with open(ctx.p("scenes.json"), encoding="utf-8") as f:
+        data = json.load(f)
+    cards = " ".join((data.get("card_texts") or {}).values())
+    titles = " ".join(s.get("spoken_title") or "" for s in data["scenes"])
+    return len(cards.split()) + len(titles.split())
+
+
 def verify_srt(ctx: Ctx) -> list[str]:
     from script_gen import word_count
     got = len(json.loads(_read(ctx.p("narration.words.json"))))
-    want = word_count(_read(ctx.p("script.md")))
+    want = word_count(_read(ctx.p("script.md"))) + spoken_extra_words(ctx)
     if abs(got - want) > SRT_WORD_TOL * want:
         return [f"whisper {got} soz, skript {want} soz (>{SRT_WORD_TOL:.0%} ferq)"]
     return []
