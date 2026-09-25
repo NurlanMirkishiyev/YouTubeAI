@@ -25,7 +25,7 @@ def test_commands(tmp_path):
     assert st.STAGES[4].command(ctx, False)[0] == st.PY["tts"]
     assert st.STAGES[5].command(ctx, False)[0] == st.PY["whisper"]
     build = st.STAGES[6].command(ctx, False)
-    assert "--cards" in build and "--require-hd" in build and build[-2:] == ["--music", "m.mp3"]
+    assert build[1].endswith("remotion_build.py") and build[-2:] == ["--music", "m.mp3"]
 
 
 def test_parse_args_requires_topic_or_resume():
