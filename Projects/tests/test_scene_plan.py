@@ -47,6 +47,14 @@ def test_clean_bg_prompt_drops_card_readers_instead_of_mangling_them():
     assert out == "a toy on the counter"
 
 
+# E2E what-is-business-automation sc35: "a basketball player" negativ promptdaki "person, boy"-a
+# baxmayaraq cizgi oglan cekdi - insan ismi ozu insani getirir. Robot personaj movzuya aiddir, qalir.
+def test_clean_bg_prompt_drops_human_nouns_but_keeps_robots():
+    p = ("a basketball player practicing with a shooting machine, a basketball hoop, "
+         "a robot chef stirring soup, a customer at the counter, the chef chops vegetables")
+    assert scene_plan.clean_bg_prompt(p) == "a basketball hoop, a robot chef stirring soup"
+
+
 def test_clean_bg_prompt_turns_pizza_box_into_tray():
     out = scene_plan.clean_bg_prompt("an empty pizza box on a table")
     assert out == "an empty pizza tray on a table"

@@ -72,6 +72,13 @@ ABSTRACT_TAIL = re.compile(
 # Eyni seed ile olculdu: negativ prompt kartdaki yazini aradan qaldirmir, bu ad ise qaldirir
 BLANK_CARD = "blank glossy plastic card with a small gold chip"
 PAYMENT_CARD = re.compile(r"\b(?:credit|debit|bank|payment|gift)\s+card(s?)\b(?!\s+readers?)", re.I)
+# Insan ismi negativ promptdaki "person"-u ustelayir (E2E sc35 "basketball player" -> cizgi oglan).
+# Qabagindaki "robot " varsa (robot chef) - movzu analogiyasidir, saxlanir.
+HUMAN = re.compile(
+    r"\b(?<!robot )(?:people|persons?|man|men|woman|women|boys?|girls?|kids?|child(?:ren)?|"
+    r"players?|chefs?|cooks?|customers?|clients?|workers?|employees?|staff|owners?|"
+    r"shoppers?|cashiers?|teachers?|students?|farmers?|gardeners?|drivers?|family|friends?|"
+    r"crowds?|team)\b", re.I)
 PIZZA_BOX = re.compile(r"\bpizza box(es)?\b", re.I)
 # "and" ile bolunende "limits", "no extra fees" kimi qirintilar qalir - yalniz isim birlesmesi saxlanir
 NOUN_START = re.compile(r"^(with|and)\s+", re.I)
@@ -87,7 +94,8 @@ def clean_bg_prompt(prompt: str) -> str:
     parts = [PAYMENT_CARD.sub(lambda m: BLANK_CARD.replace("card", "card" + m.group(1), 1), p)
              for p in parts]
     parts = [PIZZA_BOX.sub(lambda m: "pizza tray" + ("s" if m.group(1) else ""), p) for p in parts]
-    kept = [p for p in parts if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p)]
+    kept = [p for p in parts
+            if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p) and not HUMAN.search(p)]
     return ", ".join(kept) or FALLBACK_BG
 
 
