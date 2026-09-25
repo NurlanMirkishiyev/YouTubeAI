@@ -90,3 +90,10 @@ def test_make_ctx_falls_back_to_meta_topic(tmp_path, monkeypatch):
     (tmp_path / "old" / "meta.json").write_text('{"topic": "Old Topic"}', encoding="utf-8")
     ctx = pl.make_ctx(pl.parse_args(["--resume", "old"]))
     assert ctx.topic == "Old Topic" and ctx.slug == "old"
+
+
+def test_build_stage_renders_with_remotion():
+    import stages
+    ctx = stages.Ctx(topic="T", slug="t", ep_dir="E", words=100, music=None, min_seconds=600.0, provider="openai")
+    cmd = stages._build_cmd(ctx, False)
+    assert cmd[1].endswith("remotion_build.py") and "E" in cmd and "--music" not in cmd

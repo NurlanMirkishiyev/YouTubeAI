@@ -124,8 +124,8 @@ def verify_pack(ctx: Ctx) -> list[str]:
 
 
 def _build_cmd(c: Ctx, f: bool) -> list[str]:
-    return _proj("build_episode.py", c.ep_dir, "--srt", "--cards", "--require-hd") + \
-        (["--music", c.music] if c.music else [])
+    # Remotion: sub-pixel Ken Burns, animasiyali bayqus/altyazi/kartlar (ffmpeg zoompan "dona-dona" idi)
+    return _proj("remotion_build.py", c.ep_dir) + (["--music", c.music] if c.music else [])
 
 
 STAGES: tuple[Stage, ...] = (
