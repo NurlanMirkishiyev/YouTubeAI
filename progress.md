@@ -165,6 +165,12 @@ Səbəb (aşağıdakı "Risklər"ə bax): 8 GB VRAM sərhəddədir, LTX bütün 
 
 ## İcra jurnalı (ən yeni yuxarıda)
 
+### 2026-09-25/26 — İstehsal: `what-is-business-automation`
+- 2402 söz, **12.55 dəq**, 1920×1080 yuv420p, AAC 48 kHz stereo, 192 MB; ilk keçid ~38 dəq
+- Fon yoxlamasında sc35-də cizgi oğlan ("a basketball player") → commit `27fc2d4`: insan isimləri
+  promptdan atılır (`HUMAN`, "robot chef" saxlanır), 7 səhnə yenidən çəkildi, `--resume` ~19 dəq
+- Dərs: negativ prompt nə yazını, nə insanı saxlayır — **ismi promptdan çıxarmaq** yeganə işləyən yoldur
+
 ### 2026-09-23/24 — Task 15/16 + vizual düzəlişlər
 - `_integ-compound` 6.27 dəq, E2E `how-credit-cards-actually-work` 11.19 dəq — hər iki HAZIRDIR
 - Kadr yoxlamasında 2 qüsur → commit `5d58498` (yazılı fon promptu filtri, bust thumbnail flip), 90 test
