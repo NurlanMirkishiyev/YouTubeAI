@@ -11,12 +11,23 @@ import json
 import os
 import time
 
+import re
+import sys
+
 import numpy as np
 import soundfile as sf
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from timeline import display_title  # noqa: E402
 
 CONFIG = r"C:\YouTubeAI\TTS\config\narrator.json"
 GAP_S = 0.25          # sehneler arasi qisa nefes
 TAIL_S = 0.15         # her sehnenin sonunda kicik bosluq
+TITLE_PAUSE_S = 0.5   # bolme basligi ile metn arasinda
+INTRO_MIN_S = 3.5     # intro karti bundan qisa olmur (animasiya yerlesmelidir)
+OUTRO_MIN_S = 6.0
+CARD_PAD_S = 0.8      # kart sesinden sonra sakitlik
+OUTRO_TEXT = "Thanks for watching! If this helped, subscribe for more ELI5 Business."
 
 
 def load_config() -> dict:
@@ -31,6 +42,27 @@ def synth(pipeline, text: str, voice: str, speed: float) -> np.ndarray:
     if not chunks:
         raise RuntimeError("kokoro bos audio qaytardi")
     return np.concatenate(chunks)
+
+
+def spoken_titles(scenes: list[dict]) -> list[str | None]:
+    """Bolmenin ilk sehnesi ucun seslendirilecek basliq (Hook basliqsiz baslayir)."""
+    out: list[str | None] = []
+    for i, s in enumerate(scenes):
+        first = i == 0 or scenes[i - 1]["section"] != s["section"]
+        hook = re.match(r"hook", s["section"], re.I)
+        out.append(display_title(s["section"]) if first and not hook else None)
+    return out
+
+
+def card_audio(wav: np.ndarray, sr: int, minimum: float) -> np.ndarray:
+    """Kart sesi + sakitlik; en azi `minimum` saniye."""
+    total = max(len(wav) + int(CARD_PAD_S * sr), int(minimum * sr))
+    return np.concatenate([wav, np.zeros(total - len(wav), dtype=np.float32)])
+
+
+def read_topic(ep_dir: str) -> str:
+    with open(os.path.join(ep_dir, "meta.json"), encoding="utf-8") as f:
+        return json.load(f)["topic"]
 
 
 def main() -> None:
@@ -52,25 +84,37 @@ def main() -> None:
     audio_dir = os.path.join(a.episode_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
+    titles = spoken_titles(scenes)
     todo = [i for i in range(len(scenes))
             if (not a.only or i + 1 in a.only)
             and (a.force or not os.path.isfile(os.path.join(audio_dir, f"sc{i + 1:02d}.wav")))]
-    print(f"[25] {len(todo)}/{len(scenes)} sehne seslendirilecek  ({cfg['voice']}, {sr} Hz)")
+    cards = {"intro": (read_topic(a.episode_dir), INTRO_MIN_S), "outro": (OUTRO_TEXT, OUTRO_MIN_S)}
+    card_todo = [c for c in cards if a.force or not os.path.isfile(os.path.join(audio_dir, f"{c}.wav"))]
+    print(f"[25] {len(todo)}/{len(scenes)} sehne + {len(card_todo)} kart seslendirilecek  ({cfg['voice']}, {sr} Hz)")
 
-    if todo:
+    if todo or card_todo:
         from kokoro import KPipeline          # yuklenmesi uzun cekir - yalniz lazim olanda
         pipe = KPipeline(lang_code=cfg["lang_code"])
+        voice, speed = cfg["voice"], float(cfg["speed"])
+        for c in card_todo:
+            text, minimum = cards[c]
+            sf.write(os.path.join(audio_dir, f"{c}.wav"), card_audio(synth(pipe, text, voice, speed), sr, minimum), sr)
         t0 = time.time()
         for k, i in enumerate(todo, 1):
-            wav = synth(pipe, scenes[i]["narration"], cfg["voice"], float(cfg["speed"]))
+            wav = synth(pipe, scenes[i]["narration"], voice, speed)
+            if titles[i]:
+                pause = np.zeros(int(TITLE_PAUSE_S * sr), dtype=np.float32)
+                wav = np.concatenate([synth(pipe, titles[i] + ".", voice, speed), pause, wav])
             wav = np.concatenate([wav, np.zeros(int(TAIL_S * sr), dtype=np.float32)])
             sf.write(os.path.join(audio_dir, f"sc{i + 1:02d}.wav"), wav, sr)
             el = time.time() - t0
             print(f"  [{k}/{len(todo)}] sc{i + 1:02d}  {len(wav) / sr:5.1f}s audio  "
                   f"qalan ~{(len(todo) - k) * el / k / 60:.1f} deq")
 
-    # gercek muddetler + birlesmis narration
-    parts: list[np.ndarray] = []
+    # gercek muddetler + birlesmis narration (intro + sehneler + outro)
+    intro, _ = sf.read(os.path.join(audio_dir, "intro.wav"), dtype="float32")
+    outro, _ = sf.read(os.path.join(audio_dir, "outro.wav"), dtype="float32")
+    parts: list[np.ndarray] = [intro]
     gap = np.zeros(int(GAP_S * sr), dtype=np.float32)
     missing = []
     for i, s in enumerate(scenes):
@@ -82,23 +126,27 @@ def main() -> None:
         if file_sr != sr:
             raise SystemExit(f"sc{i + 1:02d}.wav sample rate {file_sr} != {sr}")
         s["audio"] = p
-        s["duration"] = round(len(wav) / sr + (GAP_S if i < len(scenes) - 1 else 0.0), 2)
-        parts += [wav] if i == len(scenes) - 1 else [wav, gap]
+        s["spoken_title"] = titles[i]
+        s["duration"] = round(len(wav) / sr + GAP_S, 3)    # outro-dan evvel de nefes
+        parts += [wav, gap]
 
     if missing:
         raise SystemExit(f"catismayan audio: {missing} - once onlari seslendir")
 
-    narration = np.concatenate(parts)
+    narration = np.concatenate(parts + [outro])
     narration_path = os.path.join(a.episode_dir, "narration.wav")
     sf.write(narration_path, narration, sr)
 
     total = len(narration) / sr
+    data["intro_seconds"] = round(len(intro) / sr, 3)
+    data["outro_seconds"] = round(len(outro) / sr, 3)
+    data["card_texts"] = {"intro": cards["intro"][0], "outro": cards["outro"][0]}
     data["total_seconds"] = round(total, 2)
     data["audio_seconds"] = round(total, 2)
     with open(scenes_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-    drift = abs(sum(s["duration"] for s in scenes) - total)
+    drift = abs(sum(s["duration"] for s in scenes) + data["intro_seconds"] + data["outro_seconds"] - total)
     print(f"  narration.wav  {total / 60:.2f} deq  -> {narration_path}")
     print(f"  sehne muddetleri cemi ile ferq: {drift:.2f}s")
     if drift > 0.05:

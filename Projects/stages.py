@@ -135,7 +135,8 @@ STAGES: tuple[Stage, ...] = (
           needs_comfy=True),
     Stage("tts_gen",
           lambda c, f: [PY["tts"], os.path.join(PROJ, "tts_gen.py"), c.ep_dir] + (["--force"] if f else []),
-          lambda c: os.path.isfile(c.p("narration.wav")) and all_exist(numbered(c, "audio", ".wav")),
+          lambda c: os.path.isfile(c.p("narration.wav")) and all_exist(numbered(c, "audio", ".wav"))
+          and all_exist([c.p("audio", "intro.wav"), c.p("audio", "outro.wav")]),
           verify_tts),
     Stage("make_srt",
           lambda c, f: [PY["whisper"], os.path.join(ROOT, "Whisper", "make_srt.py"),
