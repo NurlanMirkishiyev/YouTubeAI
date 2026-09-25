@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-25
+**Son yenilənmə:** 2026-09-26
 
 ---
 
@@ -61,9 +61,17 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
    - **2026-09-25 TAMAM:** yenidən qurma 11.19 dəq HAZIRDIR (19:13→19:42, ~30 dəq), 37 fonun hamısı yazısız,
      kadrlar 30/120/300/500 s + thumbnail vizual yoxlandı — qüsur yoxdur. **Faza 1 bağlandı.**
 
-**NÖVBƏTİ DƏQİQ ADDIM:** istehsal rejimi — istifadəçinin verdiyi mövzularla `python run.py "Mövzu"`,
-bir-bir (paralel yox). Hər videodan sonra fonların kontakt vərəqinə bax (SDXL yeni obyektlərdə yazı çəkə bilər →
-lazım olsa `scene_plan.TEXT_BEARING`-ə əlavə et). Açıq: `Music/` boşdur, Faza 2 (LTX) ayrıca spec.
+**FAZA G — keyfiyyət düzəlişi (2026-09-26, DAVAM EDİR).** İstifadəçinin 5 şikayəti + "Remotion istifadə et":
+1. Səs yazıları oxumur → intro/bölmə başlığı/outro indi səsləndirilir (`tts_gen`, commit dddd4f3)
+2. Şəkillər təkrar → səhnə 14–32 söz (~7 s, ~98 şəkil), LLM hissə-hissə + son mövzular, təkrar yenidən soruşulur,
+   fallback pool təkrarsız (commit 6571652)
+3. Şəkillər məntiqsiz/qarışıq → bir əsas obyekt, max 3 prompt hissəsi, SDXL "medium shot, single focal subject"
+4. Animasiya dona-dona → ölçüldü: zoompan 73/89 kadr dayanıb sıçrayırdı; Remotion CSS transform 0.005 px təcil
+   (`Remotion/`, `Projects/remotion_build.py`, commit 0cfa5cb, e8c785c, b5d16b4)
+5. Personaj donuq/səliqəsiz → yalnız tam bədən pozları, eyni ölçü/yer xətti, spring giriş, nəfəs, səsə uyğun tərpənmə,
+   poz cross-fade, ardıcıl eyni poz yox
+**İndi:** `run.py --resume what-is-business-automation --from scene_plan` arxa planda (log: scratchpad `ep2v3.log`).
+Sonra: fon kontakt vərəqi, kadr + hamarlıq yoxlaması, istifadəçiyə hesabat.
 
 ---
 
