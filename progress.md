@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-24
+**Son yenilənmə:** 2026-09-25
 
 ---
 
@@ -52,17 +52,18 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
    - **YENİ AÇIQ PROBLEM:** `bg/sc16.png` — kredit kartının yaxın planı, üstündə mənasız yazı
      ("Pirxirt", "COOVAUDRYOND", rəqəmlər). Filter "credit card"-ı tutmur, bu mövzuda kart hər yerdədir.
 
-**NÖVBƏTİ DƏQİQ ADDIM (yeni sessiyada):**
-1. `Episodes\how-credit-cards-actually-work\` vəziyyətini yoxla: mp4 çıxıbmı, `bg/` neçə fon var
-   (arxa plan prosesi sessiya ilə birlikdə ölmüş ola bilər → `python run.py --resume how-credit-cards-actually-work`)
-2. 37 fonun **hamısına** vizual bax, yazılı olanları siyahıla
-3. Kod düzəlişi (TDD): kart/pul kimi yazı daşıyan obyektlər üçün — "credit card" → "the back of a plain
-   blank credit card" / uzaq plan kimi yenidən yaz və ya at; SDXL negativ promptunu gücləndir
-   (`text, letters, numbers, logo, brand name, watermark, typography`)
-4. Yalnız problemli fonları sil (`bg/scNN.png` + `bg_hd/scNN.png`), `--resume --from render_bgs` ilə yenidən qur
-5. Yenidən yoxla: `final_video_problems`, `pack_problems`, kadrlar 30/120/300/500 s, thumbnail (bust sağda, kəsik çölə)
-6. progress.md commit et (hələ commit olunmayıb), `superpowers:finishing-a-development-branch`
-7. İstifadəçiyə yekun: `python run.py "Mövzu"`, ~30 dəq/video, paralel iki video yox, musiqi yoxdur (`Music/` boş)
+   - **2026-09-25 HƏLL EDİLDİ (commit `f7ce99b`):** 37 fon yoxlandı → 8-də aydın gibberish (sc12/14/16/20/21/24/28/34).
+     Eyni seed ilə 15 probe render: güclü negativ prompt **heç nə vermir**; yazını obyektin adı gətirir.
+     `clean_bg_prompt`: payment card → `BLANK_CARD`, pizza box → tray, calendar/calculator/bills/card reader/…
+     atılır, "showing/indicating …" quyruqları kəsilir. 95 test. 32 səhnənin promptu dəyişdi, fonları silindi,
+     `python run.py --resume how-credit-cards-actually-work` işə salındı (2026-09-25)
+
+   - **2026-09-25 TAMAM:** yenidən qurma 11.19 dəq HAZIRDIR (19:13→19:42, ~30 dəq), 37 fonun hamısı yazısız,
+     kadrlar 30/120/300/500 s + thumbnail vizual yoxlandı — qüsur yoxdur. **Faza 1 bağlandı.**
+
+**NÖVBƏTİ DƏQİQ ADDIM:** istehsal rejimi — istifadəçinin verdiyi mövzularla `python run.py "Mövzu"`,
+bir-bir (paralel yox). Hər videodan sonra fonların kontakt vərəqinə bax (SDXL yeni obyektlərdə yazı çəkə bilər →
+lazım olsa `scene_plan.TEXT_BEARING`-ə əlavə et). Açıq: `Music/` boşdur, Faza 2 (LTX) ayrıca spec.
 
 ---
 
