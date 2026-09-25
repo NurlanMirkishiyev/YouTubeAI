@@ -235,8 +235,9 @@ def align(items: list[dict], numbers: list[int]) -> list[dict]:
             by_n[int(it.get("n"))] = it
         except (TypeError, ValueError):
             pass
-    if not by_n and len(items) == len(numbers):
-        return list(items)
+    if not set(by_n) & set(numbers):
+        # nomre yoxdur ve ya LLM 1-den yeniden nomreleyib (97, 98 -> 1, 2) - sira ile
+        return [(items[k] if k < len(items) else {}) for k in range(len(numbers))]
     return [by_n.get(n, {}) for n in numbers]
 
 

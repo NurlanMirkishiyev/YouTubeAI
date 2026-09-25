@@ -105,3 +105,8 @@ def test_align_maps_partial_llm_answer_by_scene_number():
 def test_align_falls_back_to_order_when_numbers_missing():
     out = scene_plan.align([{"subject": "a"}, {"subject": "b"}], [3, 4])
     assert [it["subject"] for it in out] == ["a", "b"]
+
+
+def test_align_uses_order_when_llm_renumbers_from_one():
+    out = scene_plan.align([{"n": 1, "subject": "a"}, {"n": 2, "subject": "b"}], [97, 98])
+    assert [it["subject"] for it in out] == ["a", "b"]
