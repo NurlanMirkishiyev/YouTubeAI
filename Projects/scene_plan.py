@@ -20,6 +20,7 @@ WPM = 199.0   # olculmus; hər halda add. 25-de gercek audio uzunlugu ile evez o
 # Istifadeci: "sekiller tekrardir" - 20 s bir sekil darixdirir. Sehne ~4-10 s, her sehneye oz sekli.
 MIN_WORDS, MAX_WORDS = 14, 32
 PLAN_CHUNK = 24                    # LLM-e bir defede verilen sehne sayi (uzun JSON pozulmasin)
+RETRY_ROUNDS, RETRY_CHUNK = 2, 12   # tekrarlar kicik hisselerle yeniden istenir
 REPEAT_WINDOW = 8                  # eyni esas obyekt bu qeder sehne erzinde tekrar olunmur
 # Busт sprite-lerin bir yani kesikdir - kenara yapisdirilmali olur ve tam beden pozlarla
 # olcu/yer uygunsuzlugu yaradir ("sekilsiz yerlesdirilib"). Videoda yalniz tam beden.
@@ -225,13 +226,28 @@ def duration_for(narration: str) -> float:
     return round(min(MAX_DUR, max(MIN_DUR, raw_duration(narration))), 1)
 
 
+def align(items: list[dict], numbers: list[int]) -> list[dict]:
+    """LLM cavabi sehne nomresine gore duzulur; catismayan sehne bos qalir (sonra yeniden istenir).
+    Uzun siyahida LLM bezen yarisini qaytarir - butun planlama buna gore dayanmamalidir."""
+    by_n = {}
+    for it in items:
+        try:
+            by_n[int(it.get("n"))] = it
+        except (TypeError, ValueError):
+            pass
+    if not by_n and len(items) == len(numbers):
+        return list(items)
+    return [by_n.get(n, {}) for n in numbers]
+
+
 def _ask(scenes: list[dict], numbers: list[int], used: list[str], **llm_kw) -> list[dict]:
     listing = "\n".join(f"{n}. [{scenes[n - 1]['section']}] {scenes[n - 1]['narration']}" for n in numbers)
     data = chat_json(SYSTEM, USER.format(poses=", ".join(VIDEO_POSES), used=", ".join(used) or "none",
                                          scenes=listing), max_tokens=4000, **llm_kw)
-    items = data.get("scenes") or []
-    if len(items) != len(numbers):
-        raise LLMError(f"sehne sayi uygun gelmir: LLM {len(items)}, gozlenilen {len(numbers)}")
+    items = align(data.get("scenes") or [], numbers)
+    lost = sum(1 for it in items if not it)
+    if lost:
+        print(f"  DIQQET: LLM {lost}/{len(numbers)} sehneni qaytarmadi - yeniden istenecek")
     return items
 
 
@@ -257,12 +273,17 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
             prompts.append(bg)
             subjects.append(sub)
             sprites.append(spr)
-    bad = repeats(prompts, subjects)
-    if bad:
+    for _ in range(RETRY_ROUNDS):
+        bad = repeats(prompts, subjects)
+        if not bad:
+            break
         print(f"  tekrar/bos fon: {len(bad)} sehne yeniden istenir")
-        used = sorted({x for x in subjects if x})
-        for i, it in zip(bad, _ask(scenes, [i + 1 for i in bad], used, **llm_kw)):
-            prompts[i], subjects[i], _ = _fields(it)
+        for c in range(0, len(bad), RETRY_CHUNK):
+            part = bad[c:c + RETRY_CHUNK]
+            used = sorted({x for j, x in enumerate(subjects) if x and j not in part})
+            for i, it in zip(part, _ask(scenes, [i + 1 for i in part], used, **llm_kw)):
+                if it:
+                    prompts[i], subjects[i], _ = _fields(it)
     k = 0
     for i in repeats(prompts, subjects):
         prompts[i], subjects[i] = fallback_bg(k), f"fallback {k}"

@@ -94,3 +94,14 @@ def test_repeats_flags_fallback_and_recent_same_subject():
 def test_fallbacks_are_never_reused():
     got = [scene_plan.fallback_bg(k) for k in range(len(scene_plan.FALLBACK_POOL))]
     assert len(set(got)) == len(got)
+
+
+def test_align_maps_partial_llm_answer_by_scene_number():
+    items = [{"n": 7, "subject": "b"}, {"n": 5, "subject": "a"}]
+    out = scene_plan.align(items, [5, 6, 7])
+    assert [it.get("subject") for it in out] == ["a", None, "b"]
+
+
+def test_align_falls_back_to_order_when_numbers_missing():
+    out = scene_plan.align([{"subject": "a"}, {"subject": "b"}], [3, 4])
+    assert [it["subject"] for it in out] == ["a", "b"]
