@@ -20,8 +20,10 @@ WPM = 199.0   # olculmus; hər halda add. 25-de gercek audio uzunlugu ile evez o
 # Istifadeci: "sekiller tekrardir" - 20 s bir sekil darixdirir. Sehne ~4-10 s, her sehneye oz sekli.
 MIN_WORDS, MAX_WORDS = 14, 32
 PLAN_CHUNK = 24                    # LLM-e bir defede verilen sehne sayi (uzun JSON pozulmasin)
-RETRY_ROUNDS, RETRY_CHUNK = 2, 12   # tekrarlar kicik hisselerle yeniden istenir
+RETRY_ROUNDS, RETRY_CHUNK = 3, 12   # tekrarlar kicik hisselerle yeniden istenir
 REPEAT_WINDOW = 8                  # eyni esas obyekt bu qeder sehne erzinde tekrar olunmur
+MIN_PROMPT_WORDS = 5               # "a smartphone" - temizlemeden sonra cilpaq qalan prompt -> yeniden
+NEAR_WINDOW = 2                    # bundan yaxin tekrar olunan subyekt ehtiyat fonla evez olunur
 # Busт sprite-lerin bir yani kesikdir - kenara yapisdirilmali olur ve tam beden pozlarla
 # olcu/yer uygunsuzlugu yaradir ("sekilsiz yerlesdirilib"). Videoda yalniz tam beden.
 VIDEO_POSES = ("front", "three_q", "side", "box", "chart")
@@ -60,7 +62,14 @@ Return JSON exactly in this shape, one entry per scene, same order, no extra key
 {{"scenes": [{{"n": 1, "subject": "...", "bg_prompt": "...", "sprite": "three_q"}}]}}
 
 Scenes:
-{scenes}"""
+{note}{scenes}"""
+# Yeniden istenen sehneler: evvelki sekil ya tekrar idi, ya da ekran/yazi/insan oldugu ucun silindi
+RETRY_NOTE = """These scenes are asked AGAIN: the first pictures repeated an earlier subject or needed
+screens, text, apps or people, which cannot be drawn. Show the idea with a PHYSICAL object or machine
+metaphor instead (e.g. reminders -> a brass bell ringing on a desk; email -> paper envelopes flying
+out of a small mail robot; calendar app -> a wooden desk clock beside a potted plant).
+
+"""
 
 
 # SDXL yazi cekende anlamsiz herfler cixir (FAZA F E2E, sehne 16: "game interface"). LLM
@@ -68,12 +77,14 @@ Scenes:
 TEXT_BEARING = re.compile(
     r"['\"‘’“”]|\b(signs?|signage|label(?:ed|led)?|screens?|dashboards?|"
     r"interfaces?|scoreboards?|charts?|graphs?|statements?|receipts?|checklists?|lists?|"
-    r"notes?|notepad|report cards?|chalkboards?|whiteboards?|boards?|posters?|banners?|"
+    r"notes?|notepad|report cards?|chalkboards?|blackboards?|whiteboards?|boards?|posters?|banners?|"
     r"menus?|icons?|planners?|apps?|display of|homework|assignments?|grades|"
     # obyektin ozu cap dasiyir - SDXL uzerinde mutleq psevdo-yazi cekir (E2E sc12/20/24/28)
     r"calendars?|calculators?|bills?|banknotes?|books?|notebooks?|newspapers?|magazines?|"
     r"documents?|papers?|invoices?|tickets?|coupons?|price tags?|plans?|"
-    r"card readers?|terminals?)\b", re.I)
+    r"card readers?|terminals?|"
+    # ekranli cihaz - SDXL ekranini psevdo-yazi ile doldurur
+    r"smartphones?|phones?|computers?|laptops?|tablets?|monitors?)\b", re.I)
 # "showing balance", "indicating savings" - abstrakt melumat teleb edir, SDXL onu yazi kimi cekir
 ABSTRACT_TAIL = re.compile(
     r"\s+(?:showing|indicating|representing|displaying|counting|beside it|next to it|on the side)\b.*$",
@@ -87,7 +98,7 @@ HUMAN = re.compile(
     r"\b(?<!robot )(?:people|persons?|man|men|woman|women|boys?|girls?|kids?|child(?:ren)?|"
     r"players?|chefs?|cooks?|customers?|clients?|workers?|employees?|staff|owners?|"
     r"shoppers?|cashiers?|teachers?|students?|farmers?|gardeners?|drivers?|family|friends?|"
-    r"crowds?|team)\b", re.I)
+    r"crowds?|team|someone|somebody|everyone|names?)\b", re.I)
 PIZZA_BOX = re.compile(r"\bpizza box(es)?\b", re.I)
 # "and" ile bolunende "limits", "no extra fees" kimi qirintilar qalir - yalniz isim birlesmesi saxlanir
 NOUN_START = re.compile(r"^(with|and)\s+", re.I)
@@ -95,23 +106,27 @@ NOUN_PHRASE = re.compile(r"^(a|an|the|some|several|piles?|stacks?|rows?)\s", re.
 MAX_PARTS = 3      # SDXL cox obyekti bir-birine qarisdirir ("esyalar qarisib")
 FALLBACK_BG = "a cozy tidy desk with a potted plant, a coffee mug and a warm lamp"
 # Temizlenmis prompt bos qalanda - her biri bir defe istifade olunur (8 eyni fon olmusdu)
-FALLBACK_POOL = (
+FALLBACK_POOL = (    # biznes/avtomatlasdirma metaforalari - movzudan kenar tesadufi sekil olmasin
     "a shiny brass gear mechanism turning, soft workshop light",
-    "a glass jar of colorful marbles on a wooden shelf",
-    "a paper airplane gliding over a sunny park",
-    "a red toy rocket standing on a launch pad, blue sky",
-    "a small wind turbine spinning on a green hill",
-    "a stack of wooden building blocks forming a tower",
-    "a lighthouse on a rocky shore at sunset",
-    "a hot air balloon floating over green fields",
-    "a toy train crossing a little bridge",
-    "a potted sunflower on a sunny windowsill",
+    "a small conveyor belt carrying wooden toy blocks on a workbench",
+    "a friendly robot arm stacking colorful cubes on a workbench",
+    "a glowing light bulb on a wooden desk beside a potted plant",
+    "a row of dominoes falling in a neat line on a wooden table",
+    "a small wind-up robot walking across a tidy wooden desk",
+    "a glass jar slowly filling with golden coins on a wooden table",
+    "a silver stopwatch lying on a wooden desk next to a coffee cup",
+    "a tidy workbench with neatly arranged tools hanging on a wall",
+    "a toy factory with tiny gears and a little conveyor belt",
+    "a brass pulley lifting a small wooden crate in a workshop",
+    "a red toy rocket lifting off from a wooden desk, soft smoke",
+    "a mechanical music box with turning golden gears",
+    "a potted sprout growing on a sunny windowsill, a watering can beside it",
+    "a golden key turning in a padlock on a wooden chest",
+    "a paper airplane gliding over a tidy wooden desk",
+    "a stack of wooden building blocks forming a tall tower",
+    "a small delivery drone carrying a wooden crate over a green park",
+    "a toy train crossing a little bridge on a tabletop",
     "a compass lying on a wooden table, warm light",
-    "a treasure chest full of golden coins on sand",
-    "a bicycle leaning against a garden fence",
-    "a steaming cup of cocoa next to a small cactus",
-    "an open toolbox with colorful tools on a workbench",
-    "a row of glass jars with sprouting seeds",
 )
 
 
@@ -141,7 +156,7 @@ def repeats(prompts: list[str], subjects: list[str], window: int = REPEAT_WINDOW
     bad = []
     for i, (p, sub) in enumerate(zip(prompts, subjects)):
         recent = {_norm(x) for x in subjects[max(0, i - window):i]}
-        if p == FALLBACK_BG or (_norm(sub) and _norm(sub) in recent):
+        if p == FALLBACK_BG or len(p.split()) < MIN_PROMPT_WORDS or (_norm(sub) and _norm(sub) in recent):
             bad.append(i)
     return bad
 
@@ -241,9 +256,11 @@ def align(items: list[dict], numbers: list[int]) -> list[dict]:
     return [by_n.get(n, {}) for n in numbers]
 
 
-def _ask(scenes: list[dict], numbers: list[int], used: list[str], **llm_kw) -> list[dict]:
+def _ask(scenes: list[dict], numbers: list[int], used: list[str], retry: bool = False,
+         **llm_kw) -> list[dict]:
     listing = "\n".join(f"{n}. [{scenes[n - 1]['section']}] {scenes[n - 1]['narration']}" for n in numbers)
     data = chat_json(SYSTEM, USER.format(poses=", ".join(VIDEO_POSES), used=", ".join(used) or "none",
+                                         note=RETRY_NOTE if retry else "",
                                          scenes=listing), max_tokens=4000, **llm_kw)
     items = align(data.get("scenes") or [], numbers)
     lost = sum(1 for it in items if not it)
@@ -282,13 +299,15 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
         for c in range(0, len(bad), RETRY_CHUNK):
             part = bad[c:c + RETRY_CHUNK]
             used = sorted({x for j, x in enumerate(subjects) if x and j not in part})
-            for i, it in zip(part, _ask(scenes, [i + 1 for i in part], used, **llm_kw)):
+            for i, it in zip(part, _ask(scenes, [i + 1 for i in part], used, retry=True, **llm_kw)):
                 if it:
                     prompts[i], subjects[i], _ = _fields(it)
-    k = 0
-    for i in repeats(prompts, subjects):
+    # Movzuya aid, amma bir az evvel olmus subyekt tesadufi fondan yaxsidir: son addimda yalniz bos
+    # promptlar ve yan-yana (NEAR_WINDOW) tekrarlar evez olunur
+    final = repeats(prompts, subjects, NEAR_WINDOW)
+    print(f"  ehtiyat fon: {len(final)} (bos: {sum(prompts[i] == FALLBACK_BG for i in final)})")
+    for k, i in enumerate(final):
         prompts[i], subjects[i] = fallback_bg(k), f"fallback {k}"
-        k += 1
     out = []
     for sc, bg, sub, spr, pos in zip(scenes, prompts, subjects, vary_poses(sprites), assign_positions(scenes)):
         out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos,

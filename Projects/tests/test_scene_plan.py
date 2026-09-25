@@ -87,7 +87,8 @@ def test_clean_bg_prompt_keeps_at_most_three_parts():
 
 def test_repeats_flags_fallback_and_recent_same_subject():
     subjects = ["robot chef", "slow cooker", "robot chef", "watering can", "slow cooker"]
-    prompts = ["a", "b", scene_plan.FALLBACK_BG, "d", "e"]
+    prompts = [f"a clear picture of thing number {k}" for k in range(5)]
+    prompts[2] = scene_plan.FALLBACK_BG
     assert scene_plan.repeats(prompts, subjects, window=3) == [2, 4]
 
 
@@ -110,3 +111,18 @@ def test_align_falls_back_to_order_when_numbers_missing():
 def test_align_uses_order_when_llm_renumbers_from_one():
     out = scene_plan.align([{"n": 1, "subject": "a"}, {"n": 2, "subject": "b"}], [97, 98])
     assert [it["subject"] for it in out] == ["a", "b"]
+
+
+def test_repeats_flags_prompts_stripped_too_thin():
+    prompts = ["a smartphone", "a robot arm stirring a pot of soup on a stove"]
+    assert scene_plan.repeats(prompts, ["phone", "robot arm"]) == [0]
+
+
+def test_clean_bg_prompt_drops_screen_devices():
+    got = scene_plan.clean_bg_prompt("a smartphone on a desk, a laptop, a brass bell ringing")
+    assert "phone" not in got and "laptop" not in got and "bell" in got
+
+
+def test_clean_bg_prompt_drops_someone_and_blackboard():
+    got = scene_plan.clean_bg_prompt("a robot stirring soup, someone cooking, a blackboard")
+    assert "someone" not in got and "blackboard" not in got and "robot" in got
