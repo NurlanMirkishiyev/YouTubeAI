@@ -70,8 +70,22 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
    (`Remotion/`, `Projects/remotion_build.py`, commit 0cfa5cb, e8c785c, b5d16b4)
 5. Personaj donuq/səliqəsiz → yalnız tam bədən pozları, eyni ölçü/yer xətti, spring giriş, nəfəs, səsə uyğun tərpənmə,
    poz cross-fade, ardıcıl eyni poz yox
-**İndi:** `run.py --resume what-is-business-automation --from scene_plan` arxa planda (log: scratchpad `ep2v3.log`).
-Sonra: fon kontakt vərəqi, kadr + hamarlıq yoxlaması, istifadəçiyə hesabat.
+**2026-09-26 sessiyası (istifadəçi "yaddaşa yaz, sonra davam edəcəyik" dedi — burada dayandı):**
+- scene_plan düzəlişləri (commit 5ec7e61, dd44ecb, da0ea64, c183352, 29a202d): LLM yarımçıq/yenidən nömrələnmiş
+  cavabı `align()` ilə düzülür; təkrarlar 12-lik hissələrlə 3 raund yenidən soruşulur (`RETRY_NOTE` — fiziki metafora);
+  <5 sözlük prompt "pis" sayılır; ekranlı cihazlar (phone/computer/laptop/tablet), sheet/written, someone/blackboard
+  filtrdə; `FALLBACK_POOL` = biznes/avtomatlaşdırma metaforaları; SDXL negativə collage/grid/split screen. 114 test.
+- **Tapıldı və düzəldildi (commit d30f12c, ac6d3c6):** `stages._build_cmd` hələ köhnə `build_episode.py`-ni çağırırdı —
+  Remotion pipeline-a QOŞULMAMIŞDI. İndi `remotion_build.py`.
+- `what-is-business-automation`: 98 səhnə, narration 935 s (15.6 dəq). 98 fon vizual yoxlandı (scratchpad sheet1–4.jpg):
+  bir aydın obyekt, məntiqli. 6 problemli səhnə (21, 23, 28, 47, 56, 91) promptu əl ilə dəyişdirildi, `--only` ilə
+  yenidən render + upscale edildi, yoxlandı — yaxşıdır. scene_plan/render/upscale/tts/srt HAZIR.
+- **Son addım (yarımçıq):** `run.py --resume what-is-business-automation --from build_episode` arxa planda başladıldı
+  (Remotion render ~28k kadr, ~1 saat; log scratchpad `ep2v6.log`, `Episodes/.../logs/build_episode.log`).
+  Sessiya bağlansa proses ölə bilər → **davam: mp4 yoxdursa eyni əmri yenidən işə sal.**
+- **Sonra:** final mp4 yoxla — kadrlar (intro, bölmə başlığı, outro, bayquş, altyazı), hamarlıq (scratchpad `smooth.py`
+  itə bilər: faza korrelyasiyası 90 kadr), intro/başlıq/outro səsi, `final_video_problems`, publish paketi;
+  commit; memory + progress yenilə; istifadəçiyə 5 şikayət üzrə hesabat (Azərbaycanca, "Yoxlama:" sətri ilə).
 
 ---
 
