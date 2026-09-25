@@ -60,7 +60,19 @@ TEXT_BEARING = re.compile(
     r"['\"‘’“”]|\b(signs?|signage|label(?:ed|led)?|screens?|dashboards?|"
     r"interfaces?|scoreboards?|charts?|graphs?|statements?|receipts?|checklists?|lists?|"
     r"notes?|notepad|report cards?|chalkboards?|whiteboards?|boards?|posters?|banners?|"
-    r"menus?|icons?|planners?|apps?|display of|homework|assignments?|grades)\b", re.I)
+    r"menus?|icons?|planners?|apps?|display of|homework|assignments?|grades|"
+    # obyektin ozu cap dasiyir - SDXL uzerinde mutleq psevdo-yazi cekir (E2E sc12/20/24/28)
+    r"calendars?|calculators?|bills?|banknotes?|books?|notebooks?|newspapers?|magazines?|"
+    r"documents?|papers?|invoices?|tickets?|coupons?|price tags?|plans?|"
+    r"card readers?|terminals?)\b", re.I)
+# "showing balance", "indicating savings" - abstrakt melumat teleb edir, SDXL onu yazi kimi cekir
+ABSTRACT_TAIL = re.compile(
+    r"\s+(?:showing|indicating|representing|displaying|counting|beside it|next to it|on the side)\b.*$",
+    re.I)
+# Eyni seed ile olculdu: negativ prompt kartdaki yazini aradan qaldirmir, bu ad ise qaldirir
+BLANK_CARD = "blank glossy plastic card with a small gold chip"
+PAYMENT_CARD = re.compile(r"\b(?:credit|debit|bank|payment|gift)\s+card(s?)\b(?!\s+readers?)", re.I)
+PIZZA_BOX = re.compile(r"\bpizza box(es)?\b", re.I)
 # "and" ile bolunende "limits", "no extra fees" kimi qirintilar qalir - yalniz isim birlesmesi saxlanir
 NOUN_START = re.compile(r"^(with|and)\s+", re.I)
 NOUN_PHRASE = re.compile(r"^(a|an|the|some|several|piles?|stacks?|rows?)\s", re.I)
@@ -71,6 +83,10 @@ def clean_bg_prompt(prompt: str) -> str:
     """Vergul / 'and' ile bolunen hisselerden yazi teleb edenleri atir; hec ne qalmasa FALLBACK_BG."""
     parts = [p.strip() for p in re.split(r",|\band\b", prompt) if p.strip()]
     parts = [NOUN_START.sub("", p) for p in parts]
+    parts = [ABSTRACT_TAIL.sub("", p) for p in parts]
+    parts = [PAYMENT_CARD.sub(lambda m: BLANK_CARD.replace("card", "card" + m.group(1), 1), p)
+             for p in parts]
+    parts = [PIZZA_BOX.sub(lambda m: "pizza tray" + ("s" if m.group(1) else ""), p) for p in parts]
     kept = [p for p in parts if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p)]
     return ", ".join(kept) or FALLBACK_BG
 
