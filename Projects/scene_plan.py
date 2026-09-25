@@ -79,7 +79,7 @@ out of a small mail robot; calendar app -> a wooden desk clock beside a potted p
 TEXT_BEARING = re.compile(
     r"['\"‘’“”]|\b(signs?|signage|label(?:ed|led)?|screens?|dashboards?|"
     r"interfaces?|scoreboards?|charts?|graphs?|statements?|receipts?|checklists?|lists?|"
-    r"notes?|notepad|report cards?|chalkboards?|blackboards?|whiteboards?|boards?|posters?|banners?|"
+    r"notes?|notepad|sheets?|written|writing|handwriting|report cards?|chalkboards?|blackboards?|whiteboards?|boards?|posters?|banners?|"
     r"menus?|icons?|planners?|apps?|display of|homework|assignments?|grades|"
     # obyektin ozu cap dasiyir - SDXL uzerinde mutleq psevdo-yazi cekir (E2E sc12/20/24/28)
     r"calendars?|calculators?|bills?|banknotes?|books?|notebooks?|newspapers?|magazines?|"

@@ -126,3 +126,8 @@ def test_clean_bg_prompt_drops_screen_devices():
 def test_clean_bg_prompt_drops_someone_and_blackboard():
     got = scene_plan.clean_bg_prompt("a robot stirring soup, someone cooking, a blackboard")
     assert "someone" not in got and "blackboard" not in got and "robot" in got
+
+
+def test_clean_bg_prompt_drops_sheets_and_written_things():
+    got = scene_plan.clean_bg_prompt("an attendance sheet with checkmarks, some with reminders written on them, a brass bell")
+    assert "sheet" not in got and "written" not in got and "bell" in got
