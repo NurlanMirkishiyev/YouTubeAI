@@ -58,3 +58,39 @@ def test_clean_bg_prompt_drops_human_nouns_but_keeps_robots():
 def test_clean_bg_prompt_turns_pizza_box_into_tray():
     out = scene_plan.clean_bg_prompt("an empty pizza box on a table")
     assert out == "an empty pizza tray on a table"
+
+
+# Istifadeci: "sekiller oxsar ve tekrardir", "personaj eyni formada". E2E business-automation:
+# 40 sehnenin 32-si three_q, 8 sehne eyni FALLBACK_BG, sehne ~20 s bir sekil.
+def test_split_scenes_makes_short_shots():
+    md = "## Hook\n\n" + " ".join(f"Sentence number {i} has exactly seven words." for i in range(12))
+    scenes = scene_plan.split_scenes(md)
+    assert len(scenes) >= 3
+    assert all(len(s["narration"].split()) <= scene_plan.MAX_WORDS for s in scenes)
+
+
+def test_video_poses_are_full_body_only():
+    assert set(scene_plan.VIDEO_POSES) == {"front", "three_q", "side", "box", "chart"}
+
+
+def test_pose_variety_never_repeats_back_to_back():
+    out = scene_plan.vary_poses(["three_q"] * 7 + ["happy", "chart", "chart"])
+    assert all(p in scene_plan.VIDEO_POSES for p in out)
+    assert all(a != b for a, b in zip(out, out[1:]))
+    assert out[8] == "chart"            # etibarli ferqli secim saxlanir
+
+
+def test_clean_bg_prompt_keeps_at_most_three_parts():
+    p = "a kitchen counter, a robot arm, a soup pot, a spoon, a bowl of salad"
+    assert scene_plan.clean_bg_prompt(p) == "a kitchen counter, a robot arm, a soup pot"
+
+
+def test_repeats_flags_fallback_and_recent_same_subject():
+    subjects = ["robot chef", "slow cooker", "robot chef", "watering can", "slow cooker"]
+    prompts = ["a", "b", scene_plan.FALLBACK_BG, "d", "e"]
+    assert scene_plan.repeats(prompts, subjects, window=3) == [2, 4]
+
+
+def test_fallbacks_are_never_reused():
+    got = [scene_plan.fallback_bg(k) for k in range(len(scene_plan.FALLBACK_POOL))]
+    assert len(set(got)) == len(got)

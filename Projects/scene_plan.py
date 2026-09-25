@@ -17,38 +17,46 @@ from llm import LLMError, add_provider_arg, chat_json  # noqa: E402
 
 SPRITES_JSON = r"C:\YouTubeAI\Character\ELI5_Owl\sprites\sprites.json"
 WPM = 199.0   # olculmus; hər halda add. 25-de gercek audio uzunlugu ile evez olunur
-MIN_WORDS, MAX_WORDS = 30, 75      # sehne uzunlugu (teqriben 12-30 s)
+# Istifadeci: "sekiller tekrardir" - 20 s bir sekil darixdirir. Sehne ~4-10 s, her sehneye oz sekli.
+MIN_WORDS, MAX_WORDS = 14, 32
+PLAN_CHUNK = 24                    # LLM-e bir defede verilen sehne sayi (uzun JSON pozulmasin)
+REPEAT_WINDOW = 8                  # eyni esas obyekt bu qeder sehne erzinde tekrar olunmur
+# Busт sprite-lerin bir yani kesikdir - kenara yapisdirilmali olur ve tam beden pozlarla
+# olcu/yer uygunsuzlugu yaradir ("sekilsiz yerlesdirilib"). Videoda yalniz tam beden.
+VIDEO_POSES = ("front", "three_q", "side", "box", "chart")
 MIN_DUR, MAX_DUR = 6.0, 45.0   # klemp yalniz emniyyet ucun; gercek muddet add. 25-de TTS-den gelir
 POSITIONS = ("left", "right", "center")
 
-SYSTEM = """You are a scene planner for an animated explainer video.
-The host is a cartoon owl rendered as a fixed sprite overlay - you never describe the owl.
-You only choose: (1) a background illustration prompt, (2) which owl pose fits the narration.
+SYSTEM = """You are the art director of an animated explainer video for kids and beginners.
+The host is a cartoon owl rendered separately in a lower corner - you never describe the owl.
+For every scene you choose one background picture and one owl pose.
 
-Background prompt rules:
-- Describe CONTENT ONLY - never style. The render pipeline appends the art style itself,
-  so never write "vector", "illustration", "flat", "3D", "render", "style", "colors", "palette".
-- The background must contain NO characters, NO people, NO animals, NO owl, NO mascot.
-- The background must contain NO written words, letters or numbers - the image model cannot
-  render text. Never use signs, labels, screens, dashboards, interfaces, scoreboards,
-  charts, graphs, statements, receipts, checklists, notes, report cards, boards or posters.
-  Show physical objects instead (coins, cards, jars, boxes, tools, furniture, food).
-- Describe one clear concrete scene or object set that mirrors the narration's example.
-- A comma separated list of objects and setting, 12-25 words, English.
-- Start with the setting, then the objects in it."""
+Picture rules:
+- ONE clear hero subject that literally shows what the narration is talking about right now
+  (the object, machine, place or result in the sentence), doing its action if it has one.
+  Example: "a shiny robot arm stirring a pot of tomato soup on a stove".
+- At most one or two supporting props and a simple setting. Never a list of many objects.
+- Everything must make physical sense: objects at normal size, in their normal place, not merged.
+- Describe CONTENT ONLY - never style words (vector, illustration, flat, 3D, render, colors).
+- NO people, NO hands, NO animals, NO characters. Robots and machines are fine.
+- NO written words, letters, numbers, screens, signs, labels, charts, documents, books,
+  calendars, receipts, money bills. Show physical objects instead.
+- Every scene must look DIFFERENT from the previous scenes: a new hero subject, a new place
+  or a clearly different close-up. Never reuse a subject from the recent list.
+- 8-20 words, English, comma separated: hero subject first, then props, then setting.
+- "subject": the hero subject in 1-3 words (used to detect repeats)."""
 
-USER = """For each numbered scene below, return a background prompt and an owl pose.
+USER = """Return a picture and an owl pose for each numbered scene.
 
-Available owl poses (use the name exactly):
-{poses}
+Available owl poses (use the name exactly): {poses}
+front = talking to viewer, three_q = explaining, side = walking/looking at something,
+box = showing a product/example/object, chart = numbers, growth, comparisons, results.
+Change the pose from one scene to the next.
 
-Pose guidance: front/three_q/side for plain explanation, happy for good news and payoffs,
-thinking for questions and problems, confident for conclusions and advice,
-chart for numbers, growth and comparisons, box for concrete objects, products and examples.
-Vary the poses - do not repeat the same pose more than twice in a row.
+Subjects already used recently (do NOT repeat them): {used}
 
 Return JSON exactly in this shape, one entry per scene, same order, no extra keys:
-{{"scenes": [{{"n": 1, "bg_prompt": "...", "sprite": "three_q"}}]}}
+{{"scenes": [{{"n": 1, "subject": "...", "bg_prompt": "...", "sprite": "three_q"}}]}}
 
 Scenes:
 {scenes}"""
@@ -83,7 +91,27 @@ PIZZA_BOX = re.compile(r"\bpizza box(es)?\b", re.I)
 # "and" ile bolunende "limits", "no extra fees" kimi qirintilar qalir - yalniz isim birlesmesi saxlanir
 NOUN_START = re.compile(r"^(with|and)\s+", re.I)
 NOUN_PHRASE = re.compile(r"^(a|an|the|some|several|piles?|stacks?|rows?)\s", re.I)
+MAX_PARTS = 3      # SDXL cox obyekti bir-birine qarisdirir ("esyalar qarisib")
 FALLBACK_BG = "a cozy tidy desk with a potted plant, a coffee mug and a warm lamp"
+# Temizlenmis prompt bos qalanda - her biri bir defe istifade olunur (8 eyni fon olmusdu)
+FALLBACK_POOL = (
+    "a shiny brass gear mechanism turning, soft workshop light",
+    "a glass jar of colorful marbles on a wooden shelf",
+    "a paper airplane gliding over a sunny park",
+    "a red toy rocket standing on a launch pad, blue sky",
+    "a small wind turbine spinning on a green hill",
+    "a stack of wooden building blocks forming a tower",
+    "a lighthouse on a rocky shore at sunset",
+    "a hot air balloon floating over green fields",
+    "a toy train crossing a little bridge",
+    "a potted sunflower on a sunny windowsill",
+    "a compass lying on a wooden table, warm light",
+    "a treasure chest full of golden coins on sand",
+    "a bicycle leaning against a garden fence",
+    "a steaming cup of cocoa next to a small cactus",
+    "an open toolbox with colorful tools on a workbench",
+    "a row of glass jars with sprouting seeds",
+)
 
 
 def clean_bg_prompt(prompt: str) -> str:
@@ -96,7 +124,36 @@ def clean_bg_prompt(prompt: str) -> str:
     parts = [PIZZA_BOX.sub(lambda m: "pizza tray" + ("s" if m.group(1) else ""), p) for p in parts]
     kept = [p for p in parts
             if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p) and not HUMAN.search(p)]
-    return ", ".join(kept) or FALLBACK_BG
+    return ", ".join(kept[:MAX_PARTS]) or FALLBACK_BG
+
+
+def fallback_bg(k: int) -> str:
+    return FALLBACK_POOL[k % len(FALLBACK_POOL)]
+
+
+def _norm(subject: str) -> str:
+    return " ".join(w.rstrip("s") for w in re.findall(r"[a-z]+", subject.lower()) if w not in ("a", "an", "the"))
+
+
+def repeats(prompts: list[str], subjects: list[str], window: int = REPEAT_WINDOW) -> list[int]:
+    """Yeniden planlanmali sehneler: fallback-e dusenler ve son `window` sehnede esas obyekti tekrar olanlar."""
+    bad = []
+    for i, (p, sub) in enumerate(zip(prompts, subjects)):
+        recent = {_norm(x) for x in subjects[max(0, i - window):i]}
+        if p == FALLBACK_BG or (_norm(sub) and _norm(sub) in recent):
+            bad.append(i)
+    return bad
+
+
+def vary_poses(suggested: list[str]) -> list[str]:
+    """LLM-in secimi saxlanir, amma yalniz tam beden ve ardicil eyni poz olmadan."""
+    out: list[str] = []
+    for k, p in enumerate(suggested):
+        pose = p if p in VIDEO_POSES else VIDEO_POSES[k % len(VIDEO_POSES)]
+        if out and pose == out[-1]:
+            pose = next(x for x in VIDEO_POSES[k % len(VIDEO_POSES):] + VIDEO_POSES if x != out[-1])
+        out.append(pose)
+    return out
 
 
 def load_poses() -> list[str]:
@@ -130,9 +187,9 @@ def split_scenes(markdown: str) -> list[dict]:
         for sentence in re.split(r"(?<=[.!?])\s+", line):
             if not sentence:
                 continue
-            buf.append(sentence)
-            if len(" ".join(buf).split()) >= MAX_WORDS:
+            if buf and len(" ".join(buf).split()) + len(sentence.split()) > MAX_WORDS:
                 flush()
+            buf.append(sentence)
         flush()
     flush()
 
@@ -168,26 +225,52 @@ def duration_for(narration: str) -> float:
     return round(min(MAX_DUR, max(MIN_DUR, raw_duration(narration))), 1)
 
 
-def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
-    listing = "\n".join(f"{i + 1}. [{s['section']}] {s['narration']}" for i, s in enumerate(scenes))
-    data = chat_json(SYSTEM, USER.format(poses=", ".join(poses), scenes=listing),
-                     max_tokens=6000, **llm_kw)
+def _ask(scenes: list[dict], numbers: list[int], used: list[str], **llm_kw) -> list[dict]:
+    listing = "\n".join(f"{n}. [{scenes[n - 1]['section']}] {scenes[n - 1]['narration']}" for n in numbers)
+    data = chat_json(SYSTEM, USER.format(poses=", ".join(VIDEO_POSES), used=", ".join(used) or "none",
+                                         scenes=listing), max_tokens=4000, **llm_kw)
     items = data.get("scenes") or []
-    if len(items) != len(scenes):
-        raise LLMError(f"sehne sayi uygun gelmir: LLM {len(items)}, gozlenilen {len(scenes)}")
+    if len(items) != len(numbers):
+        raise LLMError(f"sehne sayi uygun gelmir: LLM {len(items)}, gozlenilen {len(numbers)}")
+    return items
+
+
+def _fields(it: dict) -> tuple[str, str, str]:
+    bg = " ".join(str(it.get("bg_prompt", "")).split())
+    return (clean_bg_prompt(bg) if bg else FALLBACK_BG,
+            " ".join(str(it.get("subject", "")).split()) or bg[:30], str(it.get("sprite", "")).strip())
+
+
+def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
+    """Hisse-hisse planlanir (son movzular LLM-e verilir), sonra tekrarlar bir defe yeniden istenir,
+    qalanlar tekrarsiz FALLBACK_POOL-dan alir. Pozlar tam beden, ardicil tekrarsiz."""
+    missing = [p for p in VIDEO_POSES if p not in poses]
+    if missing:
+        raise LLMError(f"sprites.json-da poz yoxdur: {missing}")
+    prompts: list[str] = []
+    subjects: list[str] = []
+    sprites: list[str] = []
+    for start in range(0, len(scenes), PLAN_CHUNK):
+        numbers = list(range(start + 1, min(len(scenes), start + PLAN_CHUNK) + 1))
+        for it in _ask(scenes, numbers, subjects[-REPEAT_WINDOW * 2:], **llm_kw):
+            bg, sub, spr = _fields(it)
+            prompts.append(bg)
+            subjects.append(sub)
+            sprites.append(spr)
+    bad = repeats(prompts, subjects)
+    if bad:
+        print(f"  tekrar/bos fon: {len(bad)} sehne yeniden istenir")
+        used = sorted({x for x in subjects if x})
+        for i, it in zip(bad, _ask(scenes, [i + 1 for i in bad], used, **llm_kw)):
+            prompts[i], subjects[i], _ = _fields(it)
+    k = 0
+    for i in repeats(prompts, subjects):
+        prompts[i], subjects[i] = fallback_bg(k), f"fallback {k}"
+        k += 1
     out = []
-    positions = assign_positions(scenes)
-    for sc, it, pos in zip(scenes, items, positions):
-        sprite = str(it.get("sprite", "")).strip()
-        bg = " ".join(str(it.get("bg_prompt", "")).split())
-        bg = clean_bg_prompt(bg) if bg else bg
-        if sprite not in poses:
-            print(f"  DIQQET: bilinmeyen sprite {sprite!r} -> three_q")
-            sprite = "three_q"
-        if not bg:
-            raise LLMError("bos bg_prompt qaytarildi")
-        out.append({**sc, "bg_prompt": bg, "sprite": sprite, "pos": pos,
-                    "sprite_token": f"{sprite}@{pos}", "duration": duration_for(sc["narration"])})
+    for sc, bg, sub, spr, pos in zip(scenes, prompts, subjects, vary_poses(sprites), assign_positions(scenes)):
+        out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos,
+                    "sprite_token": f"{spr}@{pos}", "duration": duration_for(sc["narration"])})
     return out
 
 
