@@ -231,6 +231,14 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 
 ## İcra jurnalı (ən yeni yuxarıda)
 
+### 2026-09-26 — E2E: `what-is-cash-flow` (ChatGPT şəkilləri, 8–10 dəq qaydası)
+- Video HAZIR: **8.52 dəq** (511 s), 1920×1080 H.264 High 4.1 yuv420p, AAC 48 kHz stereo, −14.2 LUFS, 376 MB,
+  dekod xətasız, `final_video_problems=[]`. 52 səhnə, gpt-image-2 (low), `check_bgs` 5 fonu yenidən çəkdi.
+- **Publish paketi (youtube/) hazır deyil — OpenAI krediti bitdi.** Kredit əlavə edildikdən sonra:
+  `python run.py --resume what-is-cash-flow` (yalnız publish mərhələsi, ~1 dəq).
+- Yolda tapılıb kodda düzəldilən: reyestr #17–#23 (429 limit, 8–10 dəq, köhnə fayllar, təkrar obyekt,
+  heyvanlar, ehtiyat fon, balans xətası). 118 test.
+
 ### 2026-09-26 — Şəkillər ChatGPT ilə, təmizlik
 - İstifadəçi: "şəkillər chatgpt ilə hazırlansın", "lazımsız nə varsa sil", "LTX-i plandan çıxar";
   altyazı səsləndirməsi artıq var — dəyişməz qaldı
