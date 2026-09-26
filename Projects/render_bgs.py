@@ -33,7 +33,9 @@ IMAGES_PER_MIN = 5        # OpenAI hesab limiti (2026-09-26: "input-images per m
 RETRIES_429 = 6
 STYLE = ("3D Pixar-style animated render, soft studio lighting, vibrant friendly colors, "
          "clean simple composition with one clear main subject, wide 16:9 framing.")
-RULES = "No text, no letters, no numbers, no logos, no people, no hands."
+# "Pixar-style" deyilende model ozu kucuk/pisik/dovsan elave edirdi (ep4, 7 fon) - bayqus-aparicini kolgede qoyur
+RULES = ("No text, no letters, no numbers, no logos, no people, no hands, "
+         "no animals or cartoon characters (robots are fine).")
 # bayqus hansi terefdedirse, fonun o terefi bos qalmalidir
 SPACE = {"right": "The main subject is on the left half; calm empty space on the right side.",
          "left": "The main subject is on the right half; calm empty space on the left side.",

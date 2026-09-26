@@ -24,6 +24,7 @@ RETRY_ROUNDS, RETRY_CHUNK = 3, 12   # tekrarlar kicik hisselerle yeniden istenir
 REPEAT_WINDOW = 8                  # eyni esas obyekt bu qeder sehne erzinde tekrar olunmur
 MIN_PROMPT_WORDS = 5               # "a smartphone" - temizlemeden sonra cilpaq qalan prompt -> yeniden
 NEAR_WINDOW = 2                    # bundan yaxin tekrar olunan subyekt ehtiyat fonla evez olunur
+MAX_SAME_HERO = 2                  # eyni esas isim butun epizodda en cox bu qeder (ep4: 7 sikke bankasi)
 # Busт sprite-lerin bir yani kesikdir - kenara yapisdirilmali olur ve tam beden pozlarla
 # olcu/yer uygunsuzlugu yaradir ("sekilsiz yerlesdirilib"). Videoda yalniz tam beden.
 VIDEO_POSES = ("front", "three_q", "side", "box", "chart")
@@ -157,12 +158,42 @@ def _norm(subject: str) -> str:
     return " ".join(w.rstrip("s") for w in re.findall(r"[a-z]+", subject.lower()) if w not in ("a", "an", "the"))
 
 
+_ARTICLES = {"a", "an", "the", "some", "several"}
+_HERO_STOP = {"with", "of", "on", "in", "at", "next", "beside", "near", "under", "over", "from", "to", "for",
+              "filled", "full", "and", "that", "which", "while", "into", "onto", "by", "against", "behind"}
+
+
+def hero(prompt: str) -> str:
+    """Promptun esas ismi: ilk isim birlesmesinin son sozu ("a glass jar slowly filling ..." -> "jar").
+    LLM subyekti mucerred adlandirir ("positive cash flow"), sekil ise eyni sikke bankasi olur."""
+    chunk: list[str] = []
+    for w in re.findall(r"[a-z]+", prompt.split(",")[0].lower()):
+        if not chunk and w in _ARTICLES:
+            continue
+        if w in _HERO_STOP or (chunk and (w.endswith("ing") or w.endswith("ly") or
+                                          (w.endswith("ed") and len(w) > 4))):
+            break
+        chunk.append(w)
+    return chunk[-1].rstrip("s") if chunk else ""
+
+
+def avoid_list(prompts: list[str], subjects: list[str], skip: set[int] = frozenset()) -> list[str]:
+    """LLM-e "bunlari tekrarlama" siyahisi: subyektler + sekildeki esas isimler ("jar")."""
+    keep = [i for i in range(len(prompts)) if i not in skip]
+    return sorted({subjects[i] for i in keep if subjects[i]} | {hero(prompts[i]) for i in keep if hero(prompts[i])})
+
+
 def repeats(prompts: list[str], subjects: list[str], window: int = REPEAT_WINDOW) -> list[int]:
-    """Yeniden planlanmali sehneler: fallback-e dusenler ve son `window` sehnede esas obyekti tekrar olanlar."""
+    """Yeniden planlanmali sehneler: fallback-e dusenler, son `window` sehnede subyekti ve ya esas ismi
+    tekrar olanlar, butun epizodda esas ismi MAX_SAME_HERO defe artiq islenenler."""
     bad = []
+    heroes = [hero(p) for p in prompts]
     for i, (p, sub) in enumerate(zip(prompts, subjects)):
-        recent = {_norm(x) for x in subjects[max(0, i - window):i]}
-        if p == FALLBACK_BG or len(p.split()) < MIN_PROMPT_WORDS or (_norm(sub) and _norm(sub) in recent):
+        lo = max(0, i - window)
+        recent = {_norm(x) for x in subjects[lo:i]}
+        h = heroes[i]
+        if (p == FALLBACK_BG or len(p.split()) < MIN_PROMPT_WORDS or (_norm(sub) and _norm(sub) in recent)
+                or (h and (h in heroes[lo:i] or heroes[:i].count(h) >= MAX_SAME_HERO))):
             bad.append(i)
     return bad
 
@@ -292,7 +323,10 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     sprites: list[str] = []
     for start in range(0, len(scenes), PLAN_CHUNK):
         numbers = list(range(start + 1, min(len(scenes), start + PLAN_CHUNK) + 1))
-        for it in _ask(scenes, numbers, subjects[-REPEAT_WINDOW * 2:], **llm_kw):
+        recent = avoid_list(prompts[-REPEAT_WINDOW * 2:], subjects[-REPEAT_WINDOW * 2:])
+        heroes = [hero(p) for p in prompts]
+        overused = {h for h in heroes if h and heroes.count(h) >= MAX_SAME_HERO}
+        for it in _ask(scenes, numbers, sorted(set(recent) | set(overused)), **llm_kw):
             bg, sub, spr = _fields(it)
             prompts.append(bg)
             subjects.append(sub)
@@ -304,7 +338,7 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
         print(f"  tekrar/bos fon: {len(bad)} sehne yeniden istenir")
         for c in range(0, len(bad), RETRY_CHUNK):
             part = bad[c:c + RETRY_CHUNK]
-            used = sorted({x for j, x in enumerate(subjects) if x and j not in part})
+            used = avoid_list(prompts, subjects, skip=set(part))
             for i, it in zip(part, _ask(scenes, [i + 1 for i in part], used, retry=True, **llm_kw)):
                 if it:
                     prompts[i], subjects[i], _ = _fields(it)

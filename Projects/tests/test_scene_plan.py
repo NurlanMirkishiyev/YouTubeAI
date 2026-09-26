@@ -94,7 +94,7 @@ def test_clean_bg_prompt_keeps_at_most_three_parts():
 
 def test_repeats_flags_fallback_and_recent_same_subject():
     subjects = ["robot chef", "slow cooker", "robot chef", "watering can", "slow cooker"]
-    prompts = [f"a clear picture of thing number {k}" for k in range(5)]
+    prompts = [f"a shiny {n} on a wooden table" for n in ("kettle", "lamp", "vase", "clock", "globe")]
     prompts[2] = scene_plan.FALLBACK_BG
     assert scene_plan.repeats(prompts, subjects, window=3) == [2, 4]
 
@@ -144,3 +144,29 @@ def test_clean_bg_prompt_drops_sheets_and_written_things():
 def test_clean_bg_prompt_drops_digital_and_smart_devices_but_keeps_smart_robots():
     p = "a smart kitchen scale with vegetables, a digital thermometer, a smart robot sorting fruit"
     assert scene_plan.clean_bg_prompt(p) == "a smart robot sorting fruit"
+
+
+# E2E ep4 (cash flow): 52 sehnede 7 "sikke bankasi" - subyektler ferqli adlanirdi ("savings jar",
+# "positive cash flow") ve yalniz son 8 sehneye baxilirdi. Esas isim promptdan cixarilir.
+def test_hero_noun_is_the_head_of_the_first_noun_phrase():
+    assert scene_plan.hero("a glass jar slowly filling with golden coins on a wooden table") == "jar"
+    assert scene_plan.hero("a transparent jar filled with coins") == "jar"
+    assert scene_plan.hero("A flowing river with stepping stones") == "river"
+    assert scene_plan.hero("a cracked piggy bank with coins spilling out") == "bank"
+    assert scene_plan.hero("a tray of freshly baked cookies cooling on a rack") == "tray"
+
+
+def test_repeats_limits_the_same_hero_across_the_whole_episode():
+    prompts = [f"a shiny {n} on a wooden table" for n in
+               "kettle lamp vase clock globe drum kite boat bell tent sled cup rope fan map key bus toy hat van".split()]
+    for k in (0, 9, 18):
+        prompts[k] = f"a glass jar filled with coins, picture {k}"
+    subjects = [f"s{k}" for k in range(20)]
+    assert scene_plan.repeats(prompts, subjects, window=3) == [18]    # 3-cu jar (MAX_SAME_HERO=2)
+
+
+def test_avoid_list_names_the_real_objects_not_only_abstract_subjects():
+    prompts = ["a glass jar filled with coins", "a jar of coins on a desk", "a red kettle on a stove"]
+    subjects = ["positive cash flow", "savings", "boiling point"]
+    got = scene_plan.avoid_list(prompts, subjects, skip={2})
+    assert "jar" in got and "positive cash flow" in got and "kettle" not in got

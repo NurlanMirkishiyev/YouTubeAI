@@ -95,3 +95,8 @@ def test_prune_removes_backgrounds_beyond_the_scene_count(tmp_path):
         (tmp_path / f"sc{n:02d}.png").write_bytes(b"x")
     rb.prune_extra(str(tmp_path), 2)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["sc01.png", "sc02.png"]
+
+
+# E2E ep4: "Pixar-style" deyilende gpt-image ozu kucuk/pisik/dovsan elave edirdi (7 fonda) - bayqusla reqabet
+def test_prompt_forbids_extra_animal_characters():
+    assert "no animals" in rb.build_prompt("a jar of coins", "right").lower()

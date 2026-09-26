@@ -60,6 +60,9 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 16 | "smart kitchen scale/oven" ekranında rəqəm/yazı (ep3 sc16/sc23) | ekranlı cihaz | `digital …`, `smart <cihaz>` yazı daşıyan sayılır, "smart robot" qalır (`547950f`) |
 | 17 | gpt-image 97 şəkildən 55-ni 429 ilə itirdi (ep4) | hesab limiti dəqiqədə 5 şəkil | sürüşən pəncərə limiter + API-nin dediyi qədər gözləmə (`63e3379`) |
 | 18 | Video 16 dəq çıxırdı; istifadəçi: **8–10 dəq, 10-dan uzun olmasın** | söz hədəfi xalis 199 wpm ilə, max qaydası yox idi | effektiv 150 söz/dəq, default 1230 söz, skript və TTS qapıları həm uzadır həm qısaldır (`--shorten`), final video > 600 s → xəta |
+| 19 | Səhnə sayı azalanda köhnə `bg/sc53..95` qalırdı (ep4) | `render_bgs` artıq faylları silmirdi | `prune_extra` (`def75af`) |
+| 20 | 52 səhnədə 7 sikkə bankası (ep4) | subyektlər mücərrəd adlanırdı, yalnız son 8 səhnəyə baxılırdı | promptun əsas ismi (`hero`) müqayisə olunur, epizodda eyni isim ≤ 2 dəfə, LLM-ə əsas isimlər də "istifadə olunub" kimi verilir |
+| 21 | ChatGPT öz-özünə küçük/pişik/dovşan çəkirdi (ep4, 7 fon) | "Pixar-style" personaj gətirir | şəkil promptunda "no animals or cartoon characters (robots are fine)" |
 
 **Hələ avtomatlaşdırılmayan (istifadəçi qərarı):** fon musiqisi (`Music\*.mp3`).
 
