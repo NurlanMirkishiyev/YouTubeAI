@@ -202,3 +202,34 @@ def test_publish_stage_passes_music_for_the_credit():
     stage = next(s for s in st.STAGES if s.name == "publish")
     cmd = stage.command(ctx, False)
     assert cmd[cmd.index("--music") + 1] == "M.mp3"
+
+
+def _finished_episode(tmp_path):
+    ep = tmp_path / "Episodes" / "cash"
+    (ep / "youtube").mkdir(parents=True)
+    (ep / "cash.mp4").write_bytes(b"video")
+    (ep / "youtube" / "thumbnail.png").write_bytes(b"png")
+    (ep / "youtube" / "title.txt").write_text("Cash Title\n", encoding="utf-8")
+    (ep / "youtube" / "description.txt").write_text("Desc 00:00 Intro\n", encoding="utf-8")
+    (ep / "youtube" / "tags.txt").write_text("a,b\n", encoding="utf-8")
+    return ep
+
+
+def test_deliver_puts_video_thumbnail_and_upload_text_in_one_folder(tmp_path):
+    ep = _finished_episode(tmp_path)
+    out = tmp_path / "Hazir_Videolar"
+    pl.deliver(str(ep), "cash", str(out))
+    assert sorted(p.name for p in out.iterdir()) == ["cash.mp4", "cash.png", "cash.txt"]
+    assert (out / "cash.mp4").read_bytes() == b"video"
+    text = (out / "cash.txt").read_text(encoding="utf-8")
+    assert "Cash Title" in text and "Desc 00:00 Intro" in text and "a,b" in text
+
+
+def test_deliver_replaces_an_older_copy(tmp_path):
+    ep = _finished_episode(tmp_path)
+    out = tmp_path / "Hazir_Videolar"
+    pl.deliver(str(ep), "cash", str(out))
+    (ep / "cash.mp4").unlink()
+    (ep / "cash.mp4").write_bytes(b"new video")
+    pl.deliver(str(ep), "cash", str(out))
+    assert (out / "cash.mp4").read_bytes() == b"new video"

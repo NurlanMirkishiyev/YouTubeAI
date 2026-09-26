@@ -26,6 +26,9 @@
 **İstifadə:** iş masasında **"ELI5 Yeni Video"** qısayolu = `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan
 yarımçıq epizod davam edir) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
 `Episodes\<slug>\<slug>.mp4` + `Episodes\<slug>\youtube\`. Yarımçıq qalsa: `python run.py --resume <slug>`.
+**Bütün hazır videolar bir yerdə:** `C:\YouTubeAI\Hazir_Videolar\` (iş masasında "ELI5 Hazir Videolar"):
+`<slug>.mp4` (hardlink, əlavə yer tutmur) + `<slug>.png` (thumbnail) + `<slug>.txt` (başlıq/description/tags) —
+pipeline sonda `deliver()` ilə avtomatik yazır.
 Musiqi: `--music` verilməsə `Music\*.mp3`-dən slug-a görə trek seçilir (sha1 → epizodlar arasında növbə, resume eyni trek).
 4 trek: Kevin MacLeod (incompetech), **CC BY 4.0** → `Music\credits.json` üzrə istinad description.txt-ə avtomatik yazılır.
 Yeni trek əlavə edəndə: mp3-ü `Music\`-ə qoy; CC BY-dırsa `credits.json`-a `"fayl.mp3": "Başlıq"` sətri əlavə et.
@@ -143,8 +146,8 @@ personaj sabit dayansın, şəkli səhnəyə uyğunlaşsın, tam hazır olsun"):
 2. İndi: istifadəçi yeni mövzu verir → `python run.py "Mövzu"` (~45 dəq: skript 1 dəq, ~50 ChatGPT şəkli ~10 dəq
    [limit 5/dəq], hakim ~2 dəq, upscale ~13 dəq, TTS+SRT ~2 dəq, Remotion ~11 dəq). Claude `Start-Process` ilə
    müstəqil açır; fon yoxlamasını pipeline özü edir (`check_bgs`, `Episodes/<slug>/bg_qa.json`).
-Qeyd: köhnə 2 epizod (`what-is-business-automation`, `how-ai-agents-change-automation`) 8–10 dəq qaydasından
-əvvəl çəkilib (15–16 dəq) və ara faylları silinib — yenidən render olunmayıb.
+Köhnə 2 epizod (`what-is-business-automation`, `how-ai-agents-change-automation`) 2026-09-27 istifadəçi
+qərarı ilə silindi. `Episodes\`-də yalnız `what-is-cash-flow` qalıb.
 
 ---
 
@@ -249,6 +252,8 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 - Pozlar: `vary_poses` (zorla növbə) → `fit_poses` (LLM-in səhnəyə uyğun seçimi), prompt "pick the pose that best fits"
 - Köhnə sol-kompozisiyalı fonlar `flip` ilə güzgülənir (fonlarda yazı yoxdur → güzgü təhlükəsizdir)
 - İş masasına "ELI5 Yeni Video" qısayolu; bat musiqini pipeline-a buraxır. 127 test.
+- İstifadəçi: "köhnə videoları sil, yeni videolar bir qovluğa" → 2 köhnə epizod silindi; `deliver()` →
+  `Hazir_Videolar\` (mp4 hardlink + png + txt), iş masasında "ELI5 Hazir Videolar". 129 test.
 
 ### 2026-09-26 — E2E: `what-is-cash-flow` (ChatGPT şəkilləri, 8–10 dəq qaydası)
 - Video HAZIR: **8.52 dəq** (511 s), 1920×1080 H.264 High 4.1 yuv420p, AAC 48 kHz stereo, −14.2 LUFS, 376 MB,
