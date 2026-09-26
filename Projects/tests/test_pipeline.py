@@ -64,9 +64,9 @@ def test_run_pipeline_skips_done_and_records_failure(tmp_path):
         return ["boom"] if stage.name == "c" else []
 
     path = str(tmp_path / "state.json")
-    rc = pl.run_pipeline(_ctx(tmp_path), path, stages=stages, runner=runner, gates={})
+    rc = pl.run_pipeline(_ctx(tmp_path), path, stages=stages, runner=runner, gates={}, sleep=lambda s: None)
     s = state.read_state(path)
-    assert rc == 1 and ran == ["b", "c"]
+    assert rc == 1 and ran == ["b"] + ["c"] * (1 + pl.STAGE_RETRIES)
     assert [s["stages"][n]["status"] for n in "abc"] == ["done", "done", "failed"]
     assert s["stages"]["c"]["error"] == "boom"
 
@@ -106,3 +106,17 @@ def test_build_stage_renders_with_remotion():
     ctx = stages.Ctx(topic="T", slug="t", ep_dir="E", words=100, music=None, min_seconds=600.0, provider="openai")
     cmd = stages._build_cmd(ctx, False)
     assert cmd[1].endswith("remotion_build.py") and "E" in cmd and "--music" not in cmd
+
+
+# Muveqqeti xeta (sebeke, ComfyUI/Remotion cokmesi) butun videonu dayandirmasin - merhele yeniden cehd edilir
+def test_run_pipeline_retries_a_stage_after_transient_failure(tmp_path):
+    stages = [_fake_stage("a", False), _fake_stage("b", False)]
+    ran, waits = [], []
+
+    def runner(stage, ctx, force, log_dir):
+        ran.append(stage.name)
+        return ["network down"] if stage.name == "a" and ran.count("a") == 1 else []
+
+    rc = pl.run_pipeline(_ctx(tmp_path), str(tmp_path / "s.json"), stages=stages, runner=runner,
+                         gates={}, sleep=waits.append)
+    assert rc == 0 and ran == ["a", "a", "b"] and len(waits) == 1

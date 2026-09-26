@@ -85,6 +85,9 @@ TEXT_BEARING = re.compile(
     r"calendars?|calculators?|bills?|banknotes?|books?|notebooks?|newspapers?|magazines?|"
     r"documents?|papers?|invoices?|tickets?|coupons?|price tags?|plans?|"
     r"card readers?|terminals?|"
+    # ekranli cihazlar reqem/yazi cekir (ep3 sc23 "smart kitchen scale" 3 raund); "smart robot" qalir
+    r"digital \w+|smart (?:kitchen )?(?:scales?|ovens?|devices?|watch(?:es)?|thermostats?|speakers?|"
+    r"meters?|displays?|fridges?|refrigerators?|blenders?|appliances?)|"
     # ekranli cihaz - SDXL ekranini psevdo-yazi ile doldurur
     r"smartphones?|phones?|computers?|laptops?|tablets?|monitors?)\b", re.I)
 # "showing balance", "indicating savings" - abstrakt melumat teleb edir, SDXL onu yazi kimi cekir

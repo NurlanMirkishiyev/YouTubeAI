@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -115,8 +116,25 @@ def _step(stage, ctx, force, log_dir, runner, comfy, remaining) -> list[str]:
     return runner(stage, ctx, force, log_dir)
 
 
+STAGE_RETRIES = 2          # muveqqeti xeta (sebeke, ComfyUI/Remotion cokmesi) - merhele yeniden cehd edilir
+RETRY_WAIT_S = 30
+
+
+def _step_with_retries(stage, ctx, force, log_dir, runner, comfy, remaining, sleep) -> list[str]:
+    """Skriptler qaldigi yerden davam edir (hazir fayllari kecir) - tekrar cehd ucuzdur."""
+    problems = _step(stage, ctx, force, log_dir, runner, comfy, remaining)
+    for k in range(STAGE_RETRIES):
+        if not problems:
+            break
+        print(f"  {stage.name} ugursuz ({'; '.join(problems)[:200]}) - {RETRY_WAIT_S}s sonra "
+              f"tekrar cehd {k + 1}/{STAGE_RETRIES}", flush=True)
+        sleep(RETRY_WAIT_S)
+        problems = _step(stage, ctx, force, log_dir, runner, comfy, remaining)
+    return problems
+
+
 def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None = None,
-                 runner=run_stage, gates=None, comfy=None) -> int:
+                 runner=run_stage, gates=None, comfy=None, sleep=time.sleep) -> int:
     gates = DEFAULT_GATES if gates is None else gates
     log_dir = ctx.p("logs")
     os.makedirs(log_dir, exist_ok=True)
@@ -134,7 +152,7 @@ def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None 
             else:
                 print(f"[{i + 1}/{len(stages)}] {st.name} ... ({now_iso()})", flush=True)
                 state = _save(state_path, state, st.name, status="running", started=now_iso(), error=None)
-                problems = _step(st, ctx, force, log_dir, runner, comfy, list(stages[i:]))
+                problems = _step_with_retries(st, ctx, force, log_dir, runner, comfy, list(stages[i:]), sleep)
             gate = Gate("ok")
             if not problems and st.name in gates:
                 gate = gates[st.name](ctx, log_dir, attempts.get(st.name, 0))

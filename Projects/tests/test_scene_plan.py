@@ -138,3 +138,9 @@ def test_clean_bg_prompt_drops_someone_and_blackboard():
 def test_clean_bg_prompt_drops_sheets_and_written_things():
     got = scene_plan.clean_bg_prompt("an attendance sheet with checkmarks, some with reminders written on them, a brass bell")
     assert "sheet" not in got and "written" not in got and "bell" in got
+
+
+# E2E ep3 sc23: "smart kitchen scale" 3 raund ardicil ekraninda reqem cekdi; "smart robot" qalmalidir
+def test_clean_bg_prompt_drops_digital_and_smart_devices_but_keeps_smart_robots():
+    p = "a smart kitchen scale with vegetables, a digital thermometer, a smart robot sorting fruit"
+    assert scene_plan.clean_bg_prompt(p) == "a smart robot sorting fruit"
