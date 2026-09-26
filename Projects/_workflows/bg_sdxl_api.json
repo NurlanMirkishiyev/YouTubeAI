@@ -1,9 +1,0 @@
-{
-  "3": {"class_type":"KSampler","inputs":{"seed":__SEED__,"steps":28,"cfg":6.0,"sampler_name":"dpmpp_2m","scheduler":"karras","denoise":1.0,"model":["4",0],"positive":["6",0],"negative":["7",0],"latent_image":["5",0]}},
-  "4": {"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":"sd_xl_base_1.0.safetensors"}},
-  "5": {"class_type":"EmptyLatentImage","inputs":{"width":1344,"height":768,"batch_size":1}},
-  "6": {"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":"__POS__, single clear focal subject, medium shot, 3D cartoon render, Pixar style, soft studio lighting, simple uncluttered background, shallow depth of field, clean composition, __SPACE__"}},
-  "7": {"class_type":"CLIPTextEncode","inputs":{"clip":["4",1],"text":"owl, bird, person, people, human, man, woman, boy, girl, child, kid, crowd, portrait, character, mascot, animal, pet, face, hands, text, letters, watermark, blurry, deformed, low quality, realistic photo, clutter, messy, too many objects, merged objects, floating objects, duplicate objects, empty room, collage, grid, multiple panels, split screen, frame border"}},
-  "8": {"class_type":"VAEDecode","inputs":{"samples":["3",0],"vae":["4",2]}},
-  "9": {"class_type":"SaveImage","inputs":{"filename_prefix":"__PREFIX__","images":["8",0]}}
-}

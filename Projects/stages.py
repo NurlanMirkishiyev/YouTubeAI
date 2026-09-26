@@ -13,7 +13,7 @@ PROJ = os.path.join(ROOT, "Projects")
 PY = {"projects": os.path.join(PROJ, ".venv", "Scripts", "python.exe"),
       "tts": os.path.join(ROOT, "TTS", ".venv", "Scripts", "python.exe"),
       "whisper": os.path.join(ROOT, "Whisper", ".venv", "Scripts", "python.exe")}
-BG_MIN = (1344, 768)
+BG_MIN = (1536, 864)      # gpt-image 1536x1024 -> 16:9
 HD_MIN = (3840, 2160)
 SRT_WORD_TOL = 0.05
 
@@ -136,13 +136,12 @@ STAGES: tuple[Stage, ...] = (
     Stage("scene_plan",
           lambda c, f: _proj("scene_plan.py", c.ep_dir, "--provider", c.provider, force=f),
           lambda c: os.path.isfile(c.p("scenes.json")), verify_scenes),
+    # fonlar OpenAI gpt-image ile (ComfyUI lazim deyil)
     Stage("render_bgs", lambda c, f: _proj("render_bgs.py", c.ep_dir, force=f),
-          lambda c: all_exist(numbered(c, "bg")), lambda c: size_problems(numbered(c, "bg"), BG_MIN),
-          needs_comfy=True),
+          lambda c: all_exist(numbered(c, "bg")), lambda c: size_problems(numbered(c, "bg"), BG_MIN)),
     # vision hakimi: yazi/insan/menasiz fonlari yeniden cekir (evvel el ile yoxlanirdi)
     Stage("check_bgs", lambda c, f: _proj("check_bgs.py", c.ep_dir, "--provider", c.provider, force=f),
-          lambda c: os.path.isfile(c.p("bg_qa.json")), lambda c: size_problems(numbered(c, "bg"), BG_MIN),
-          needs_comfy=True),
+          lambda c: os.path.isfile(c.p("bg_qa.json")), lambda c: size_problems(numbered(c, "bg"), BG_MIN)),
     Stage("upscale_bgs", lambda c, f: _proj("upscale_bgs.py", c.ep_dir, force=f),
           lambda c: all_exist(numbered(c, "bg_hd")), lambda c: size_problems(numbered(c, "bg_hd"), HD_MIN),
           needs_comfy=True),

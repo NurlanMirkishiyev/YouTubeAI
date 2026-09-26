@@ -1,4 +1,4 @@
-"""FAZA F 3.2 - bg\\scNN.png (SDXL 1344x768) -> 4x-UltraSharp -> bg_hd\\scNN.png (5120x2880).
+"""FAZA F 3.2 - bg\\scNN.png (gpt-image 1536x864) -> 4x-UltraSharp -> bg_hd\\scNN.png (5120x2880).
 Istifade:
   Projects\\.venv\\Scripts\\python Projects\\upscale_bgs.py Episodes\\<slug> [--only 3 7] [--force]
 ComfyUI serveri isleyir olmalidir.
@@ -15,8 +15,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from imaging import fit_cover  # noqa: E402
-from render_bgs import require_server  # noqa: E402
-from upscale import upscale_file  # noqa: E402
+from upscale import require_server, upscale_file  # noqa: E402
 
 MODEL = "4x-UltraSharp.pth"
 HD_W, HD_H = 5120, 2880

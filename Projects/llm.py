@@ -136,3 +136,19 @@ def chat_json(system: str, user: str | list, **kw) -> dict:
         return json.loads(raw)
     except json.JSONDecodeError as e:
         raise LLMError(f"JSON parse alinmadi: {e}\n--- cavab ---\n{raw[:800]}") from e
+
+
+def generate_image(prompt: str, *, model: str, size: str = "1536x1024", quality: str = "low") -> bytes:
+    """OpenAI Images API -> PNG baytlari. 429/5xx _post-da tekrarlanir; 4xx (mes. moderation) LLMError."""
+    import base64
+    prov = PROVIDERS["openai"]
+    t0 = time.time()
+    res = _post(f"{prov.base_url}/images/generations", _api_key(prov),
+                {"model": model, "prompt": prompt, "size": size, "quality": quality, "n": 1})
+    try:
+        data = base64.b64decode(res["data"][0]["b64_json"])
+    except (KeyError, IndexError, TypeError) as e:
+        raise LLMError("gozlenilmeyen sekil cavabi: " + json.dumps(res)[:300]) from e
+    out_tokens = res.get("usage", {}).get("output_tokens", 0)
+    print(f"  image {model}/{quality}  {time.time() - t0:.1f}s  out={out_tokens}", flush=True)
+    return data

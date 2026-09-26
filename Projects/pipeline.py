@@ -182,7 +182,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--from", dest="from_stage", choices=[s.name for s in STAGES])
     ap.add_argument("--min-seconds", type=float, default=MIN_SECONDS, help="yalniz test ucun asagi sal")
     ap.add_argument("--provider", default="openai")
-    ap.add_argument("--motion", choices=["kenburns"], default="kenburns", help="Faza 2: ltx")
     a = ap.parse_args(argv)
     if not a.topic and not a.resume:
         ap.error("movzu ve ya --resume <slug> lazimdir")

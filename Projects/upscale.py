@@ -6,6 +6,8 @@ import json
 import os
 import shutil
 import sys
+import urllib.error
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from run_workflow import submit, wait  # noqa: E402
@@ -13,6 +15,16 @@ from run_workflow import submit, wait  # noqa: E402
 COMFY_IN = r"C:\YouTubeAI\ComfyUI\input"
 COMFY_OUT = r"C:\YouTubeAI\ComfyUI\output"
 WORKFLOW = r"C:\YouTubeAI\Projects\_workflows\upscale_4x_api.json"
+
+
+API = "http://127.0.0.1:8188"
+
+
+def require_server() -> None:
+    try:
+        urllib.request.urlopen(f"{API}/system_stats", timeout=5).read()
+    except (urllib.error.URLError, TimeoutError) as e:
+        raise SystemExit(f"ComfyUI cavab vermir ({API}) - run_comfyui.bat isledin.  {e}")
 
 
 def build_workflow(image_name: str, model: str, prefix: str) -> dict:

@@ -27,7 +27,7 @@ def test_verdict_tolerates_malformed_judge_output():
     assert not v.ok and v.problems == ("mismatch",) and v.fix_prompt == ""
 
 
-# --- yeni prompt / seed ---------------------------------------------------------------------
+# --- yeni prompt ---------------------------------------------------------------------
 
 def test_next_prompt_passes_judge_fix_through_word_filters():
     # hakimin teklifi de insan/yazi filtrinden kecir
@@ -43,31 +43,19 @@ def test_next_prompt_uses_unused_fallback_on_last_attempt_or_empty_fix():
     assert empty in scene_plan.FALLBACK_POOL and empty not in used
 
 
-def test_each_attempt_gets_a_new_seed():
-    # eyni prompt + eyni seed eyni sekli verirdi - yeniden cekmek hec ne deyismirdi
-    seeds = {cb.seed_for(7, a) for a in range(cb.MAX_ATTEMPTS + 1)}
-    assert len(seeds) == cb.MAX_ATTEMPTS + 1
-    assert cb.seed_for(7, 0) == render_bgs.BASE_SEED + 7
-
-
 def test_apply_changes_rereads_file_and_keeps_other_edits(tmp_path):
     path = tmp_path / "scenes.json"
     _write_scenes(path, ["a", "b", "c"])
     data = json.loads(path.read_text(encoding="utf-8"))
     data["scenes"][2]["duration"] = 4.2              # basqa proses eyni vaxtda yazib
     path.write_text(json.dumps(data), encoding="utf-8")
-    cb.apply_changes(str(path), {2: ("a new prompt", 1234)})
+    cb.apply_changes(str(path), {2: "a new prompt"})
     s = json.loads(path.read_text(encoding="utf-8"))["scenes"]
-    assert s[1]["bg_prompt"] == "a new prompt" and s[1]["seed"] == 1234
+    assert s[1]["bg_prompt"] == "a new prompt"
     assert s[2]["duration"] == 4.2 and s[0]["bg_prompt"] == "a"
 
 
 # --- render_bgs -----------------------------------------------------------------------------
-
-def test_render_uses_scene_seed_when_present():
-    assert render_bgs.seed_of({"seed": 55}, 3) == 55
-    assert render_bgs.seed_of({}, 3) == render_bgs.BASE_SEED + 3
-
 
 def test_render_save_keeps_prompts_edited_on_disk_meanwhile(tmp_path):
     # render_bgs evvel yaddasdaki kohne scenes.json-u uzerine yazir ve duzelisleri silirdi

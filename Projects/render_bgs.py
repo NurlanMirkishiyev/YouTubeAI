@@ -1,43 +1,63 @@
-"""Add'im 24 - scenes.json -> her sehne ucun fon PNG (ComfyUI, Workflow B).
+"""scenes.json -> her sehne ucun fon PNG (OpenAI gpt-image, ChatGPT sekil modeli).
 Istifade:
-  ComfyUI\\.venv\\Scripts\\python Projects\\render_bgs.py Episodes\\<slug> [--only 3 7] [--force]
-Cixis: Episodes\\<slug>\\bg\\sc01.png ...   (scenes.json-a "bg" sahesi yazilir)
-ComfyUI serveri isleyir olmalidir: run_comfyui.bat
+  Projects\\.venv\\Scripts\\python Projects\\render_bgs.py Episodes\\<slug> [--only 3 7] [--force]
+Cixis: Episodes\\<slug>\\bg\\sc01.png ... (1536x864, 16:9)   (scenes.json-a "bg" sahesi yazilir)
+
+2026-09-26: SDXL (lokal ComfyUI) evezine gpt-image. SDXL yazi cekmeyi bacarmir ve menasiz "psevdo-yazi",
+insan, qarisiq obyektler verirdi; gpt-image kompozisiya telimatina (bayqus ucun bos teref) emel edir.
+Keyfiyyet "low" - istifadecinin secimi (~$1.5/video, gpt-image-1 olcusu ile).
 """
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
-import shutil
 import sys
 import time
-import urllib.error
-import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+
+from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from run_workflow import submit, wait  # noqa: E402
+from llm import LLMError, generate_image  # noqa: E402
+from scene_plan import FALLBACK_BG  # noqa: E402
 
-WORKFLOW = r"C:\YouTubeAI\Projects\_workflows\bg_sdxl_api.json"
-COMFY_OUT = r"C:\YouTubeAI\ComfyUI\output"
-API = "http://127.0.0.1:8188"
-BASE_SEED = 1000
-# sprite hansi terefdedirse, fonun o terefi bos qalmalidir
-SPACE = {"right": "empty space on the right side",
-         "left":  "empty space on the left side",
-         "center": "empty uncluttered space in the lower center"}
+MODEL = "gpt-image-2"     # 2026-09-26 probu: kompozisiyaya gpt-image-1-den yaxsi emel etdi
+QUALITY = "low"
+SIZE = "1536x1024"        # en genis olcu; 16:9-a kesilir
+WORKERS = 4
+STYLE = ("3D Pixar-style animated render, soft studio lighting, vibrant friendly colors, "
+         "clean simple composition with one clear main subject, wide 16:9 framing.")
+RULES = "No text, no letters, no numbers, no logos, no people, no hands."
+# bayqus hansi terefdedirse, fonun o terefi bos qalmalidir
+SPACE = {"right": "The main subject is on the left half; calm empty space on the right side.",
+         "left": "The main subject is on the right half; calm empty space on the left side.",
+         "center": "Empty uncluttered space in the lower center."}
 
 
-def require_server() -> None:
+def build_prompt(scene_prompt: str, pos: str) -> str:
+    return f"{STYLE} {SPACE.get(pos, SPACE['right'])} {RULES} Scene: {scene_prompt}"
+
+
+def crop_16x9(im: Image.Image) -> Image.Image:
+    """Tam en saxlanir, yuxari/asagi beraber kesilir."""
+    w, h = im.size
+    th = round(w * 9 / 16)
+    top = (h - th) // 2
+    return im.crop((0, top, w, top + th))
+
+
+def render_one(scene: dict, dest: str, gen) -> None:
+    """gen(prompt) -> PNG baytlari. Prompt redd edilse (moderation ve s.) FALLBACK_BG ile bir defe de."""
+    pos = scene.get("pos", "right")
     try:
-        urllib.request.urlopen(f"{API}/system_stats", timeout=5).read()
-    except (urllib.error.URLError, TimeoutError) as e:
-        raise SystemExit(f"ComfyUI cavab vermir ({API}) - run_comfyui.bat isledin.  {e}")
-
-
-def seed_of(scene: dict, n: int) -> int:
-    """check_bgs yeniden cekende sehneye yeni "seed" yazir - eyni prompt + eyni seed eyni sekli verirdi."""
-    return int(scene.get("seed", BASE_SEED + n))
+        data = gen(build_prompt(scene["bg_prompt"], pos))
+    except LLMError as e:
+        print(f"  {os.path.basename(dest)}: prompt redd edildi ({str(e)[:100]}) - ehtiyat fon", flush=True)
+        data = gen(build_prompt(FALLBACK_BG, pos))
+    with Image.open(io.BytesIO(data)) as im:
+        crop_16x9(im.convert("RGB")).save(dest, compress_level=3)
 
 
 def save_bg_paths(scenes_path: str, bg_dir: str) -> None:
@@ -53,15 +73,6 @@ def save_bg_paths(scenes_path: str, bg_dir: str) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def build(prompt: str, seed: int, prefix: str, pos: str) -> dict:
-    text = open(WORKFLOW, encoding="utf-8").read()
-    text = (text.replace("__POS__", json.dumps(prompt)[1:-1])
-                .replace("__SPACE__", SPACE.get(pos, SPACE["right"]))
-                .replace("__SEED__", str(seed))
-                .replace("__PREFIX__", prefix))
-    return json.loads(text)
-
-
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("episode_dir")
@@ -72,41 +83,38 @@ def main() -> None:
     scenes_path = os.path.join(a.episode_dir, "scenes.json")
     if not os.path.isfile(scenes_path):
         raise SystemExit("scenes.json tapilmadi: " + scenes_path)
-    require_server()
-
     with open(scenes_path, encoding="utf-8") as f:
-        data = json.load(f)
-    scenes = data["scenes"]
+        scenes = json.load(f)["scenes"]
     bg_dir = os.path.join(a.episode_dir, "bg")
     os.makedirs(bg_dir, exist_ok=True)
 
+    def dest(i: int) -> str:
+        return os.path.join(bg_dir, f"sc{i + 1:02d}.png")
+
     todo = [i for i in range(len(scenes))
-            if (not a.only or i + 1 in a.only)
-            and (a.force or not os.path.isfile(os.path.join(bg_dir, f"sc{i + 1:02d}.png")))]
-    print(f"[24] {len(todo)}/{len(scenes)} sehne cekilecek -> {bg_dir}")
+            if (not a.only or i + 1 in a.only) and (a.force or not os.path.isfile(dest(i)))]
+    print(f"[24] {len(todo)}/{len(scenes)} sehne cekilecek ({MODEL}/{QUALITY}) -> {bg_dir}", flush=True)
+
+    def gen(prompt: str) -> bytes:
+        return generate_image(prompt, model=MODEL, size=SIZE, quality=QUALITY)
+
+    def job(i: int) -> str | None:
+        try:
+            render_one(scenes[i], dest(i), gen)
+            return None
+        except (LLMError, OSError) as e:
+            return f"sc{i + 1:02d}: {str(e)[:150]}"
 
     t0 = time.time()
-    for k, i in enumerate(todo, 1):
-        n = i + 1
-        dest = os.path.join(bg_dir, f"sc{n:02d}.png")
-        prefix = f"ep_{n:02d}"
-        try:
-            files = wait(submit(build(scenes[i]["bg_prompt"], seed_of(scenes[i], n), prefix,
-                                      scenes[i].get("pos", "right"))), timeout_s=900)
-        except SystemExit as e:
-            print(f"  sc{n:02d} UGURSUZ: {e}")
-            continue
-        src = os.path.join(COMFY_OUT, files[-1])
-        if not os.path.isfile(src):
-            print(f"  sc{n:02d} UGURSUZ: cixis tapilmadi {src}")
-            continue
-        shutil.move(src, dest)
-        el = time.time() - t0
-        print(f"  [{k}/{len(todo)}] sc{n:02d}  {el / k:.0f}s/eded  qalan ~{(len(todo) - k) * el / k / 60:.1f} deq")
-
+    with ThreadPoolExecutor(WORKERS) as pool:
+        errors = [e for e in pool.map(job, todo) if e]
     save_bg_paths(scenes_path, bg_dir)
-    missing = [i + 1 for i in range(len(scenes)) if not os.path.isfile(os.path.join(bg_dir, f"sc{i + 1:02d}.png"))]
-    print(f"  bitdi {(time.time() - t0) / 60:.1f} deq;  catismayan: {missing or 'yoxdur'}")
+    missing = [i + 1 for i in range(len(scenes)) if not os.path.isfile(dest(i))]
+    print(f"  bitdi {(time.time() - t0) / 60:.1f} deq;  catismayan: {missing or 'yoxdur'}", flush=True)
+    if errors:
+        for e in errors:
+            print("  UGURSUZ " + e, flush=True)
+        raise SystemExit(f"{len(errors)} fon cekilmedi")
 
 
 if __name__ == "__main__":

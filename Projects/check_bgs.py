@@ -5,7 +5,7 @@ Cixis: Episodes\\<slug>\\bg_qa.json  (her sehnenin hokmu, neche defe yeniden cek
 
 Niye: soz filtrleri (TEXT_BEARING, HUMAN) her hali tutmur - her epizodda 6-8 fonda menasiz yazi, insan,
 bos/menasiz sehne cixirdi ve montajdan evvel el ile yoxlanib duzeldilirdi. Indi bu is pipeline-dadir:
-pis fon -> hakimin teklif etdiyi prompt (yene filtrlerden kecir) + YENI seed -> render_bgs --only.
+pis fon -> hakimin teklif etdiyi prompt (yene filtrlerden kecir) -> render_bgs --only (gpt-image).
 MAX_ATTEMPTS raunddan sonra hele pisdirse sinanmis FALLBACK_POOL fonu qoyulur - pipeline hec vaxt ilismir.
 """
 from __future__ import annotations
@@ -26,11 +26,9 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from llm import DEFAULT_PROVIDER, LLMError, chat_json  # noqa: E402
-from render_bgs import BASE_SEED  # noqa: E402
 from scene_plan import FALLBACK_BG, FALLBACK_POOL, clean_bg_prompt  # noqa: E402
 
 MAX_ATTEMPTS = 3
-SEED_STEP = 7919          # sade eded - seed-ler sehneler arasinda toqqusmasin
 JUDGE_WIDTH = 768
 # gpt-4o: sekil "low" detail-de ~85 token (4o-mini ~2800 token sayir ve 6 paralel sorgu 200k TPM
 # limitine direndi), gorme deqiqliyi de yuksekdir; epizod ~$0.2
@@ -75,10 +73,6 @@ def parse_verdict(d: dict) -> Verdict:
     return Verdict(ok=not problems, problems=problems, fix_prompt=fix.strip() if isinstance(fix, str) else "")
 
 
-def seed_for(n: int, attempt: int) -> int:
-    return BASE_SEED + n + attempt * SEED_STEP
-
-
 def next_prompt(fix: str, attempt: int, used: set[str]) -> str:
     """Hakimin teklifi soz filtrlerinden kecir; son cehdde ve ya teklif yararsizdirsa istifade olunmamis
     FALLBACK_POOL fonu (sinanmis, yazisiz, insansiz)."""
@@ -89,13 +83,12 @@ def next_prompt(fix: str, attempt: int, used: set[str]) -> str:
     return next((p for p in FALLBACK_POOL if p not in used), FALLBACK_BG)
 
 
-def apply_changes(scenes_path: str, changes: dict[int, tuple[str, int]]) -> None:
-    """changes: {sehne nomresi (1-esasli): (prompt, seed)}. Fayl tezeden oxunur - basqa saheler qorunur."""
+def apply_changes(scenes_path: str, changes: dict[int, str]) -> None:
+    """changes: {sehne nomresi (1-esasli): yeni prompt}. Fayl tezeden oxunur - basqa saheler qorunur."""
     with open(scenes_path, encoding="utf-8") as f:
         data = json.load(f)
-    for n, (prompt, seed) in changes.items():
+    for n, prompt in changes.items():
         data["scenes"][n - 1]["bg_prompt"] = prompt
-        data["scenes"][n - 1]["seed"] = seed
     with open(scenes_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -181,7 +174,7 @@ def main() -> None:
         for n in bad:
             p = next_prompt(verdicts[n].fix_prompt, attempt, used)
             used.add(p)
-            changes[n] = (p, seed_for(n, attempt))
+            changes[n] = p
             print(f"  sc{n:02d} -> {p}")
         apply_changes(scenes_path, changes)
         rerender(ep, bad)

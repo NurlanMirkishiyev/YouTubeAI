@@ -15,7 +15,7 @@ def _ctx(tmp_path, **kw):
 def test_stage_order():
     assert [s.name for s in st.STAGES] == ["script_gen", "scene_plan", "render_bgs", "check_bgs",
                                            "upscale_bgs", "tts_gen", "make_srt", "build_episode", "publish"]
-    assert [s.name for s in st.STAGES if s.needs_comfy] == ["render_bgs", "check_bgs", "upscale_bgs"]
+    assert [s.name for s in st.STAGES if s.needs_comfy] == ["upscale_bgs"]    # fonlar OpenAI-de, ComfyUI yalniz upscale ucun
 
 
 def test_commands(tmp_path):
