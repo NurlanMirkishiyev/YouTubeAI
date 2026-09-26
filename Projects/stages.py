@@ -14,7 +14,8 @@ ROOT = r"C:\YouTubeAI"
 PROJ = os.path.join(ROOT, "Projects")
 PY = {"projects": os.path.join(PROJ, ".venv", "Scripts", "python.exe"),
       "tts": os.path.join(ROOT, "TTS", ".venv", "Scripts", "python.exe"),
-      "whisper": os.path.join(ROOT, "Whisper", ".venv", "Scripts", "python.exe")}
+      "whisper": os.path.join(ROOT, "Whisper", ".venv", "Scripts", "python.exe"),
+      "music": os.path.join(ROOT, "MusicGen", ".venv", "Scripts", "python.exe")}
 BG_MIN = (1536, 864)      # gpt-image 1536x1024 -> 16:9
 HD_MIN = (3840, 2160)
 SRT_WORD_TOL = 0.05
@@ -167,6 +168,10 @@ STAGES: tuple[Stage, ...] = (
                         c.p("narration.wav"), c.p("narration")],
           lambda c: os.path.isfile(c.p("narration.srt")) and os.path.isfile(c.p("narration.words.json")),
           verify_srt),
+    # lisenziyasiz/pulsuz AI fon musiqisi (Stable Audio Open, lokal GPU); --music verilibse atlanir
+    Stage("music_gen", lambda c, f: [PY["music"], os.path.join(PROJ, "music_gen.py"), c.ep_dir]
+          + (["--force"] if f else []),
+          lambda c: bool(c.music) and os.path.isfile(c.music), lambda c: []),
     Stage("build_episode", _build_cmd, lambda c: os.path.isfile(c.p(f"{c.slug}.mp4")), verify_video),
     Stage("publish", lambda c, f: _proj("publish_pack.py", c.ep_dir, "--provider", c.provider)
           + (["--music", c.music] if c.music else []),

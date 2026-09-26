@@ -8,7 +8,6 @@ Merhele "bitib" = fayl sistemi + yoxlama; state.json yalniz jurnaldir.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 import os
@@ -32,7 +31,6 @@ DEFAULT_WORDS = 1230
 MIN_SECONDS = 480.0
 MAX_SECONDS = 600.0
 MAX_EXTENSIONS = 2
-MUSIC_DIR = os.path.join(ROOT, "Music")   # --music verilmeyende trek buradan secilir
 DELIVERY_DIR = os.path.join(ROOT, "Hazir_Videolar")   # butun hazir videolar bir yerde (istifadeci 2026-09-27)
 INVALIDATE_DIRS = ("bg", "bg_hd", "owl", "audio", "cards", "remotion", "youtube")
 INVALIDATE_FILES = ("scenes.json", "narration.wav", "narration.srt", "narration.words.json",
@@ -211,18 +209,6 @@ def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None 
     return 0
 
 
-def default_music(slug: str, music_dir: str) -> str | None:
-    """Music/*.mp3-den epizoda gore trek: eyni slug hemise eyni trek (resume), ferqli epizodlar
-    novbelesir. Hash sabitdir (Python hash() her prosesde ferqli olur)."""
-    if not os.path.isdir(music_dir):
-        return None
-    tracks = sorted(n for n in os.listdir(music_dir) if n.lower().endswith(".mp3"))
-    if not tracks:
-        return None
-    k = int.from_bytes(hashlib.sha1(slug.encode("utf-8")).digest()[:4], "big") % len(tracks)
-    return os.path.join(music_dir, tracks[k])
-
-
 DELIVER_OPTIONAL = (("narration.srt", "subtitles.srt"), ("script.md", "script.md"))
 
 
@@ -282,7 +268,8 @@ def make_ctx(a: argparse.Namespace) -> Ctx:
         raise SystemExit(f"movzu tapilmadi: {ep} (state.json / meta.json) - movzunu da ver")
     if a.music and not os.path.isfile(a.music):
         raise SystemExit("musiqi tapilmadi: " + a.music)
-    music = os.path.abspath(a.music) if a.music else default_music(slug, MUSIC_DIR)
+    # istifadeci 2026-09-27: musiqi lisenziyasiz ve pulsuz - her epizoda oz AI musiqisi (music_gen)
+    music = os.path.abspath(a.music) if a.music else os.path.join(ep, "music.wav")
     return Ctx(topic, slug, ep, a.words, music, a.min_seconds, a.max_seconds, a.provider)
 
 
@@ -291,10 +278,7 @@ def main(argv: list[str] | None = None) -> int:
     ctx = make_ctx(a)
     os.makedirs(ctx.p("logs"), exist_ok=True)
     print(f"FAZA F: {ctx.topic!r} -> {ctx.ep_dir}", flush=True)
-    if ctx.music:
-        print(f"  musiqi: {ctx.music}", flush=True)
-    else:
-        print("  DIQQET: Music qovlugunda mp3 yoxdur - video musiqisiz olacaq", flush=True)
+    print(f"  musiqi: {ctx.music}", flush=True)
     guard = ComfyGuard(ctx.p("logs", "comfyui.log"))
     rc = run_pipeline(ctx, ctx.p("state.json"),
                       from_idx=stage_index(a.from_stage) if a.from_stage else None, comfy=guard)

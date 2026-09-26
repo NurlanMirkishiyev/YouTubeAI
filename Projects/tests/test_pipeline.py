@@ -14,7 +14,8 @@ def _ctx(tmp_path, **kw):
 
 def test_stage_order():
     assert [s.name for s in st.STAGES] == ["script_gen", "scene_plan", "render_bgs", "check_bgs",
-                                           "render_owls", "upscale_bgs", "tts_gen", "make_srt", "build_episode", "publish"]
+                                           "render_owls", "upscale_bgs", "tts_gen", "make_srt", "music_gen",
+                                           "build_episode", "publish"]
     assert [s.name for s in st.STAGES if s.needs_comfy] == ["upscale_bgs"]    # fonlar OpenAI-de, ComfyUI yalniz upscale ucun
 
 
@@ -181,28 +182,30 @@ def test_failed_stage_shows_the_last_log_line_and_quota_errors_are_not_retried(t
     assert len(calls) == 1 and got == problems
 
 
-def test_default_music_is_picked_from_music_dir_per_episode(tmp_path):
-    for n in ("b.mp3", "a.mp3", "c.mp3"):
-        (tmp_path / n).write_bytes(b"x")
-    (tmp_path / "_placeholder_tone.wav").write_bytes(b"x")
-    first = pl.default_music("what-is-cash-flow", str(tmp_path))
-    assert first == pl.default_music("what-is-cash-flow", str(tmp_path))      # resume eyni treki alir
-    assert first.endswith(".mp3")
-    picks = {pl.default_music(f"topic-{i}", str(tmp_path)) for i in range(30)}
-    assert len(picks) == 3                                                   # epizodlar arasinda novbelesir
-
-
-def test_default_music_is_none_without_tracks(tmp_path):
-    assert pl.default_music("x", str(tmp_path)) is None
-
-
-def test_make_ctx_uses_default_music(tmp_path, monkeypatch):
+# Istifadeci 2026-09-27: musiqi lisenziyasiz/pulsuz - her epizoda oz AI musiqisi (music_gen, lokal GPU)
+def test_make_ctx_uses_the_episodes_own_ai_music(tmp_path, monkeypatch):
     monkeypatch.setattr(pl, "EPISODES", str(tmp_path))
-    monkeypatch.setattr(pl, "MUSIC_DIR", str(tmp_path / "m"))
-    (tmp_path / "m").mkdir()
-    (tmp_path / "m" / "song.mp3").write_bytes(b"x")
     ctx = pl.make_ctx(pl.parse_args(["Some Topic"]))
-    assert ctx.music == str(tmp_path / "m" / "song.mp3")
+    assert ctx.music == str(tmp_path / "some-topic" / "music.wav")
+
+
+def test_music_gen_stage_runs_in_its_own_venv_before_the_build(tmp_path):
+    ctx = _ctx(tmp_path, music=str(tmp_path / "music.wav"))
+    names = [s.name for s in st.STAGES]
+    assert names.index("music_gen") == names.index("build_episode") - 1
+    stage = st.STAGES[st.stage_index("music_gen")]
+    cmd = stage.command(ctx, False)
+    assert cmd[0] == st.PY["music"] and cmd[1].endswith("music_gen.py") and cmd[2] == str(tmp_path)
+    assert not stage.done(ctx)
+    (tmp_path / "music.wav").write_bytes(b"x")
+    assert stage.done(ctx)
+
+
+def test_user_given_music_skips_generation(tmp_path):
+    track = tmp_path / "my.mp3"
+    track.write_bytes(b"x")
+    ctx = _ctx(tmp_path, music=str(track))
+    assert st.STAGES[st.stage_index("music_gen")].done(ctx)
 
 
 def test_publish_stage_passes_music_for_the_credit():
