@@ -154,6 +154,14 @@ def fallback_bg(k: int) -> str:
     return FALLBACK_POOL[k % len(FALLBACK_POOL)]
 
 
+def pick_fallbacks(n: int, used_heroes: set[str]) -> list[str]:
+    """n ehtiyat fon: evvelce epizodda olmayan esas isimliler, catmasa qalanlar (tekrarsiz)."""
+    fresh = [p for p in FALLBACK_POOL if hero(p) not in used_heroes]
+    rest = [p for p in FALLBACK_POOL if p not in fresh]
+    pool = fresh + rest
+    return [pool[k % len(pool)] for k in range(n)]
+
+
 def _norm(subject: str) -> str:
     return " ".join(w.rstrip("s") for w in re.findall(r"[a-z]+", subject.lower()) if w not in ("a", "an", "the"))
 
@@ -346,8 +354,9 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     # promptlar ve yan-yana (NEAR_WINDOW) tekrarlar evez olunur
     final = repeats(prompts, subjects, NEAR_WINDOW)
     print(f"  ehtiyat fon: {len(final)} (bos: {sum(prompts[i] == FALLBACK_BG for i in final)})")
-    for k, i in enumerate(final):
-        prompts[i], subjects[i] = fallback_bg(k), f"fallback {k}"
+    kept = {hero(p) for j, p in enumerate(prompts) if j not in final}
+    for k, (i, fb) in enumerate(zip(final, pick_fallbacks(len(final), kept))):
+        prompts[i], subjects[i] = fb, f"fallback {k}"
     out = []
     for sc, bg, sub, spr, pos in zip(scenes, prompts, subjects, vary_poses(sprites), assign_positions(scenes)):
         out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos,
