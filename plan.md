@@ -500,14 +500,14 @@ LLM yalnız `bg_prompt` + `sprite` seçir → mətn 1:1 qorunur.
 
 ## FAZA F --- Automation
 
--   [ ] 29. Python orchestrator
--   [ ] 30. ComfyUI API inteqrasiyası
--   [ ] 31. TTS inteqrasiyası
--   [ ] 32. Whisper inteqrasiyası
--   [ ] 33. FFmpeg inteqrasiyası
--   [ ] 34. Sadə UI
--   [ ] 35. One-click test
--   [ ] 36. Stabil production workflow
+-   [x] 29. Python orchestrator (`Projects/pipeline.py`, `run.py`, state.json + `--resume`)
+-   [x] 30. ComfyUI API inteqrasiyası (`comfy.py`, pipeline özü açıb-bağlayır)
+-   [x] 31. TTS inteqrasiyası (`tts_gen`, TTS\.venv)
+-   [x] 32. Whisper inteqrasiyası (`make_srt`, Whisper\.venv)
+-   [x] 33. FFmpeg inteqrasiyası (FAZA G-də montaj Remotion-a keçdi; ffmpeg kodlama + −14 LUFS)
+-   [x] 34. Sadə UI (`Yeni_Video.bat` — iki klik, mövzu yaz; `resume`; Music\*.mp3 avtomatik)
+-   [x] 35. One-click test (E2E `how-credit-cards-actually-work`, `what-is-business-automation`)
+-   [x] 36. Stabil production workflow (114 test, avtomatik yoxlamalar, resume)
 
 ------------------------------------------------------------------------
 

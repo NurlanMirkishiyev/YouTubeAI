@@ -51,4 +51,4 @@ def test_make_shadow_soft_and_faint():
     alpha = sh.getchannel("A")
     cx, cy = sh.width // 2, sh.height // 2
     assert alpha.getpixel((cx, cy)) > alpha.getpixel((cx, 2))
-    assert max(alpha.getdata()) <= round(255 * us.SHADOW_OPACITY) + 1
+    assert alpha.getextrema()[1] <= round(255 * us.SHADOW_OPACITY) + 1

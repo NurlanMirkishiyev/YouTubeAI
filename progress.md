@@ -16,11 +16,12 @@
 | Faza | Vəziyyət |
 |---|---|
 | FAZA A–E (addım 01–28) | **TAMAM** — ilk epizod çıxdı və oynadılır |
-| FAZA F / Faza 1 (automation + keyfiyyət) | **Task 0–16 icra olundu, 90 test keçir** — E2E işlədi, amma **fonlarda yazı problemi açıqdır** (aşağıya bax) |
+| FAZA F / Faza 1 (automation + keyfiyyət) | **TAMAM** (2026-09-25) — Task 0–16, E2E işlədi, fonlarda yazı problemi həll edildi |
 | FAZA G (5 şikayət + Remotion) | **TAMAM** (2026-09-26) — `what-is-business-automation` 15.59 dəq HAZIRDIR |
 | FAZA F / Faza 2 (LTX-Video) | başlanmayıb — ayrıca spec lazımdır |
 
-**İstifadə:** `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
+**İstifadə:** `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan yarımçıq epizod davam edir;
+`Music\*.mp3` varsa avtomatik fon musiqisi) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
 `Episodes\<slug>\<slug>.mp4` + `Episodes\<slug>\youtube\`. Yarımçıq qalsa: `python run.py --resume <slug>`.
 Musiqi: `--music Music\<trek>.mp3` (verilməsə musiqisiz).
 
@@ -44,13 +45,13 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
 4. [x] Task 15 — inteqrasiya: `_integ-compound` (6.27 dəq, 18m23s, HAZIRDIR)
 5. [x] Task 16 — E2E: `how-credit-cards-actually-work` — 2380 söz, narration 662 s, **11.19 dəq**,
    29m58s, `final_video_problems=[]`, `pack_problems=[]`, resume 8 mərhələni 11.5 s-də keçdi
-6. [~] **E2E-dən sonra vizual düzəliş (DAVAM EDİR — sessiya burada dayandı, 2026-09-24):**
+6. [x] **E2E-dən sonra vizual düzəliş (2026-09-24/25, TAMAM):**
    - Tapıldı: 300 s-də fon "game interface" → mənasız yazı; thumbnail-da bust bayquşun kəsik tərəfi içəri baxırdı
    - Düzəldildi, commit `5d58498`: `scene_plan.clean_bg_prompt` (yazı daşıyan hissələri atır, `TEXT_BEARING`
      regex, `FALLBACK_BG`) + `cards.paste_sprite` (bust sağ-alt kənara yapışır, kəsik tərəf çölə flip)
    - Epizodun scenes.json-u `clean_bg_prompt` ilə yeniləndi; bg/, bg_hd/, cards/, youtube/, mp4 silindi;
      `python run.py --resume how-credit-cards-actually-work` arxa planda işə salındı (render_bgs 33/37-də idi)
-   - **YENİ AÇIQ PROBLEM:** `bg/sc16.png` — kredit kartının yaxın planı, üstündə mənasız yazı
+   - **Problem (aşağıda həll edildi):** `bg/sc16.png` — kredit kartının yaxın planı, üstündə mənasız yazı
      ("Pirxirt", "COOVAUDRYOND", rəqəmlər). Filter "credit card"-ı tutmur, bu mövzuda kart hər yerdədir.
 
    - **2026-09-25 HƏLL EDİLDİ (commit `f7ce99b`):** 37 fon yoxlandı → 8-də aydın gibberish (sc12/14/16/20/21/24/28/34).
@@ -90,11 +91,12 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
 
 **Növbəti:** yeni mövzu → `python run.py "Mövzu"` (~1.5–2 saat: skript, 98-ə yaxın fon, TTS, Remotion).
 render_bgs-dən sonra fonlara kontakt vərəqi ilə bax (pis olanları `--only N --force` ilə yenidən çək).
-Açıq qalan: fon musiqisi (`Music/` boşdur, `--music` verilməsə musiqisiz), Faza 2 (LTX).
+Açıq qalan (istifadəçi qərarı lazımdır): fon musiqisi (`Music/` boşdur — mp3 qoyulsa bat özü götürür),
+Faza 2 (LTX, ayrıca spec). Sənəd işarələri + plan 29–36 aktuallaşdırıldı (2026-09-26).
 
 ---
 
-## FAZA F dizaynı (təsdiq gözləyir)
+## FAZA F dizaynı (təsdiqləndi 2026-09-23, icra olundu)
 
 ### İstifadəçi tələbləri (2026-09-23, öz sözləri ilə)
 - Mövzu verəndə video avtomatik yaransın, hazır şəkildə təqdim olunsun
@@ -201,7 +203,7 @@ Səbəb (aşağıdakı "Risklər"ə bax): 8 GB VRAM sərhəddədir, LTX bütün 
 ### 2026-09-23/24 — Task 15/16 + vizual düzəlişlər
 - `_integ-compound` 6.27 dəq, E2E `how-credit-cards-actually-work` 11.19 dəq — hər iki HAZIRDIR
 - Kadr yoxlamasında 2 qüsur → commit `5d58498` (yazılı fon promptu filtri, bust thumbnail flip), 90 test
-- Yenidən qurmada 3-cü qüsur: kredit kartı yaxın planda mənasız yazı (sc16) — **açıqdır**
+- Yenidən qurmada 3-cü qüsur: kredit kartı yaxın planda mənasız yazı (sc16) — 2026-09-25 həll edildi (`f7ce99b`)
 - Dərs: SDXL yazı çəkə bilməz; obyektin özü yazı daşıyırsa (kart, əskinas, kitab) da gibberish çıxır →
   yalnız söz filtri kifayət deyil, hər fon vizual yoxlanmalıdır
 
@@ -233,7 +235,7 @@ Səbəb (aşağıdakı "Risklər"ə bax): 8 GB VRAM sərhəddədir, LTX bütün 
 - GPU yoxlanıldı: RTX 4060 Laptop 8 GB → LTX üçün sərhəddə
 - Model qovluğu yoxlanıldı: `C:/YouTubeAI/Models` (SDXL var; **upscale model yoxdur, LTX yoxdur**)
 - İstifadəçi 3 qərar verdi (sprite HD = hər ikisi, effekt = LTX I2V, kompozisiya = kiçik künc)
-- Dizayn təqdim edildi → **təsdiq gözlənilir**
+- Dizayn təqdim edildi → təsdiqləndi (eyni gün)
 - `progress.md` yaradıldı
 
 ### 2026-09-23 — Addım 27 düzəlişi: video açılmırdı
