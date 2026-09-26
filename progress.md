@@ -143,7 +143,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 personaj sabit dayansın, şəkli səhnəyə uyğunlaşsın, tam hazır olsun"):**
 1. `what-is-cash-flow` yenidən quruldu: pozlar səhnə mətninə görə yenidən seçildi (52-dən 34-ü dəyişdi,
    bir dəfəlik skript), sabit bayquş, güzgülənmiş fonlar, Carefree musiqisi, istinadlı youtube/ paketi.
-2. İndi: istifadəçi yeni mövzu verir → `python run.py "Mövzu"` (~45 dəq: skript 1 dəq, ~50 ChatGPT şəkli ~10 dəq
+2. İndi: istifadəçi Claude-a **`Video: <Mövzu>`** yazır (tetik əmri, 2026-09-27) və ya özü "ELI5 Yeni Video" qısayolunu
+   açır → `python run.py "Mövzu"` (~45 dəq: skript 1 dəq, ~50 ChatGPT şəkli ~10 dəq
    [limit 5/dəq], hakim ~2 dəq, upscale ~13 dəq, TTS+SRT ~2 dəq, Remotion ~11 dəq). Claude `Start-Process` ilə
    müstəqil açır; fon yoxlamasını pipeline özü edir (`check_bgs`, `Episodes/<slug>/bg_qa.json`).
 Köhnə 2 epizod (`what-is-business-automation`, `how-ai-agents-change-automation`) 2026-09-27 istifadəçi
