@@ -55,6 +55,9 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 11 | Render sessiya bağlananda öldü | Proses Claude sessiyasına bağlı idi | Claude pipeline-ı **`Start-Process` ilə müstəqil** açır; ölsə `--resume` qaldığı yerdən |
 | 12 | Video açılmırdı (yuv444p) | `-pix_fmt` verilməmişdi | spec-ə kodlama + `final_video_problems` yoxlaması |
 | 13 | Video 10 dəq-dən qısa | LLM söz hədəfini tutmur | bölmə-bölmə yazı + TTS saniyə qapısı |
+| 14 | Hakim API limitinə (429) düşən fonu yoxlamadan keçirdi (ep3 sc89) | 1–4 s backoff TPM limitinə azdır | xətalı fonlar 30 s gözləyib ardıcıl yenidən yoxlanır (`3cee56c`) |
+| 15 | Mərhələ bir dəfəlik xəta ilə bütün videonu dayandırırdı | retry yox idi | uğursuz mərhələ 30 s sonra 2 dəfə yenidən cəhd edilir (`547950f`) |
+| 16 | "smart kitchen scale/oven" ekranında rəqəm/yazı (ep3 sc16/sc23) | ekranlı cihaz | `digital …`, `smart <cihaz>` yazı daşıyan sayılır, "smart robot" qalır (`547950f`) |
 
 **Hələ avtomatlaşdırılmayan (istifadəçi qərarı):** fon musiqisi (`Music\*.mp3`), LTX.
 
@@ -114,6 +117,11 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
   Final: **15.59 dəq**, 1920×1080 H.264 High 4.1 yuv420p, AAC 48 kHz stereo, **−14.2 LUFS**, 435 MB,
   tam dekod xətasız, `final_video_problems=[]`, youtube/ paketi (8 fəsil, thumbnail) hazır.
   Kadrlar (intro, bölmə başlığı, səhnələr, outro, thumbnail) vizual yoxlandı. 114 test keçir.
+
+**2026-09-26 — `how-ai-agents-change-automation` HAZIRDIR (ilk tam avtomatik keyfiyyət yoxlamalı epizod):**
+16.12 dəq, 1920×1080 H.264 High 4.1 yuv420p, AAC 48 kHz stereo, −14.2 LUFS, 457 MB, dekod xətasız,
+`final_video_problems=[]`, youtube/ (8 fəsil, thumbnail). `check_bgs`: raund 1 → 10/97 pis, raund 2 → 6, raund 3 → 2
+(ehtiyat fona keçdi); 10 fon avtomatik yenidən çəkildi. 128 test keçir.
 
 **Növbəti:** yeni mövzu → `python run.py "Mövzu"` (~1.5–2 saat: skript, 98-ə yaxın fon, TTS, Remotion).
 Fon yoxlamasını pipeline özü edir (`check_bgs`, hesabat `Episodes/<slug>/bg_qa.json`). Claude pipeline-ı
