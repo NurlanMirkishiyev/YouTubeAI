@@ -1,5 +1,10 @@
 # ELI5 Business --- Lokal AI YouTube Video İstehsal Planı
 
+> **2026-09-26 qərarları:** fon şəkilləri OpenAI `gpt-image-2` (ChatGPT şəkil modeli, keyfiyyət low) ilə
+> çəkilir — SDXL/IP-Adapter silindi, ComfyUI yalnız upscale üçündür. Image-to-video (LTX/Wan) plandan
+> çıxarıldı — hərəkət Remotion Ken Burns ilə verilir.
+
+
 ## Məqsəd
 
 Həftədə **2 ədəd**, hər biri təxminən **10 dəqiqəlik**, ELI5 Business
@@ -33,8 +38,6 @@ ComfyUI
  ┌────┼──────────────┐
  ↓    ↓              ↓
 Owl   Illustration   Diagram
- ↓
-Qısa Image-to-Video klipləri
       ↓
 Kokoro TTS
       ↓
@@ -79,7 +82,6 @@ C:\YouTubeAI\
 -   [x] IP-Adapter/reference workflow
 -   [x] Kokoro TTS
 -   [x] Whisper
--   [ ] Son mərhələdə Wan/LTX image-to-video workflow
 
 ### Nəticə
 
@@ -292,12 +294,6 @@ Consistent Owl Scene
 
 Personajsız biznes, hüquq, maliyyə, AI və digər izahlı vizuallar.
 
-## Workflow C --- Image-to-Video
-
-Yalnız seçilmiş səhnələr üçün qısa hərəkətli kliplər.
-
-8 GB VRAM səbəbilə VRAM-a qənaət edən / quantized workflow seçiləcək.
-
 ------------------------------------------------------------------------
 
 # Mərhələ 8 --- Səsləndirmə
@@ -453,7 +449,6 @@ təmizlənəcək.
 -   [x] 17. Pan/zoom
 -   [x] 18. Transitions (xfade, Projects/_ffmpeg/montage.py)
 -   [x] 19. Background music (mix hazır; royalty-free trek istifadəçidən → C:/YouTubeAI/Music/)
--   [ ] 20. Image-to-video workflow
 
 ## FAZA E --- İlk Episode
 

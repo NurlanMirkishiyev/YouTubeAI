@@ -19,7 +19,7 @@
 | FAZA F / Faza 1 (automation + keyfiyyət) | **TAMAM** (2026-09-25) — Task 0–16, E2E işlədi, fonlarda yazı problemi həll edildi |
 | FAZA G (5 şikayət + Remotion) | **TAMAM** (2026-09-26) — `what-is-business-automation` 15.59 dəq HAZIRDIR |
 | Avtomatik keyfiyyət (check_bgs) | **TAMAM** (2026-09-26) — əl ilə fon yoxlaması artıq lazım deyil |
-| FAZA F / Faza 2 (LTX-Video) | başlanmayıb — ayrıca spec lazımdır |
+| Şəkillər ChatGPT ilə (gpt-image-2) + təmizlik | **TAMAM** (2026-09-26) — SDXL silindi, LTX plandan çıxarıldı |
 
 **İstifadə:** `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan yarımçıq epizod davam edir;
 `Music\*.mp3` varsa avtomatik fon musiqisi) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
@@ -29,7 +29,7 @@ Musiqi: `--music Music\<trek>.mp3` (verilməsə musiqisiz).
 **Ölçülmüş (2026-09-23):** fon upscale 15 s/fon · sprite HD 8 ədəd 71 s · 8.14 dəq epizodun montajı ~7 dəq ·
 köhnə epizodun FAZA F versiyası (`faza1_test.mp4`) bütün A2/A3/A4/A8 yoxlamalarından keçdi.
 
-**İlk epizod:** `Episodes/trademark-copyright-patent/trademark-copyright-patent.mp4`
+**İlk epizod (2026-09-26 istifadəçi qərarı ilə silindi):** `trademark-copyright-patent`
 1550 söz · 29 səhnə · 7.97 dəq · 1920×1080@30 · H.264 High / yuv420p / L4.1 · AAC 24 kHz mono · 137 MB
 Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqlənib.
 
@@ -59,7 +59,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 15 | Mərhələ bir dəfəlik xəta ilə bütün videonu dayandırırdı | retry yox idi | uğursuz mərhələ 30 s sonra 2 dəfə yenidən cəhd edilir (`547950f`) |
 | 16 | "smart kitchen scale/oven" ekranında rəqəm/yazı (ep3 sc16/sc23) | ekranlı cihaz | `digital …`, `smart <cihaz>` yazı daşıyan sayılır, "smart robot" qalır (`547950f`) |
 
-**Hələ avtomatlaşdırılmayan (istifadəçi qərarı):** fon musiqisi (`Music\*.mp3`), LTX.
+**Hələ avtomatlaşdırılmayan (istifadəçi qərarı):** fon musiqisi (`Music\*.mp3`).
 
 ---
 
@@ -127,7 +127,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 Fon yoxlamasını pipeline özü edir (`check_bgs`, hesabat `Episodes/<slug>/bg_qa.json`). Claude pipeline-ı
 `Start-Process` ilə müstəqil açır (sessiya bağlansa ölməsin).
 Açıq qalan (istifadəçi qərarı lazımdır): fon musiqisi (`Music/` boşdur — mp3 qoyulsa bat özü götürür),
-Faza 2 (LTX, ayrıca spec). Sənəd işarələri + plan 29–36 aktuallaşdırıldı (2026-09-26).
+Sənəd işarələri + plan 29–36 aktuallaşdırıldı (2026-09-26).
 
 ---
 
@@ -192,20 +192,15 @@ Səhv → dayan, səbəbi yaz.
 `--words 2150` (199 wpm → 10.8 dəq). Addım 5-dən sonra yoxlama: narration < 600 s olsa,
 avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 
-**LTX-Video — mərhələli**
-- **Faza 1** (əvvəl): yuxarıdakı hər şey, `--motion kenburns` default → ~50–60 dəq-ə hazır video
-- **Faza 2** (sonra): `--motion ltx` bayrağı, əvvəlcə **1 səhnədə test**
-
-Səbəb (aşağıdakı "Risklər"ə bax): 8 GB VRAM sərhəddədir, LTX bütün pipeline-ı bloklamamalıdır.
+**LTX-Video** — 2026-09-26 istifadəçi qərarı ilə plandan çıxarıldı.
 
 ---
 
 ## Risklər / açıq suallar
 
-- **GPU = RTX 4060 Laptop, 8 GB VRAM.** LTX 2B fp8 + T5-XXL fp8 ≈ 8–10 GB → sərhəddə.
-  `--lowvram` ilə işləyə bilər, **zəmanət yoxdur**. Birdəfəlik ~10–12 GB yükləmə.
-  Səhnə başına ~2–4 dəq × 30 = **+60–120 dəq/epizod** (təxmin, ölçülməyib).
-- **LTX klip uzunluğu ~5 s**, səhnələr 12–30 s → ping-pong loop ilə doldurulmalıdır.
+- **Fonlar OpenAI-dən asılıdır** (gpt-image-2): API əlçatmazdırsa mərhələ 2 dəfə təkrar edilir, sonra dayanır
+  (lokal SDXL ehtiyatı istifadəçi qərarı ilə silindi). `gpt-image-2`-nin dəqiq qiyməti ölçülməyib
+  (158 çıxış token/şəkil; gpt-image-1 low = 400 token ≈ $0.016).
 - `Music/` boşdur — yalnız `_placeholder_tone.wav`. İstifadəçi royalty-free trek verməlidir.
 - Böyük character sheet istifadəçidən gözlənilir (verəndə `BOXES` və `CUTS` koordinatları yenidən hesablanır).
 - Audio hazırda 24 kHz mono — Faza 1-də 48 kHz stereo-ya keçir.
@@ -228,6 +223,14 @@ Səbəb (aşağıdakı "Risklər"ə bax): 8 GB VRAM sərhəddədir, LTX bütün 
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-26 — Şəkillər ChatGPT ilə, təmizlik
+- İstifadəçi: "şəkillər chatgpt ilə hazırlansın", "lazımsız nə varsa sil", "LTX-i plandan çıxar";
+  altyazı səsləndirməsi artıq var — dəyişməz qaldı
+- `render_bgs`: OpenAI `gpt-image-2`, low (istifadəçi seçimi), 1536x1024 → 16:9, 4 paralel; probda
+  gpt-image-1 bayquş üçün boş tərəfi pozdu, gpt-image-2 əməl etdi. ComfyUI yalnız upscale üçün.
+- Silindi: SDXL/IP-Adapter/CLIP-vision modelləri, köhnə ffmpeg montaj kodu, Temp/Output/ComfyUI sınaqları,
+  2 köhnə epizod, qalan 2 epizodun ara faylları (mp4 + youtube/ + srt qalıb) — ~16 GB. 102 test.
 
 ### 2026-09-25/26 — İstehsal: `what-is-business-automation`
 - 2402 söz, **12.55 dəq**, 1920×1080 yuv420p, AAC 48 kHz stereo, 192 MB; ilk keçid ~38 dəq
