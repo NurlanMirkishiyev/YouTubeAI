@@ -30,6 +30,8 @@ MAX_SAME_HERO = 2                  # eyni esas isim butun epizodda en cox bu qed
 VIDEO_POSES = ("front", "three_q", "side", "box", "chart")
 MIN_DUR, MAX_DUR = 6.0, 45.0   # klemp yalniz emniyyet ucun; gercek muddet add. 25-de TTS-den gelir
 POSITIONS = ("left", "right", "center")
+OWL_SIDE = "right"             # personaj butun epizodda eyni yerde (istifadeci 2026-09-27)
+FALLBACK_POSE = "three_q"
 
 SYSTEM = """You are the art director of an animated explainer video for kids and beginners.
 The host is a cartoon owl rendered separately in a lower corner - you never describe the owl.
@@ -57,7 +59,7 @@ USER = """Return a picture and an owl pose for each numbered scene.
 Available owl poses (use the name exactly): {poses}
 front = talking to viewer, three_q = explaining, side = walking/looking at something,
 box = showing a product/example/object, chart = numbers, growth, comparisons, results.
-Change the pose from one scene to the next.
+For each scene pick the pose that best fits what the narration says in that scene.
 
 Subjects already used recently (do NOT repeat them): {used}
 
@@ -206,15 +208,10 @@ def repeats(prompts: list[str], subjects: list[str], window: int = REPEAT_WINDOW
     return bad
 
 
-def vary_poses(suggested: list[str]) -> list[str]:
-    """LLM-in secimi saxlanir, amma yalniz tam beden ve ardicil eyni poz olmadan."""
-    out: list[str] = []
-    for k, p in enumerate(suggested):
-        pose = p if p in VIDEO_POSES else VIDEO_POSES[k % len(VIDEO_POSES)]
-        if out and pose == out[-1]:
-            pose = next(x for x in VIDEO_POSES[k % len(VIDEO_POSES):] + VIDEO_POSES if x != out[-1])
-        out.append(pose)
-    return out
+def fit_poses(suggested: list[str]) -> list[str]:
+    """LLM sehnenin mezmununa uygun pozu secir - secim oldugu kimi saxlanir (tekrar olsa da).
+    Bust ve ya namelum poz -> FALLBACK_POSE."""
+    return [p if p in VIDEO_POSES else FALLBACK_POSE for p in suggested]
 
 
 def load_poses() -> list[str]:
@@ -266,15 +263,10 @@ def split_scenes(markdown: str) -> list[dict]:
 
 
 def assign_positions(scenes: list[dict]) -> list[str]:
-    """Sprite movqeyi deterministik: bolmeler novbe ile sag/sol. LLM-e buraxilanda butun
-    sehneler eyni terefde qalirdi. 'center' istifade olunmur - subtitr asagi-merkezdedir
-    ve merkezdeki bayqusun ustune dusurdu (FAZA F kadr yoxlamasi)."""
-    order: list[str] = []
-    for s in scenes:
-        if s["section"] not in order:
-            order.append(s["section"])
-    side = {sec: ("right", "left")[k % 2] for k, sec in enumerate(order)}
-    return [side[s["section"]] for s in scenes]
+    """Bayqus butun epizodda eyni terefde sabit durur (istifadeci 2026-09-27: "tərpənməsin").
+    Evvel bolmeler novbe ile sag/sol idi - bolme deyisende personaj ekranda tullanirdi.
+    'center' istifade olunmur - subtitr asagi-merkezdedir."""
+    return [OWL_SIDE for _ in scenes]
 
 
 def raw_duration(narration: str) -> float:
@@ -322,7 +314,7 @@ def _fields(it: dict) -> tuple[str, str, str]:
 
 def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     """Hisse-hisse planlanir (son movzular LLM-e verilir), sonra tekrarlar bir defe yeniden istenir,
-    qalanlar tekrarsiz FALLBACK_POOL-dan alir. Pozlar tam beden, ardicil tekrarsiz."""
+    qalanlar tekrarsiz FALLBACK_POOL-dan alir. Pozlar tam beden, sehneye uygun."""
     missing = [p for p in VIDEO_POSES if p not in poses]
     if missing:
         raise LLMError(f"sprites.json-da poz yoxdur: {missing}")
@@ -358,7 +350,7 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     for k, (i, fb) in enumerate(zip(final, pick_fallbacks(len(final), kept))):
         prompts[i], subjects[i] = fb, f"fallback {k}"
     out = []
-    for sc, bg, sub, spr, pos in zip(scenes, prompts, subjects, vary_poses(sprites), assign_positions(scenes)):
+    for sc, bg, sub, spr, pos in zip(scenes, prompts, subjects, fit_poses(sprites), assign_positions(scenes)):
         out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos,
                     "sprite_token": f"{spr}@{pos}", "duration": duration_for(sc["narration"])})
     return out

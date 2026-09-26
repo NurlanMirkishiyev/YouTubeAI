@@ -38,7 +38,7 @@ export const Episode: React.FC<EpisodeProps> = (p) => {
     {key: 'intro', frames: p.introFrames, section: '__intro__',
       node: <IntroCard title={p.topic} brand={p.brand} bg={p.introBg} owlAspect={aspect('front')} />},
     ...p.scenes.map((s, i) => ({key: `sc${i}`, frames: s.frames, section: s.side + (s.title ?? i),
-      node: <KenBurns src={s.bg} motion={s.motion} />})),
+      node: <KenBurns src={s.bg} motion={s.motion} flip={s.flip} />})),
     {key: 'outro', frames: p.outroFrames, section: '__outro__',
       node: <OutroCard brand={p.brand} bg={p.outroBg} owlAspect={aspect('three_q')} />},
   ];
@@ -58,7 +58,7 @@ export const Episode: React.FC<EpisodeProps> = (p) => {
             presentation={sectionChange ? slide({direction: 'from-right'}) : fade()} />];
         })}
       </TransitionSeries>
-      <OwlLayer scenes={placed} poses={p.poses} audio={p.audio} endFrame={scenesEnd} />
+      <OwlLayer scenes={placed} poses={p.poses} endFrame={scenesEnd} />
       {placed.filter((s) => s.title).map((s) => (
         <Sequence key={s.start} from={s.start} durationInFrames={Math.min(s.frames, LOWER_THIRD_S * p.fps)}
           layout="none">

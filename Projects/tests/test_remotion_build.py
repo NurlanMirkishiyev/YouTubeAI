@@ -29,7 +29,7 @@ def test_props_timeline_matches_narration():
 def test_props_titles_poses_and_motion():
     p = rb.episode_props(DATA, "What Is It?", [], POSES)
     assert [s["title"] for s in p["scenes"]] == [None, "What Is It?", None]
-    assert [s["side"] for s in p["scenes"]] == ["right", "left", "left"]
+    assert [s["side"] for s in p["scenes"]] == ["right", "right", "right"]
     assert p["scenes"][2]["pose"] == "three_q"            # bust -> tam beden
     assert len({s["motion"] for s in p["scenes"]}) == 3
     assert p["poses"]["chart"]["flippable"] is False
@@ -40,3 +40,9 @@ def test_props_titles_poses_and_motion():
 def test_words_are_compacted():
     words = [{"word": " Hello", "start": 0.0, "end": 0.4}, {"word": " world.", "start": 0.4, "end": 0.9}]
     assert rb.compact_words(words) == [{"w": "Hello", "s": 0.0, "e": 0.4}, {"w": "world.", "s": 0.4, "e": 0.9}]
+
+
+def test_left_composed_backgrounds_are_mirrored_so_the_owl_stays_right():
+    # Kohne epizodlarda fon bos yeri solda saxlayir; guzgu ile bos yer saga kecir (fonda yazi yoxdur)
+    p = rb.episode_props(DATA, "What Is It?", [], POSES)
+    assert [s["flip"] for s in p["scenes"]] == [False, True, True]

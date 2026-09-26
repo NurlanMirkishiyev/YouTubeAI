@@ -24,6 +24,7 @@ MIN_CHAPTER_S = 10.0   # YouTube: her chapter >= 10 s, en az 3 chapter, ilki 00:
 FIRST_CHAPTER = "Intro"  # "Hook" daxili terminidir, tamasaciya gosterilmir
 THUMB_SIZE = (1280, 720)
 SPRITE_HD = r"C:\YouTubeAI\Character\ELI5_Owl\sprites_hd"
+MUSIC_CREDITS = r"C:\YouTubeAI\Music\credits.json"   # trek fayli -> CC BY basliq (incompetech)
 
 SYSTEM = """You write YouTube metadata for an ELI5 Business explainer channel hosted by a cartoon owl.
 Honest, specific, curiosity-driven. Never promise anything the video does not deliver.
@@ -93,13 +94,32 @@ def pick_title(titles: list) -> str:
     return fitting[0] if fitting else clean[0][:TITLE_MAX].rsplit(" ", 1)[0]
 
 
-def description(summary: str, chaps: list[tuple[float, str]], hashtags: list) -> str:
+def music_credit(music: str | None, credits: dict[str, str]) -> str:
+    """CC BY 4.0 (incompetech) treki ucun description-a mecburi istinad; namelum trek -> bos."""
+    title = credits.get(os.path.basename(music)) if music else None
+    if not title:
+        return ""
+    return (f'Music: "{title}" Kevin MacLeod (incompetech.com)\n'
+            "Licensed under Creative Commons: By Attribution 4.0 License\n"
+            "http://creativecommons.org/licenses/by/4.0/")
+
+
+def load_credits() -> dict[str, str]:
+    if not os.path.isfile(MUSIC_CREDITS):
+        return {}
+    with open(MUSIC_CREDITS, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def description(summary: str, chaps: list[tuple[float, str]], hashtags: list, credit: str = "") -> str:
     lines = [summary.strip(), ""]
     if chaps:
         lines += ["Chapters:"] + [f"{fmt_ts(t)} {title}" for t, title in chaps] + [""]
     tags = " ".join(h if str(h).startswith("#") else "#" + str(h).replace(" ", "") for h in hashtags)
     if tags:
-        lines.append(tags)
+        lines += [tags, ""]
+    if credit:
+        lines.append(credit)
     return "\n".join(lines).strip() + "\n"
 
 
@@ -138,13 +158,14 @@ def pack_problems(ydir: str) -> list[str]:
     return problems
 
 
-def write_pack(ep: str, topic: str, data: dict, chaps: list[tuple[float, str]]) -> str:
+def write_pack(ep: str, topic: str, data: dict, chaps: list[tuple[float, str]], credit: str = "") -> str:
     ydir = os.path.join(ep, "youtube")
     os.makedirs(ydir, exist_ok=True)
     titles = data.get("titles") or []
     files = {"title.txt": pick_title(titles) + "\n",
              "title_variants.txt": "\n".join(" ".join(str(t).split()) for t in titles) + "\n",
-             "description.txt": description(str(data.get("summary", "")), chaps, data.get("hashtags") or []),
+             "description.txt": description(str(data.get("summary", "")), chaps, data.get("hashtags") or [],
+                                            credit),
              "tags.txt": ",".join(fit_tags(data.get("tags") or [])) + "\n"}
     for name, text in files.items():
         with open(os.path.join(ydir, name), "w", encoding="utf-8", newline="\n") as f:
@@ -159,6 +180,7 @@ def write_pack(ep: str, topic: str, data: dict, chaps: list[tuple[float, str]]) 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("episode_dir")
+    ap.add_argument("--music", help="istifade olunan trek - description-a istinad ucun")
     add_provider_arg(ap)
     a = ap.parse_args()
     ep = a.episode_dir
@@ -176,7 +198,7 @@ def main() -> None:
                                                   chapters="\n".join(t for _, t in chaps),
                                                   hook=scenes[0]["narration"][:600]),
                          max_tokens=900, provider=a.provider, model=a.model, temperature=0.7)
-        ydir = write_pack(ep, meta["topic"], data, chaps)
+        ydir = write_pack(ep, meta["topic"], data, chaps, music_credit(a.music, load_credits()))
     except (LLMError, ValueError) as e:
         raise SystemExit("publish paketi xetasi: " + str(e)) from e
     problems = pack_problems(ydir)

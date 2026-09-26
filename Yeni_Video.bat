@@ -1,6 +1,6 @@
 @echo off
 rem Iki klik -> movzu yaz -> hazir YouTube videosu (Episodes\<slug>\).
-rem Music\ qovlugunda .mp3 varsa fon musiqisi kimi avtomatik istifade olunur.
+rem Music\ qovlugundaki .mp3-ler fon musiqisi kimi avtomatik istifade olunur (credits.json -> istinad).
 setlocal
 cd /d "%~dp0"
 set "PY=%~dp0Projects\.venv\Scripts\python.exe"
@@ -17,14 +17,8 @@ set "TOPIC=%TOPIC:"=%"
 
 if /i "%TOPIC%"=="resume" goto :resume
 
-set "MUSIC="
-for %%F in ("%~dp0Music\*.mp3") do set "MUSIC=%%~fF"
-if defined MUSIC (
-    echo Musiqi: %MUSIC%
-    call :run "%TOPIC%" --music "%MUSIC%"
-) else (
-    call :run "%TOPIC%"
-)
+rem Musiqi: pipeline Music\*.mp3-den her epizoda bir trek secir (novbe ile)
+call :run "%TOPIC%"
 
 goto :done
 

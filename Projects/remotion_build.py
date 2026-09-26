@@ -67,7 +67,9 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
     for i, (s, f) in enumerate(zip(scenes, frames[1:-1])):
         pose = s.get("sprite") if s.get("sprite") in VIDEO_POSES else FALLBACK_POSE
         out_scenes.append({"frames": f, "bg": f"bg/sc{i + 1:02d}.jpg", "pose": pose,
-                           "side": "left" if s.get("pos") == "left" else "right",
+                           # Bayqus hemise sagda sabit; fonu bos yeri solda qurulmus (kohne epizod)
+                           # sehnelerde sekil guzgulenir - bos yer saga kecir, fonda yazi yoxdur
+                           "side": "right", "flip": s.get("pos") == "left",
                            "motion": MOTIONS[i % len(MOTIONS)], "title": s.get("spoken_title")})
     return {"fps": FPS, "topic": topic, "brand": BRAND, "audio": "narration.wav",
             "introFrames": frames[0], "outroFrames": frames[-1],

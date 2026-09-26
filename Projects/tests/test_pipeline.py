@@ -170,3 +170,35 @@ def test_failed_stage_shows_the_last_log_line_and_quota_errors_are_not_retried(t
     got = pl._step_with_retries(stage, _ctx(tmp_path), False, str(tmp_path),
                                 lambda *a: calls.append(1) or problems, None, [], lambda s: None)
     assert len(calls) == 1 and got == problems
+
+
+def test_default_music_is_picked_from_music_dir_per_episode(tmp_path):
+    for n in ("b.mp3", "a.mp3", "c.mp3"):
+        (tmp_path / n).write_bytes(b"x")
+    (tmp_path / "_placeholder_tone.wav").write_bytes(b"x")
+    first = pl.default_music("what-is-cash-flow", str(tmp_path))
+    assert first == pl.default_music("what-is-cash-flow", str(tmp_path))      # resume eyni treki alir
+    assert first.endswith(".mp3")
+    picks = {pl.default_music(f"topic-{i}", str(tmp_path)) for i in range(30)}
+    assert len(picks) == 3                                                   # epizodlar arasinda novbelesir
+
+
+def test_default_music_is_none_without_tracks(tmp_path):
+    assert pl.default_music("x", str(tmp_path)) is None
+
+
+def test_make_ctx_uses_default_music(tmp_path, monkeypatch):
+    monkeypatch.setattr(pl, "EPISODES", str(tmp_path))
+    monkeypatch.setattr(pl, "MUSIC_DIR", str(tmp_path / "m"))
+    (tmp_path / "m").mkdir()
+    (tmp_path / "m" / "song.mp3").write_bytes(b"x")
+    ctx = pl.make_ctx(pl.parse_args(["Some Topic"]))
+    assert ctx.music == str(tmp_path / "m" / "song.mp3")
+
+
+def test_publish_stage_passes_music_for_the_credit():
+    ctx = st.Ctx(topic="T", slug="t", ep_dir="E", words=100, music="M.mp3", min_seconds=480.0,
+                 max_seconds=600.0, provider="openai")
+    stage = next(s for s in st.STAGES if s.name == "publish")
+    cmd = stage.command(ctx, False)
+    assert cmd[cmd.index("--music") + 1] == "M.mp3"

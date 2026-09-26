@@ -47,3 +47,19 @@ def test_pack_problems(tmp_path):
     assert pp.pack_problems(str(tmp_path)) == []
     Image.new("RGB", (100, 100)).save(tmp_path / "thumbnail.png")
     assert pp.pack_problems(str(tmp_path))
+
+
+def test_music_credit_for_cc_by_track():
+    c = pp.music_credit(r"C:\YouTubeAI\Music\Carefree.mp3", {"Carefree.mp3": "Carefree"})
+    assert '"Carefree" Kevin MacLeod (incompetech.com)' in c
+    assert "Creative Commons: By Attribution 4.0" in c
+
+
+def test_music_credit_empty_for_unknown_or_missing_track():
+    assert pp.music_credit(None, {"Carefree.mp3": "Carefree"}) == ""
+    assert pp.music_credit("own.mp3", {"Carefree.mp3": "Carefree"}) == ""
+
+
+def test_description_appends_credit():
+    d = pp.description("Sum.", [(0.0, "Hook")], ["eli5"], credit="Music: X")
+    assert d.rstrip().endswith("Music: X") and "00:00 Hook" in d

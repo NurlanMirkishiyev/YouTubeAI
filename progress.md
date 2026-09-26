@@ -20,12 +20,15 @@
 | FAZA G (5 şikayət + Remotion) | **TAMAM** (2026-09-26) — `what-is-business-automation` 15.59 dəq HAZIRDIR |
 | Avtomatik keyfiyyət (check_bgs) | **TAMAM** (2026-09-26) — əl ilə fon yoxlaması artıq lazım deyil |
 | Şəkillər ChatGPT ilə (gpt-image-2) + təmizlik | **TAMAM** (2026-09-26) — SDXL silindi, LTX plandan çıxarıldı |
-| Video 8–10 dəq + E2E `what-is-cash-flow` | **mp4 HAZIR** (8.52 dəq); publish paketi OpenAI krediti gözləyir |
+| Video 8–10 dəq + E2E `what-is-cash-flow` | **TAMAM** (2026-09-27) — kredit əlavə edildi, paket hazırdır |
+| Musiqi + sabit personaj (FAZA H) | **TAMAM** (2026-09-27) — `Music\*.mp3` avtomatik, bayquş hərəkətsiz, poz səhnəyə uyğun |
 
-**İstifadə:** `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan yarımçıq epizod davam edir;
-`Music\*.mp3` varsa avtomatik fon musiqisi) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
+**İstifadə:** iş masasında **"ELI5 Yeni Video"** qısayolu = `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan
+yarımçıq epizod davam edir) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
 `Episodes\<slug>\<slug>.mp4` + `Episodes\<slug>\youtube\`. Yarımçıq qalsa: `python run.py --resume <slug>`.
-Musiqi: `--music Music\<trek>.mp3` (verilməsə musiqisiz).
+Musiqi: `--music` verilməsə `Music\*.mp3`-dən slug-a görə trek seçilir (sha1 → epizodlar arasında növbə, resume eyni trek).
+4 trek: Kevin MacLeod (incompetech), **CC BY 4.0** → `Music\credits.json` üzrə istinad description.txt-ə avtomatik yazılır.
+Yeni trek əlavə edəndə: mp3-ü `Music\`-ə qoy; CC BY-dırsa `credits.json`-a `"fayl.mp3": "Başlıq"` sətri əlavə et.
 
 **Ölçülmüş (2026-09-23):** fon upscale 15 s/fon · sprite HD 8 ədəd 71 s · 8.14 dəq epizodun montajı ~7 dəq ·
 köhnə epizodun FAZA F versiyası (`faza1_test.mp4`) bütün A2/A3/A4/A8 yoxlamalarından keçdi.
@@ -66,8 +69,10 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 21 | ChatGPT öz-özünə küçük/pişik/dovşan çəkirdi (ep4, 7 fon) | "Pixar-style" personaj gətirir | şəkil promptunda "no animals or cartoon characters (robots are fine)" |
 | 22 | Ehtiyat fon özü 3-cü "jar" oldu (ep4) | fallback seçimi istifadə olunmuş isimlərə baxmırdı | `pick_fallbacks` (`d2cc036`) |
 | 23 | OpenAI krediti bitdi → publish 4×3 dəfə boş təkrar, istifadəçi JSON gördü (ep4) | `insufficient_quota` 429 ilə gəlir | dərhal "OpenAI BALANSI BITIB …" xətası, mərhələ təkrarlanmır, konsolda loqun son sətri görünür |
+| 24 | Video musiqisiz çıxırdı | `Music\` boş, bat yalnız `--music` ilə ötürürdü | 4 CC BY trek + `pipeline.default_music` + `publish_pack.music_credit` |
+| 25 | Personaj tərpənirdi, bölmə dəyişəndə sağ↔sol tullanırdı; istifadəçi: **"sabit dayansın, tərpənməsin, şəkli səhnəyə uyğunlaşsın"** | `Owl.tsx` nəfəs/yellənmə/danışıq/spring + `assign_positions` növbəsi; `vary_poses` pozu zorla dəyişirdi | `Owl.tsx` hərəkətsiz, poz fon keçidinin ortasında ani dəyişir; bayquş həmişə sağda; `fit_poses` LLM seçimini saxlayır; sol-kompozisiyalı köhnə fonlar güzgülənir (`flip`) |
 
-**Hələ avtomatlaşdırılmayan (istifadəçi qərarı):** fon musiqisi (`Music\*.mp3`).
+**Açıq qalan:** yoxdur.
 
 ---
 
@@ -131,13 +136,15 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 `final_video_problems=[]`, youtube/ (8 fəsil, thumbnail). `check_bgs`: raund 1 → 10/97 pis, raund 2 → 6, raund 3 → 2
 (ehtiyat fona keçdi); 10 fon avtomatik yenidən çəkildi. 128 test keçir.
 
-**SESSİYA BURADA DAYANDI (2026-09-26 axşam, istifadəçi: "yaddaşa yaz, sonra davam edəcəyik"):**
-1. `what-is-cash-flow.mp4` HAZIR (8.52 dəq, yoxlanıb). **Publish paketi gözləyir — OpenAI krediti bitib.**
-   İstifadəçi kredit əlavə edəndən sonra: `python run.py --resume what-is-cash-flow` → youtube/ + thumbnail yoxla.
-2. Sonra: istifadəçi yeni mövzu verir → `python run.py "Mövzu"` (~45 dəq: skript 1 dəq, ~50 ChatGPT şəkli ~10 dəq
+**2026-09-27 — FAZA H (istifadəçi: "kredit əlavə etdim, yarımçıq qalanları tamamla, musiqi əlavə et,
+personaj sabit dayansın, şəkli səhnəyə uyğunlaşsın, tam hazır olsun"):**
+1. `what-is-cash-flow` yenidən quruldu: pozlar səhnə mətninə görə yenidən seçildi (52-dən 34-ü dəyişdi,
+   bir dəfəlik skript), sabit bayquş, güzgülənmiş fonlar, Carefree musiqisi, istinadlı youtube/ paketi.
+2. İndi: istifadəçi yeni mövzu verir → `python run.py "Mövzu"` (~45 dəq: skript 1 dəq, ~50 ChatGPT şəkli ~10 dəq
    [limit 5/dəq], hakim ~2 dəq, upscale ~13 dəq, TTS+SRT ~2 dəq, Remotion ~11 dəq). Claude `Start-Process` ilə
    müstəqil açır; fon yoxlamasını pipeline özü edir (`check_bgs`, `Episodes/<slug>/bg_qa.json`).
-Açıq qalan (istifadəçi qərarı): fon musiqisi (`Music/` boşdur — mp3 qoyulsa bat özü götürür).
+Qeyd: köhnə 2 epizod (`what-is-business-automation`, `how-ai-agents-change-automation`) 8–10 dəq qaydasından
+əvvəl çəkilib (15–16 dəq) və ara faylları silinib — yenidən render olunmayıb.
 
 ---
 
@@ -211,7 +218,7 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 - **Fonlar OpenAI-dən asılıdır** (gpt-image-2): API əlçatmazdırsa mərhələ 2 dəfə təkrar edilir, sonra dayanır
   (lokal SDXL ehtiyatı istifadəçi qərarı ilə silindi). `gpt-image-2`-nin dəqiq qiyməti ölçülməyib
   (158 çıxış token/şəkil; gpt-image-1 low = 400 token ≈ $0.016).
-- `Music/` boşdur — yalnız `_placeholder_tone.wav`. İstifadəçi royalty-free trek verməlidir.
+- Musiqi CC BY 4.0-dır: description-dakı istinad silinməməlidir (YouTube-a yükləyəndə olduğu kimi saxla).
 - Böyük character sheet istifadəçidən gözlənilir (verəndə `BOXES` və `CUTS` koordinatları yenidən hesablanır).
 - Audio hazırda 24 kHz mono — Faza 1-də 48 kHz stereo-ya keçir.
 
@@ -233,6 +240,15 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-27 — FAZA H: musiqi + sabit personaj, cash flow tamamlandı
+- Kredit əlavə edildi → `what-is-cash-flow` publish paketi hazırlandı
+- Musiqi: FreePD bağlanıb → incompetech (Kevin MacLeod, CC BY 4.0) 4 trek; slug-a görə növbə; description-a istinad
+- Personaj: `Owl.tsx` hərəkətsiz (nəfəs/yellənmə/danışıq/spring/tərəf sürüşməsi silindi), həmişə sağda;
+  cross-fade ikiqat bayquş göstərdi (kadr yoxlaması) → poz fon keçidinin 7-ci kadrında ani dəyişir
+- Pozlar: `vary_poses` (zorla növbə) → `fit_poses` (LLM-in səhnəyə uyğun seçimi), prompt "pick the pose that best fits"
+- Köhnə sol-kompozisiyalı fonlar `flip` ilə güzgülənir (fonlarda yazı yoxdur → güzgü təhlükəsizdir)
+- İş masasına "ELI5 Yeni Video" qısayolu; bat musiqini pipeline-a buraxır. 127 test.
 
 ### 2026-09-26 — E2E: `what-is-cash-flow` (ChatGPT şəkilləri, 8–10 dəq qaydası)
 - Video HAZIR: **8.52 dəq** (511 s), 1920×1080 H.264 High 4.1 yuv420p, AAC 48 kHz stereo, −14.2 LUFS, 376 MB,

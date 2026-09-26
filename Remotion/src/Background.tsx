@@ -13,8 +13,8 @@ const MOTIONS: Record<Motion, {z0: number; z1: number; p0: number; p1: number}> 
 /** Ken Burns: CSS transform sub-pixel islenir - ffmpeg zoompan-dakı tam-piksel titremesi yoxdur.
  * Sabit suret (easing yox): inOut her ~7 s-lik sehnenin evvelinde/sonunda fonu dayandirirdi ve
  * kecidlerde "dur-get" ritmi yaradirdi; suret sicrayisini 15 kadrlıq kecid ortusmesi gizledir. */
-export const KenBurns: React.FC<{src: string; motion: Motion; blur?: number; dim?: number}> = (
-  {src, motion, blur = 0, dim = 0}) => {
+export const KenBurns: React.FC<{src: string; motion: Motion; blur?: number; dim?: number; flip?: boolean}> = (
+  {src, motion, blur = 0, dim = 0, flip = false}) => {
   const frame = useCurrentFrame();
   const {durationInFrames} = useVideoConfig();
   const m = MOTIONS[motion];
@@ -27,7 +27,7 @@ export const KenBurns: React.FC<{src: string; motion: Motion; blur?: number; dim
     <AbsoluteFill style={{overflow: 'hidden', backgroundColor: '#000'}}>
       <Img src={staticFile(src)} style={{
         width: '100%', height: '100%', objectFit: 'cover',
-        transform: `translateX(${-p * maxShift}px) scale(${z})`,
+        transform: `translateX(${-p * maxShift}px) scale(${z})${flip ? ' scaleX(-1)' : ''}`,
         filter: blur ? `blur(${blur}px) brightness(${1 - dim})` : undefined,
         willChange: 'transform'}} />
       <AbsoluteFill style={{background:

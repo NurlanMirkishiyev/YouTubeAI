@@ -1,9 +1,10 @@
 import scene_plan
 
 
-def test_positions_alternate_by_section_and_never_center():
+def test_owl_stays_on_one_side_for_the_whole_episode():
+    # Istifadeci 2026-09-27: personaj sabit dayansin - bolme deyisende sag/sol tullanmasin
     scenes = [{"section": s} for s in ("Hook", "Hook", "Section 1: A", "Section 2: B", "Call to Action")]
-    assert scene_plan.assign_positions(scenes) == ["right", "right", "left", "right", "left"]
+    assert scene_plan.assign_positions(scenes) == ["right"] * 5
 
 
 def test_clean_bg_prompt_drops_text_bearing_items():
@@ -80,11 +81,15 @@ def test_video_poses_are_full_body_only():
     assert set(scene_plan.VIDEO_POSES) == {"front", "three_q", "side", "box", "chart"}
 
 
-def test_pose_variety_never_repeats_back_to_back():
-    out = scene_plan.vary_poses(["three_q"] * 7 + ["happy", "chart", "chart"])
-    assert all(p in scene_plan.VIDEO_POSES for p in out)
-    assert all(a != b for a, b in zip(out, out[1:]))
-    assert out[8] == "chart"            # etibarli ferqli secim saxlanir
+def test_poses_follow_the_scene_even_when_repeated():
+    # Poz sehnenin mezmununa uygun secilir; zorla novbelesdirme uygun pozu pozurdu
+    out = scene_plan.fit_poses(["chart", "chart", "box", "happy", ""])
+    assert out == ["chart", "chart", "box", "three_q", "three_q"]
+
+
+def test_pose_prompt_asks_for_a_fitting_pose_not_a_change():
+    assert "Change the pose" not in scene_plan.USER
+    assert "fits" in scene_plan.USER
 
 
 def test_clean_bg_prompt_keeps_at_most_three_parts():

@@ -6,6 +6,7 @@ export type Scene = {
   bg: string;              // public-dir-e nisbi yol
   pose: string;            // owl/<pose>.png
   side: Side;
+  flip?: boolean;          // fonu guzgule: bos yer solda qurulub, bayqus ise hemise sagdadir
   motion: Motion;
   title: string | null;    // bolmenin ilk sehnesi -> lower-third
 };

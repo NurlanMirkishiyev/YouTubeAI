@@ -165,7 +165,8 @@ STAGES: tuple[Stage, ...] = (
           lambda c: os.path.isfile(c.p("narration.srt")) and os.path.isfile(c.p("narration.words.json")),
           verify_srt),
     Stage("build_episode", _build_cmd, lambda c: os.path.isfile(c.p(f"{c.slug}.mp4")), verify_video),
-    Stage("publish", lambda c, f: _proj("publish_pack.py", c.ep_dir, "--provider", c.provider),
+    Stage("publish", lambda c, f: _proj("publish_pack.py", c.ep_dir, "--provider", c.provider)
+          + (["--music", c.music] if c.music else []),
           lambda c: os.path.isfile(c.p("youtube", "thumbnail.png")), verify_pack),
 )
 
