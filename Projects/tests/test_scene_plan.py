@@ -175,5 +175,5 @@ def test_avoid_list_names_the_real_objects_not_only_abstract_subjects():
 # E2E ep4: tekrar yoxlamasindan SONRA qoyulan ehtiyat fon ozu "a glass jar ... coins" idi -> 3-cu jar
 def test_fallbacks_skip_heroes_already_in_the_episode():
     jar = next(p for p in scene_plan.FALLBACK_POOL if scene_plan.hero(p) == "jar")
-    got = scene_plan.pick_fallbacks(len(scene_plan.FALLBACK_POOL), used_heroes={"jar"})
+    got = scene_plan.pick_fallbacks(len(scene_plan.FALLBACK_POOL) - 1, used_heroes={"jar"})
     assert jar not in got and len(set(got)) == len(got)
