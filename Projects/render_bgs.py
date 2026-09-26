@@ -103,6 +103,14 @@ def render_one(scene: dict, dest: str, gen) -> None:
         crop_16x9(im.convert("RGB")).save(dest, compress_level=3)
 
 
+def prune_extra(folder: str, n_scenes: int) -> None:
+    """Sehne sayindan artiq scNN.png-ler silinir (plan yeniden qurulub qisalanda kohneler qalirdi)."""
+    for name in os.listdir(folder):
+        m = re.fullmatch(r"sc(\d+)\.png", name)
+        if m and int(m[1]) > n_scenes:
+            os.remove(os.path.join(folder, name))
+
+
 def save_bg_paths(scenes_path: str, bg_dir: str) -> None:
     """scenes.json diskden TEZEDEN oxunur, yalniz "bg" saheleri yazilir. Evvel render basinda oxunan
     kohne nusxe butovlukle yazilirdi ve render vaxti edilmis prompt duzelislerini silirdi."""
@@ -130,6 +138,9 @@ def main() -> None:
         scenes = json.load(f)["scenes"]
     bg_dir = os.path.join(a.episode_dir, "bg")
     os.makedirs(bg_dir, exist_ok=True)
+    for folder in (bg_dir, os.path.join(a.episode_dir, "bg_hd")):
+        if os.path.isdir(folder):
+            prune_extra(folder, len(scenes))
 
     def dest(i: int) -> str:
         return os.path.join(bg_dir, f"sc{i + 1:02d}.png")

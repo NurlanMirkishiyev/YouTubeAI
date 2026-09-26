@@ -87,3 +87,11 @@ def test_retry_does_not_swallow_other_errors():
         assert "moderation" in str(e)
     else:
         raise AssertionError("xeta udulmamalidir")
+
+
+# E2E ep4: plan 97 -> 52 sehneye dusende kohne sc53..sc95 qaldi ve upscale onlari da boyuduecekdi
+def test_prune_removes_backgrounds_beyond_the_scene_count(tmp_path):
+    for n in (1, 2, 3, 57):
+        (tmp_path / f"sc{n:02d}.png").write_bytes(b"x")
+    rb.prune_extra(str(tmp_path), 2)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["sc01.png", "sc02.png"]
