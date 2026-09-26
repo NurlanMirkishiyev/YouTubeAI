@@ -83,3 +83,23 @@ def test_render_save_keeps_prompts_edited_on_disk_meanwhile(tmp_path):
     s = json.loads(path.read_text(encoding="utf-8"))["scenes"]
     assert s[1]["bg_prompt"] == "edited meanwhile"
     assert s[0]["bg"].endswith("sc01.png") and "bg" not in s[1]
+
+
+# E2E ep3: sc89 API limiti (429) ucun yoxlanmadan "ok" kecdi - xetali fonlar gozleyib yeniden yoxlanir
+def test_judge_all_rejudges_scenes_that_hit_api_errors():
+    calls, waits = [], []
+
+    def judge_fn(n):
+        calls.append(n)
+        if n == 2 and calls.count(2) == 1:
+            return cb.JUDGE_ERROR
+        return cb.Verdict(ok=n != 3, problems=() if n != 3 else ("text",), fix_prompt="")
+
+    res = cb.judge_all([1, 2, 3], judge_fn, workers=2, sleep=waits.append)
+    assert calls.count(2) == 2 and waits
+    assert res[2].ok and not res[3].ok and res[1].ok
+
+
+def test_judge_all_gives_up_after_retries_without_blocking():
+    res = cb.judge_all([1], lambda n: cb.JUDGE_ERROR, workers=1, sleep=lambda s: None)
+    assert res[1] is cb.JUDGE_ERROR and res[1].ok

@@ -18,6 +18,7 @@
 | FAZA A–E (addım 01–28) | **TAMAM** — ilk epizod çıxdı və oynadılır |
 | FAZA F / Faza 1 (automation + keyfiyyət) | **TAMAM** (2026-09-25) — Task 0–16, E2E işlədi, fonlarda yazı problemi həll edildi |
 | FAZA G (5 şikayət + Remotion) | **TAMAM** (2026-09-26) — `what-is-business-automation` 15.59 dəq HAZIRDIR |
+| Avtomatik keyfiyyət (check_bgs) | **TAMAM** (2026-09-26) — əl ilə fon yoxlaması artıq lazım deyil |
 | FAZA F / Faza 2 (LTX-Video) | başlanmayıb — ayrıca spec lazımdır |
 
 **İstifadə:** `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan yarımçıq epizod davam edir;
@@ -31,6 +32,31 @@ köhnə epizodun FAZA F versiyası (`faza1_test.mp4`) bütün A2/A3/A4/A8 yoxlam
 **İlk epizod:** `Episodes/trademark-copyright-patent/trademark-copyright-patent.mp4`
 1550 söz · 29 səhnə · 7.97 dəq · 1920×1080@30 · H.264 High / yuv420p / L4.1 · AAC 24 kHz mono · 137 MB
 Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqlənib.
+
+---
+
+## Problemlər reyestri — hamısı avtomatlaşdırılıb (2026-09-26)
+
+Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən azı bir dəfə baş verib və indi
+**kodda** həll olunub (əl ilə addım yoxdur). Yeni problem tapılanda bura sətir + test + kod düzəlişi əlavə et.
+
+| # | Problem (nə vaxt) | Kök səbəb | Avtomatik həll (commit) |
+|---|---|---|---|
+| 1 | Fonda mənasız yazı (hər epizod) | SDXL yazı çəkə bilmir; obyektin adı yazını gətirir | `clean_bg_prompt` söz filtri + **`check_bgs` vision hakimi** yenidən çəkir (`f7ce99b`, `795a665`) |
+| 2 | Fonda insan / insan əli (ep2 sc35, ep3 sc02/sc48) | İnsan ismi promptda; negativ prompt kömək etmir | `HUMAN` filtri (athlete, hands, … əlavə) + `check_bgs` (`27fc2d4`, `795a665`) |
+| 3 | Boş/mənasız, kazino, deformasiya fonlar (ep3 sc09/27/97) | LLM zəif metafora seçir | `check_bgs`: no_subject / off_topic / deformed → yeni prompt |
+| 4 | Yenidən çəkmə eyni şəkli verirdi (ep3) | Sabit seed (`BASE_SEED + n`) | hər cəhddə yeni seed, `scenes.json`-da `seed` (`795a665`) |
+| 5 | Prompt düzəlişi itdi (ep3) | `render_bgs` sonda köhnə `scenes.json`-u üstdən yazırdı | `save_bg_paths` faylı təzədən oxuyur, yalnız `bg` yazır (`795a665`) |
+| 6 | Pis fon 3 dəfə də pisdirsə pipeline ilişə bilərdi | — | 3 raunddan sonra istifadə olunmamış `FALLBACK_POOL` fonu |
+| 7 | Hakim 84/97 yaxşı fonu "insan" dedi | gpt-4o-mini + tək "ok?" sualı + narration-dakı "you" | gpt-4o, ayrı bəli/xeyr yoxlamaları, "yalnız şəklə bax" (`795a665`) |
+| 8 | Animasiya dona-dona | ffmpeg zoompan tam piksel | Remotion sub-pixel (`0cfa5cb`) |
+| 9 | Fon hər kəsişdə dayanırdı | Ken Burns `inOut` easing | sabit sürət (`425128e`) |
+| 10 | Remotion pipeline-a qoşulmamışdı | `_build_cmd` köhnə skripti çağırırdı | `test_build_stage_renders_with_remotion` (`d30f12c`) |
+| 11 | Render sessiya bağlananda öldü | Proses Claude sessiyasına bağlı idi | Claude pipeline-ı **`Start-Process` ilə müstəqil** açır; ölsə `--resume` qaldığı yerdən |
+| 12 | Video açılmırdı (yuv444p) | `-pix_fmt` verilməmişdi | spec-ə kodlama + `final_video_problems` yoxlaması |
+| 13 | Video 10 dəq-dən qısa | LLM söz hədəfini tutmur | bölmə-bölmə yazı + TTS saniyə qapısı |
+
+**Hələ avtomatlaşdırılmayan (istifadəçi qərarı):** fon musiqisi (`Music\*.mp3`), LTX.
 
 ---
 
@@ -90,7 +116,8 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
   Kadrlar (intro, bölmə başlığı, səhnələr, outro, thumbnail) vizual yoxlandı. 114 test keçir.
 
 **Növbəti:** yeni mövzu → `python run.py "Mövzu"` (~1.5–2 saat: skript, 98-ə yaxın fon, TTS, Remotion).
-render_bgs-dən sonra fonlara kontakt vərəqi ilə bax (pis olanları `--only N --force` ilə yenidən çək).
+Fon yoxlamasını pipeline özü edir (`check_bgs`, hesabat `Episodes/<slug>/bg_qa.json`). Claude pipeline-ı
+`Start-Process` ilə müstəqil açır (sessiya bağlansa ölməsin).
 Açıq qalan (istifadəçi qərarı lazımdır): fon musiqisi (`Music/` boşdur — mp3 qoyulsa bat özü götürür),
 Faza 2 (LTX, ayrıca spec). Sənəd işarələri + plan 29–36 aktuallaşdırıldı (2026-09-26).
 

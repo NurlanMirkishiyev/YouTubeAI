@@ -17,6 +17,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
@@ -109,6 +110,26 @@ def _image_part(path: str) -> dict:
     return {"type": "image_url", "image_url": {"url": url, "detail": "low"}}
 
 
+JUDGE_ERROR = Verdict(ok=True, problems=("judge_error",), fix_prompt="")
+JUDGE_RETRIES = 3
+JUDGE_RETRY_WAIT_S = 30     # TPM limiti deqiqelikdir - 1-4 s-lik backoff kifayet etmirdi
+
+
+def judge_all(nums: list[int], judge_fn, workers: int = WORKERS, sleep=time.sleep) -> dict[int, Verdict]:
+    """Paralel yoxla; API xetasi alanlari gozleyib ARDICIL yeniden yoxla (ep3-de sc89 429 ile yoxlanmadan
+    kecmisdi). Son cehdden sonra da xetadirsa fon oldugu kimi qalir - pipeline dayanmir."""
+    with ThreadPoolExecutor(workers) as pool:
+        res = dict(zip(nums, pool.map(judge_fn, nums)))
+    for _ in range(JUDGE_RETRIES):
+        failed = [n for n in nums if res[n] is JUDGE_ERROR]
+        if not failed:
+            break
+        sleep(JUDGE_RETRY_WAIT_S)
+        for n in failed:
+            res[n] = judge_fn(n)
+    return res
+
+
 def judge(path: str, scene: dict, provider: str) -> Verdict:
     text = f"Narration: {scene.get('narration', '')}\nImage prompt used: {scene.get('bg_prompt', '')}"
     try:
@@ -116,8 +137,8 @@ def judge(path: str, scene: dict, provider: str) -> Verdict:
                                        provider=provider, model=JUDGE_MODEL if provider == "openai" else None,
                                        temperature=0.0, max_tokens=300))
     except LLMError as e:          # hakim elcatmazdirsa pipeline dayanmir - fon oldugu kimi qalir
-        print(f"  hakim xetasi ({os.path.basename(path)}): {e}")
-        return Verdict(ok=True, problems=("judge_error",), fix_prompt="")
+        print(f"  hakim xetasi ({os.path.basename(path)}): {str(e)[:120]}")
+        return JUDGE_ERROR
 
 
 def rerender(ep: str, nums: list[int]) -> None:
@@ -145,8 +166,7 @@ def main() -> None:
         with open(scenes_path, encoding="utf-8") as f:
             scenes = json.load(f)["scenes"]
         paths = {n: os.path.join(ep, "bg", f"sc{n:02d}.png") for n in pending}
-        with ThreadPoolExecutor(WORKERS) as pool:
-            verdicts = dict(zip(pending, pool.map(lambda n: judge(paths[n], scenes[n - 1], a.provider), pending)))
+        verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider))
         bad = [n for n in pending if not verdicts[n].ok]
         for n in pending:
             v = verdicts[n]
