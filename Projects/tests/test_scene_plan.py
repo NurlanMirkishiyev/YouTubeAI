@@ -182,3 +182,26 @@ def test_fallbacks_skip_heroes_already_in_the_episode():
     jar = next(p for p in scene_plan.FALLBACK_POOL if scene_plan.hero(p) == "jar")
     got = scene_plan.pick_fallbacks(len(scene_plan.FALLBACK_POOL) - 1, used_heroes={"jar"})
     assert jar not in got and len(set(got)) == len(got)
+
+
+# Istifadeci 2026-09-27: bayqus her sehnede metne uygun gorunusde olsun (ChatGPT ile cekilir)
+def _fake_plan_llm(monkeypatch, action):
+    def fake(system, user, **kw):
+        import re as _re
+        nums = [int(n) for n in _re.findall(r"^(\d+)\. \[", user, _re.M)]
+        return {"scenes": [{"n": n, "subject": f"thing {n}", "bg_prompt": f"a shiny brass object number {n} on a wooden desk",
+                            "sprite": "front", "owl_action": action} for n in nums]}
+    monkeypatch.setattr(scene_plan, "chat_json", fake)
+
+
+def test_plan_keeps_the_owl_action_for_each_scene(monkeypatch):
+    _fake_plan_llm(monkeypatch, "shaking hands with a small robot, smiling")
+    scenes = [{"section": "Hook", "narration": "AI helps people at work every day."}] * 2
+    out = scene_plan.plan(scenes, list(scene_plan.VIDEO_POSES))
+    assert [s["owl_action"] for s in out] == ["shaking hands with a small robot, smiling"] * 2
+
+
+def test_owl_action_drops_people_and_writing():
+    out = scene_plan.clean_owl_action("holding a book and waving to a customer, a sign that says HELLO")
+    assert "book" not in out and "customer" not in out and "sign" not in out
+    assert scene_plan.clean_owl_action("") == ""

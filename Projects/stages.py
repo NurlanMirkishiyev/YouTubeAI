@@ -151,6 +151,9 @@ STAGES: tuple[Stage, ...] = (
     # vision hakimi: yazi/insan/menasiz fonlari yeniden cekir (evvel el ile yoxlanirdi)
     Stage("check_bgs", lambda c, f: _proj("check_bgs.py", c.ep_dir, "--provider", c.provider, force=f),
           lambda c: os.path.isfile(c.p("bg_qa.json")), lambda c: size_problems(numbered(c, "bg"), BG_MIN)),
+    # sehneye uygun bayqus (ChatGPT, referans sprite); pis/cekilmeyen sehnede kohne poz qalir
+    Stage("render_owls", lambda c, f: _proj("render_owls.py", c.ep_dir, "--provider", c.provider, force=f),
+          lambda c: os.path.isfile(c.p("owl_qa.json")), lambda c: []),
     Stage("upscale_bgs", lambda c, f: _proj("upscale_bgs.py", c.ep_dir, force=f),
           lambda c: all_exist(numbered(c, "bg_hd")), lambda c: size_problems(numbered(c, "bg_hd"), HD_MIN),
           needs_comfy=True),

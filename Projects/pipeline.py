@@ -34,9 +34,9 @@ MAX_SECONDS = 600.0
 MAX_EXTENSIONS = 2
 MUSIC_DIR = os.path.join(ROOT, "Music")   # --music verilmeyende trek buradan secilir
 DELIVERY_DIR = os.path.join(ROOT, "Hazir_Videolar")   # butun hazir videolar bir yerde (istifadeci 2026-09-27)
-INVALIDATE_DIRS = ("bg", "bg_hd", "audio", "cards", "remotion", "youtube")
+INVALIDATE_DIRS = ("bg", "bg_hd", "owl", "audio", "cards", "remotion", "youtube")
 INVALIDATE_FILES = ("scenes.json", "narration.wav", "narration.srt", "narration.words.json",
-                    "narration.shifted.srt")
+                    "narration.shifted.srt", "bg_qa.json", "owl_qa.json")
 
 
 @dataclass(frozen=True)

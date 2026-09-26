@@ -14,7 +14,7 @@ def _ctx(tmp_path, **kw):
 
 def test_stage_order():
     assert [s.name for s in st.STAGES] == ["script_gen", "scene_plan", "render_bgs", "check_bgs",
-                                           "upscale_bgs", "tts_gen", "make_srt", "build_episode", "publish"]
+                                           "render_owls", "upscale_bgs", "tts_gen", "make_srt", "build_episode", "publish"]
     assert [s.name for s in st.STAGES if s.needs_comfy] == ["upscale_bgs"]    # fonlar OpenAI-de, ComfyUI yalniz upscale ucun
 
 
@@ -37,6 +37,15 @@ def test_check_bgs_stage_judges_backgrounds_before_upscale(tmp_path):
     assert chk.done(ctx)
 
 
+def test_render_owls_stage_is_done_when_its_report_exists(tmp_path):
+    ctx = _ctx(tmp_path)
+    owl = st.STAGES[st.stage_index("render_owls")]
+    assert owl.command(ctx, False)[1].endswith("render_owls.py")
+    assert not owl.done(ctx)
+    (tmp_path / "owl_qa.json").write_text('{"scenes": {}}', encoding="utf-8")
+    assert owl.done(ctx)
+
+
 def test_parse_args_requires_topic_or_resume():
     a = pl.parse_args(["Topic"])
     assert (a.words, a.min_seconds, a.max_seconds) == (1230, 480.0, 600.0)    # video 8-10 deq
@@ -44,9 +53,9 @@ def test_parse_args_requires_topic_or_resume():
 
 
 def test_invalidate_after_script(tmp_path):
-    for d in ("bg", "bg_hd", "audio", "cards", "youtube"):
+    for d in ("bg", "bg_hd", "owl", "audio", "cards", "youtube"):
         (tmp_path / d).mkdir()
-    for f in ("scenes.json", "narration.wav", "narration.srt", "t.mp4", "script.md"):
+    for f in ("scenes.json", "narration.wav", "narration.srt", "t.mp4", "script.md", "bg_qa.json", "owl_qa.json"):
         (tmp_path / f).write_text("x")
     pl.invalidate_after_script(str(tmp_path), "t")
     assert sorted(os.listdir(tmp_path)) == ["script.md"]

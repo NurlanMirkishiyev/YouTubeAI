@@ -61,10 +61,16 @@ front = talking to viewer, three_q = explaining, side = walking/looking at somet
 box = showing a product/example/object, chart = numbers, growth, comparisons, results.
 For each scene pick the pose that best fits what the narration says in that scene.
 
+"owl_action": what the owl host itself does in this scene, 6-14 words, English: ONE pose or gesture
+plus its emotion and at most ONE simple prop that matches the narration (e.g. "shaking hands with a
+small friendly robot, smiling", "holding a big stopwatch, surprised", "pointing up with one wing,
+excited"). No people, no text, no papers, books, screens or signs. Never the same action as the
+previous scene.
+
 Subjects already used recently (do NOT repeat them): {used}
 
 Return JSON exactly in this shape, one entry per scene, same order, no extra keys:
-{{"scenes": [{{"n": 1, "subject": "...", "bg_prompt": "...", "sprite": "three_q"}}]}}
+{{"scenes": [{{"n": 1, "subject": "...", "bg_prompt": "...", "sprite": "three_q", "owl_action": "..."}}]}}
 
 Scenes:
 {note}{scenes}"""
@@ -306,10 +312,23 @@ def _ask(scenes: list[dict], numbers: list[int], used: list[str], retry: bool = 
     return items
 
 
-def _fields(it: dict) -> tuple[str, str, str]:
+def clean_owl_action(action: str) -> str:
+    """Bayqusun sehnedeki hereketi: insan ve yazi dasiyan hisseler atilir (fon filtrleri ile eyni sebeb -
+    gpt-image adi cekilen seyi cekir). Bos qalsa "" - o sehnede kohne poz sprite-i istifade olunur."""
+    parts = [x.strip() for chunk in action.split(",") for x in re.split(r"\s+and\s+", chunk)]
+    return ", ".join(x for x in parts if x and not TEXT_BEARING.search(x) and not _has_person(x))
+
+
+def _has_person(text: str) -> bool:
+    # bayqusun oz "elleri" var ("shaking hands with a robot") - yalniz insan isimleri sayilir
+    return any(m.group(0).lower() not in ("hand", "hands") for m in HUMAN.finditer(text))
+
+
+def _fields(it: dict) -> tuple[str, str, str, str]:
     bg = " ".join(str(it.get("bg_prompt", "")).split())
     return (clean_bg_prompt(bg) if bg else FALLBACK_BG,
-            " ".join(str(it.get("subject", "")).split()) or bg[:30], str(it.get("sprite", "")).strip())
+            " ".join(str(it.get("subject", "")).split()) or bg[:30], str(it.get("sprite", "")).strip(),
+            clean_owl_action(" ".join(str(it.get("owl_action", "")).split())))
 
 
 def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
@@ -321,16 +340,18 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     prompts: list[str] = []
     subjects: list[str] = []
     sprites: list[str] = []
+    actions: list[str] = []
     for start in range(0, len(scenes), PLAN_CHUNK):
         numbers = list(range(start + 1, min(len(scenes), start + PLAN_CHUNK) + 1))
         recent = avoid_list(prompts[-REPEAT_WINDOW * 2:], subjects[-REPEAT_WINDOW * 2:])
         heroes = [hero(p) for p in prompts]
         overused = {h for h in heroes if h and heroes.count(h) >= MAX_SAME_HERO}
         for it in _ask(scenes, numbers, sorted(set(recent) | set(overused)), **llm_kw):
-            bg, sub, spr = _fields(it)
+            bg, sub, spr, act = _fields(it)
             prompts.append(bg)
             subjects.append(sub)
             sprites.append(spr)
+            actions.append(act)
     for _ in range(RETRY_ROUNDS):
         bad = repeats(prompts, subjects)
         if not bad:
@@ -341,7 +362,8 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
             used = avoid_list(prompts, subjects, skip=set(part))
             for i, it in zip(part, _ask(scenes, [i + 1 for i in part], used, retry=True, **llm_kw)):
                 if it:
-                    prompts[i], subjects[i], _ = _fields(it)
+                    prompts[i], subjects[i], _, act = _fields(it)
+                    actions[i] = act or actions[i]
     # Movzuya aid, amma bir az evvel olmus subyekt tesadufi fondan yaxsidir: son addimda yalniz bos
     # promptlar ve yan-yana (NEAR_WINDOW) tekrarlar evez olunur
     final = repeats(prompts, subjects, NEAR_WINDOW)
@@ -350,8 +372,9 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     for k, (i, fb) in enumerate(zip(final, pick_fallbacks(len(final), kept))):
         prompts[i], subjects[i] = fb, f"fallback {k}"
     out = []
-    for sc, bg, sub, spr, pos in zip(scenes, prompts, subjects, fit_poses(sprites), assign_positions(scenes)):
-        out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos,
+    for sc, bg, sub, spr, pos, act in zip(scenes, prompts, subjects, fit_poses(sprites), assign_positions(scenes),
+                                          actions):
+        out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos, "owl_action": act,
                     "sprite_token": f"{spr}@{pos}", "duration": duration_for(sc["narration"])})
     return out
 

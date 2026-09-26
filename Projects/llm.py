@@ -76,8 +76,11 @@ def _api_key(prov: Provider) -> str:
 
 def _post(url: str, key: str, payload: dict) -> dict:
     """Eksponensial backoff ile POST; 429 ve 5xx tekrarlanir, 4xx derhal atilir."""
-    body = json.dumps(payload).encode("utf-8")
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+    return _send(url, key, json.dumps(payload).encode("utf-8"), "application/json")
+
+
+def _send(url: str, key: str, body: bytes, content_type: str) -> dict:
+    headers = {"Content-Type": content_type, "Authorization": f"Bearer {key}"}
     last = ""
     for attempt in range(MAX_RETRIES):
         req = urllib.request.Request(url, data=body, headers=headers, method="POST")
@@ -155,4 +158,41 @@ def generate_image(prompt: str, *, model: str, size: str = "1536x1024", quality:
         raise LLMError("gozlenilmeyen sekil cavabi: " + json.dumps(res)[:300]) from e
     out_tokens = res.get("usage", {}).get("output_tokens", 0)
     print(f"  image {model}/{quality}  {time.time() - t0:.1f}s  out={out_tokens}", flush=True)
+    return data
+
+
+def _multipart(fields: dict[str, str], files: dict[str, str]) -> tuple[bytes, str]:
+    """stdlib multipart/form-data: fields {ad: deyer}, files {ad: fayl yolu} (PNG)."""
+    import uuid
+    boundary = uuid.uuid4().hex
+    out = bytearray()
+    crlf = "\r\n"
+    for name, value in fields.items():
+        out += (f'--{boundary}{crlf}Content-Disposition: form-data; name="{name}"{crlf}{crlf}'
+                f'{value}{crlf}').encode("utf-8")
+    for name, path in files.items():
+        with open(path, "rb") as f:
+            data = f.read()
+        out += (f'--{boundary}{crlf}Content-Disposition: form-data; name="{name}"; '
+                f'filename="{os.path.basename(path)}"{crlf}Content-Type: image/png{crlf}{crlf}').encode("utf-8")
+        out += data + crlf.encode("ascii")
+    out += f"--{boundary}--{crlf}".encode("utf-8")
+    return bytes(out), f"multipart/form-data; boundary={boundary}"
+
+
+def edit_image(prompt: str, ref_path: str, *, model: str, size: str = "1024x1536", quality: str = "low",
+               background: str = "transparent") -> bytes:
+    """OpenAI Images edits: referans sekil (personaj) + prompt -> PNG baytlari. Sehne bayqusu ucun -
+    2026-09-27 probu: gpt-image-2 personaji (eynek, kostyum, qalstuk) eyni saxlayir, fon seffaf."""
+    import base64
+    prov = PROVIDERS["openai"]
+    t0 = time.time()
+    body, ctype = _multipart({"model": model, "prompt": prompt, "size": size, "quality": quality,
+                              "background": background, "n": "1"}, {"image[]": ref_path})
+    res = _send(f"{prov.base_url}/images/edits", _api_key(prov), body, ctype)
+    try:
+        data = base64.b64decode(res["data"][0]["b64_json"])
+    except (KeyError, IndexError, TypeError) as e:
+        raise LLMError("gozlenilmeyen sekil cavabi: " + json.dumps(res)[:300]) from e
+    print(f"  owl {model}/{quality}  {time.time() - t0:.1f}s", flush=True)
     return data

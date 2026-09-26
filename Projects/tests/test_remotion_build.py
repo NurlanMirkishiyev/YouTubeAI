@@ -46,3 +46,11 @@ def test_left_composed_backgrounds_are_mirrored_so_the_owl_stays_right():
     # Kohne epizodlarda fon bos yeri solda saxlayir; guzgu ile bos yer saga kecir (fonda yazi yoxdur)
     p = rb.episode_props(DATA, "What Is It?", [], POSES)
     assert [s["flip"] for s in p["scenes"]] == [False, True, True]
+
+
+# Sehne bayqusu (render_owls): varsa o sehnede oz sekli, yoxdursa kohne poz; guzgulenmir (elinde esya var)
+def test_scene_owls_replace_the_pose_where_they_exist():
+    p = rb.episode_props(DATA, "What Is It?", [], POSES, scene_owls={2: (700, 1100)})
+    assert [s["pose"] for s in p["scenes"]] == ["three_q", "sc02", "three_q"]
+    assert p["poses"]["sc02"] == {"name": "sc02", "w": 700, "h": 1100, "height": rb.DEFAULT_HEIGHT,
+                                  "flippable": False}
