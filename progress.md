@@ -76,11 +76,41 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 24 | Video musiqisiz çıxırdı | `Music\` boş, bat yalnız `--music` ilə ötürürdü | 4 CC BY trek + `pipeline.default_music` + `publish_pack.music_credit` |
 | 25 | Personaj tərpənirdi, bölmə dəyişəndə sağ↔sol tullanırdı; istifadəçi: **"sabit dayansın, tərpənməsin, şəkli səhnəyə uyğunlaşsın"** | `Owl.tsx` nəfəs/yellənmə/danışıq/spring + `assign_positions` növbəsi; `vary_poses` pozu zorla dəyişirdi | `Owl.tsx` hərəkətsiz, poz fon keçidinin ortasında ani dəyişir; bayquş həmişə sağda; `fit_poses` LLM seçimini saxlayır; sol-kompozisiyalı köhnə fonlar güzgülənir (`flip`) |
 
-**Açıq qalan:** yoxdur.
+**Açıq qalan:** FAZA I (səhnə bayquşu + AI musiqi) — aşağıda "Növbəti dəqiq addım".
 
 ---
 
 ## Növbəti dəqiq addım
+
+### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27, istifadəçi "sabah davam edəcəyik" dedi — BURADA DAYANDI)
+İstifadəçi tələbi: (1) musiqi **lisenziyasız/istinadsız və ödənişsiz**; (2) bayquş hər səhnədə mətnə uyğun
+detallı görünüşdə (ChatGPT), **əsl görünüşü dəyişməsin**. Spec: `docs/superpowers/specs/2026-09-27-scene-owl-and-ai-music-design.md`.
+Qərarlar: musiqi = AI (Stable Audio Open, lokal GPU); bayquş = ayrıca şəffaf şəkil, fonun üstündə sağda.
+
+**Hazır (commit `7cd5d6f`, `8579539`, 145 test):**
+- `scene_plan`: hər səhnəyə `owl_action` (insan/yazı filtri, bayquşun "hands"-i icazəlidir)
+- `llm.edit_image` (multipart `/images/edits`), `render_owls.py` mərhələsi (check_bgs-dən sonra):
+  referans `Character/ELI5_Owl/sprites_hd/front.png` → `gpt-image-2` low, `background=transparent`, 1024x1536,
+  alpha kəsimi → `owl/scNN.png`; gpt-4o hakimi referansla müqayisə; 3 cəhd → köhnə poz; `owl_qa.json`
+- `remotion_build`: `owl/scNN.png` varsa poz `scNN` (flippable=False); `Owl.tsx` dəyişmədi
+- `music_gen.py` + `music_gen` mərhələsi (build_episode-dan əvvəl, `MusicGen\.venv`): 6 üslub × 45 s, crossfade
+  → `Episodes\<slug>\music.wav`; `ctx.music` default = bu fayl; `--music` versə atlanır; CC BY trek seçimi silindi
+- skript dəyişəndə `owl/`, `bg_qa.json`, `owl_qa.json` də silinir (əvvəl `bg_qa.json` qalırdı — köhnə boşluq)
+- Proba (ölçülüb): gpt-image-2 edits bayquşu eyni saxladı (eynək/kostyum/qalstuk), RGBA, ~25 s/şəkil
+
+**Mühit:** `MusicGen\.venv` (uv, py3.12, torch 2.x cu128, diffusers). HF gated model qəbul edildi
+(hesab MNurlan1993, org "Eli5 Youtube", istifadəçi təsdiqi ilə). Lisenziya: Stability Community (<$1M pulsuz,
+çıxış istinadsız). **Stability-də pulsuz kommersiya qeydiyyatı hələ edilməyib** (https://stability.ai/community-license) — istifadəçiyə xatırlat.
+
+**Növbəti addımlar (ardıcıl):**
+1. Model yükləməsini yoxla/tamamla (sessiya bitəndə yarımçıq qala bilər). Xet ilişir → **`HF_HUB_DISABLE_XET=1`**,
+   yalnız alt qovluqlar (kökdəki 4.8 GB `model.safetensors`/`model.ckpt` LAZIM DEYİL):
+   `HF_HUB_DISABLE_XET=1 MusicGen\.venv\Scripts\python -c "from huggingface_hub import snapshot_download; snapshot_download('stabilityai/stable-audio-open-1.0', allow_patterns=['model_index.json','projection_model/*','scheduler/*','text_encoder/*','tokenizer/*','transformer/*','vae/*'])"`
+   (əvvəl `blobs/*.incomplete` sil). Tam ölçü ~5.3 GB (transformer 4.2 GB).
+2. Musiqi probu: scratchpad-dakı `probe_music.py` kimi 2 klip → vaxt/VRAM ölç, dinləmə yoxdur → spektr/səs
+   səviyyəsi + ffprobe ilə yoxla; 8 GB VRAM-a sığmazsa `enable_model_cpu_offload()`.
+3. `run.py "Test mövzu"` ilə E2E: bayquş kadrlarını (fərqli pozlar, eyni personaj) + musiqini yoxla.
+4. `progress.md`, yaddaş, commit. `Music\*.mp3` və `credits.json` artıq istifadə olunmur (silinməyib).
 
 **FAZA F dizaynı TƏSDİQLƏNDİ (2026-09-23):** Faza 1 / Faza 2 bölgüsü, dizayn dəyişməz qəbul edildi.
 
