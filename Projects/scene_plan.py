@@ -100,7 +100,8 @@ HUMAN = re.compile(
     r"\b(?<!robot )(?:people|persons?|man|men|woman|women|boys?|girls?|kids?|child(?:ren)?|"
     r"players?|chefs?|cooks?|customers?|clients?|workers?|employees?|staff|owners?|"
     r"shoppers?|cashiers?|teachers?|students?|farmers?|gardeners?|drivers?|family|friends?|"
-    r"crowds?|team|someone|somebody|everyone|names?)\b", re.I)
+    r"crowds?|team|someone|somebody|everyone|names?|athletes?|hands?|humans?|users?|learners?|"
+    r"parents?|visitors?|patients?|doctors?|nurses?)\b", re.I)
 PIZZA_BOX = re.compile(r"\bpizza box(es)?\b", re.I)
 # "and" ile bolunende "limits", "no extra fees" kimi qirintilar qalir - yalniz isim birlesmesi saxlanir
 NOUN_START = re.compile(r"^(with|and)\s+", re.I)

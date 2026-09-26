@@ -1,0 +1,85 @@
+import json
+
+import check_bgs as cb
+import render_bgs
+import scene_plan
+
+
+def _write_scenes(path, prompts):
+    data = {"scenes": [{"bg_prompt": p, "narration": f"n{i}", "pos": "right"} for i, p in enumerate(prompts)]}
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+# --- hakimin cavabi -------------------------------------------------------------------------
+
+# Hakim her yoxlamaya ayrica beli/xeyr verir; umumi "ok" sualinda gpt-4o-mini 97 fonun 84-une
+# "human" demisdi (narration-daki "you" sozunden). Yalniz acıq True problem sayilir.
+def test_verdict_counts_only_checks_answered_true():
+    v = cb.parse_verdict({"description": "a blender", "people": False, "writing": True,
+                          "collage": False, "no_subject": False, "deformed": False, "off_topic": False,
+                          "fix_prompt": "a red kettle"})
+    assert not v.ok and v.problems == ("text",) and v.fix_prompt == "a red kettle"
+    assert cb.parse_verdict({"people": False, "writing": False}).ok
+
+
+def test_verdict_tolerates_malformed_judge_output():
+    v = cb.parse_verdict({"people": "yes", "off_topic": True, "fix_prompt": 5})
+    assert not v.ok and v.problems == ("mismatch",) and v.fix_prompt == ""
+
+
+# --- yeni prompt / seed ---------------------------------------------------------------------
+
+def test_next_prompt_passes_judge_fix_through_word_filters():
+    # hakimin teklifi de insan/yazi filtrinden kecir
+    p = cb.next_prompt("a robot coach with a stopwatch, a tired athlete", attempt=1, used=set())
+    assert p == "a robot coach with a stopwatch"
+
+
+def test_next_prompt_uses_unused_fallback_on_last_attempt_or_empty_fix():
+    used = {scene_plan.FALLBACK_POOL[0]}
+    last = cb.next_prompt("a red kettle on a stove", attempt=cb.MAX_ATTEMPTS, used=used)
+    empty = cb.next_prompt("", attempt=1, used=used)
+    assert last in scene_plan.FALLBACK_POOL and last not in used
+    assert empty in scene_plan.FALLBACK_POOL and empty not in used
+
+
+def test_each_attempt_gets_a_new_seed():
+    # eyni prompt + eyni seed eyni sekli verirdi - yeniden cekmek hec ne deyismirdi
+    seeds = {cb.seed_for(7, a) for a in range(cb.MAX_ATTEMPTS + 1)}
+    assert len(seeds) == cb.MAX_ATTEMPTS + 1
+    assert cb.seed_for(7, 0) == render_bgs.BASE_SEED + 7
+
+
+def test_apply_changes_rereads_file_and_keeps_other_edits(tmp_path):
+    path = tmp_path / "scenes.json"
+    _write_scenes(path, ["a", "b", "c"])
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["scenes"][2]["duration"] = 4.2              # basqa proses eyni vaxtda yazib
+    path.write_text(json.dumps(data), encoding="utf-8")
+    cb.apply_changes(str(path), {2: ("a new prompt", 1234)})
+    s = json.loads(path.read_text(encoding="utf-8"))["scenes"]
+    assert s[1]["bg_prompt"] == "a new prompt" and s[1]["seed"] == 1234
+    assert s[2]["duration"] == 4.2 and s[0]["bg_prompt"] == "a"
+
+
+# --- render_bgs -----------------------------------------------------------------------------
+
+def test_render_uses_scene_seed_when_present():
+    assert render_bgs.seed_of({"seed": 55}, 3) == 55
+    assert render_bgs.seed_of({}, 3) == render_bgs.BASE_SEED + 3
+
+
+def test_render_save_keeps_prompts_edited_on_disk_meanwhile(tmp_path):
+    # render_bgs evvel yaddasdaki kohne scenes.json-u uzerine yazir ve duzelisleri silirdi
+    path = tmp_path / "scenes.json"
+    _write_scenes(path, ["old one", "old two"])
+    bg = tmp_path / "bg"
+    bg.mkdir()
+    (bg / "sc01.png").write_bytes(b"x")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["scenes"][1]["bg_prompt"] = "edited meanwhile"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    render_bgs.save_bg_paths(str(path), str(bg))
+    s = json.loads(path.read_text(encoding="utf-8"))["scenes"]
+    assert s[1]["bg_prompt"] == "edited meanwhile"
+    assert s[0]["bg"].endswith("sc01.png") and "bg" not in s[1]

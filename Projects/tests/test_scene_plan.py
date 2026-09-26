@@ -55,6 +55,13 @@ def test_clean_bg_prompt_drops_human_nouns_but_keeps_robots():
     assert scene_plan.clean_bg_prompt(p) == "a basketball hoop, a robot chef stirring soup"
 
 
+# E2E how-ai-agents-change-automation: sc48 "an athlete" cizgi oglan, sc02 "a pair of hands" insan eli cekdi
+def test_clean_bg_prompt_drops_athletes_and_hands():
+    p = ("a robot guiding an athlete in training, a running track, "
+         "a robotic arm tossing three balls to a pair of hands, a robot coach with a whistle")
+    assert scene_plan.clean_bg_prompt(p) == "a running track, a robot coach with a whistle"
+
+
 def test_clean_bg_prompt_turns_pizza_box_into_tray():
     out = scene_plan.clean_bg_prompt("an empty pizza box on a table")
     assert out == "an empty pizza tray on a table"

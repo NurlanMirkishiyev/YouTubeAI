@@ -35,6 +35,24 @@ def require_server() -> None:
         raise SystemExit(f"ComfyUI cavab vermir ({API}) - run_comfyui.bat isledin.  {e}")
 
 
+def seed_of(scene: dict, n: int) -> int:
+    """check_bgs yeniden cekende sehneye yeni "seed" yazir - eyni prompt + eyni seed eyni sekli verirdi."""
+    return int(scene.get("seed", BASE_SEED + n))
+
+
+def save_bg_paths(scenes_path: str, bg_dir: str) -> None:
+    """scenes.json diskden TEZEDEN oxunur, yalniz "bg" saheleri yazilir. Evvel render basinda oxunan
+    kohne nusxe butovlukle yazilirdi ve render vaxti edilmis prompt duzelislerini silirdi."""
+    with open(scenes_path, encoding="utf-8") as f:
+        data = json.load(f)
+    for i, s in enumerate(data["scenes"]):
+        p = os.path.join(bg_dir, f"sc{i + 1:02d}.png")
+        if os.path.isfile(p):
+            s["bg"] = p
+    with open(scenes_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
 def build(prompt: str, seed: int, prefix: str, pos: str) -> dict:
     text = open(WORKFLOW, encoding="utf-8").read()
     text = (text.replace("__POS__", json.dumps(prompt)[1:-1])
@@ -73,7 +91,7 @@ def main() -> None:
         dest = os.path.join(bg_dir, f"sc{n:02d}.png")
         prefix = f"ep_{n:02d}"
         try:
-            files = wait(submit(build(scenes[i]["bg_prompt"], BASE_SEED + n, prefix,
+            files = wait(submit(build(scenes[i]["bg_prompt"], seed_of(scenes[i], n), prefix,
                                       scenes[i].get("pos", "right"))), timeout_s=900)
         except SystemExit as e:
             print(f"  sc{n:02d} UGURSUZ: {e}")
@@ -83,18 +101,11 @@ def main() -> None:
             print(f"  sc{n:02d} UGURSUZ: cixis tapilmadi {src}")
             continue
         shutil.move(src, dest)
-        scenes[i]["bg"] = dest
         el = time.time() - t0
         print(f"  [{k}/{len(todo)}] sc{n:02d}  {el / k:.0f}s/eded  qalan ~{(len(todo) - k) * el / k / 60:.1f} deq")
 
-    for i, s in enumerate(scenes):
-        p = os.path.join(bg_dir, f"sc{i + 1:02d}.png")
-        if os.path.isfile(p):
-            s["bg"] = p
-    with open(scenes_path, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-    missing = [i + 1 for i, s in enumerate(scenes) if not s.get("bg")]
+    save_bg_paths(scenes_path, bg_dir)
+    missing = [i + 1 for i in range(len(scenes)) if not os.path.isfile(os.path.join(bg_dir, f"sc{i + 1:02d}.png"))]
     print(f"  bitdi {(time.time() - t0) / 60:.1f} deq;  catismayan: {missing or 'yoxdur'}")
 
 

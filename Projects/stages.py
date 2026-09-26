@@ -139,6 +139,10 @@ STAGES: tuple[Stage, ...] = (
     Stage("render_bgs", lambda c, f: _proj("render_bgs.py", c.ep_dir, force=f),
           lambda c: all_exist(numbered(c, "bg")), lambda c: size_problems(numbered(c, "bg"), BG_MIN),
           needs_comfy=True),
+    # vision hakimi: yazi/insan/menasiz fonlari yeniden cekir (evvel el ile yoxlanirdi)
+    Stage("check_bgs", lambda c, f: _proj("check_bgs.py", c.ep_dir, "--provider", c.provider, force=f),
+          lambda c: os.path.isfile(c.p("bg_qa.json")), lambda c: size_problems(numbered(c, "bg"), BG_MIN),
+          needs_comfy=True),
     Stage("upscale_bgs", lambda c, f: _proj("upscale_bgs.py", c.ep_dir, force=f),
           lambda c: all_exist(numbered(c, "bg_hd")), lambda c: size_problems(numbered(c, "bg_hd"), HD_MIN),
           needs_comfy=True),

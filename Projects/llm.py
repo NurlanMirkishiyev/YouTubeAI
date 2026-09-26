@@ -98,9 +98,10 @@ def _post(url: str, key: str, payload: dict) -> dict:
     raise LLMError(f"{MAX_RETRIES} cehdden sonra ugursuz - {last}")
 
 
-def chat(system: str, user: str, *, provider: str = DEFAULT_PROVIDER, model: str | None = None,
+def chat(system: str, user: str | list, *, provider: str = DEFAULT_PROVIDER, model: str | None = None,
          temperature: float = 0.7, max_tokens: int = 8000, json_mode: bool = False) -> str:
-    """Chat completion -> metn. json_mode=True ise cavab JSON obyekt olmalidir."""
+    """Chat completion -> metn. json_mode=True ise cavab JSON obyekt olmalidir.
+    user siyahi da ola biler (metn + image_url hisseleri) - check_bgs fonlari bele gosterir."""
     if provider not in PROVIDERS:
         raise LLMError("bilinmeyen provider: " + provider)
     prov = PROVIDERS[provider]
@@ -126,7 +127,7 @@ def chat(system: str, user: str, *, provider: str = DEFAULT_PROVIDER, model: str
     return text.strip()
 
 
-def chat_json(system: str, user: str, **kw) -> dict:
+def chat_json(system: str, user: str | list, **kw) -> dict:
     """chat() + JSON parse. Model kod blokuna sarsa da isleyir."""
     raw = chat(system, user, json_mode=True, **kw)
     if raw.startswith("```"):

@@ -13,19 +13,28 @@ def _ctx(tmp_path, **kw):
 
 
 def test_stage_order():
-    assert [s.name for s in st.STAGES] == ["script_gen", "scene_plan", "render_bgs", "upscale_bgs",
-                                           "tts_gen", "make_srt", "build_episode", "publish"]
-    assert [s.name for s in st.STAGES if s.needs_comfy] == ["render_bgs", "upscale_bgs"]
+    assert [s.name for s in st.STAGES] == ["script_gen", "scene_plan", "render_bgs", "check_bgs",
+                                           "upscale_bgs", "tts_gen", "make_srt", "build_episode", "publish"]
+    assert [s.name for s in st.STAGES if s.needs_comfy] == ["render_bgs", "check_bgs", "upscale_bgs"]
 
 
 def test_commands(tmp_path):
     ctx = _ctx(tmp_path, music="m.mp3")
     cmd = st.STAGES[0].command(ctx, True)
     assert cmd[0] == st.PY["projects"] and "--words" in cmd and "2150" in cmd and cmd[-1] == "--force"
-    assert st.STAGES[4].command(ctx, False)[0] == st.PY["tts"]
-    assert st.STAGES[5].command(ctx, False)[0] == st.PY["whisper"]
-    build = st.STAGES[6].command(ctx, False)
+    assert st.STAGES[st.stage_index("tts_gen")].command(ctx, False)[0] == st.PY["tts"]
+    assert st.STAGES[st.stage_index("make_srt")].command(ctx, False)[0] == st.PY["whisper"]
+    build = st.STAGES[st.stage_index("build_episode")].command(ctx, False)
     assert build[1].endswith("remotion_build.py") and build[-2:] == ["--music", "m.mp3"]
+
+
+def test_check_bgs_stage_judges_backgrounds_before_upscale(tmp_path):
+    ctx = _ctx(tmp_path)
+    chk = st.STAGES[st.stage_index("check_bgs")]
+    assert chk.command(ctx, False)[1].endswith("check_bgs.py")
+    assert not chk.done(ctx)
+    (tmp_path / "bg_qa.json").write_text('{"passed": true}', encoding="utf-8")
+    assert chk.done(ctx)
 
 
 def test_parse_args_requires_topic_or_resume():
