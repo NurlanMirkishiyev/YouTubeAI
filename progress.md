@@ -246,6 +246,11 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 
 ## İcra jurnalı (ən yeni yuxarıda)
 
+### 2026-09-27 — `will-ai-replace-employees` HAZIRDIR (tetik "Video: Will AI Replace Employees?")
+- **9.38 dəq** (563 s), 1920×1080 H.264 High yuv420p, AAC 48 kHz stereo, 324 MB, musiqi Life_of_Riley
+- 45 dəq tam avtomatik (20:50→21:35 UTC), `check_bgs` passed, xəta/əl müdaxiləsi yox
+- 6 kadr + thumbnail vizual yoxlandı: fonlarda yazı/insan yox, bayquş sabit sağda, subtitr düzgün
+
 ### 2026-09-27 — FAZA H: musiqi + sabit personaj, cash flow tamamlandı
 - Kredit əlavə edildi → `what-is-cash-flow` publish paketi hazırlandı
 - Musiqi: FreePD bağlanıb → incompetech (Kevin MacLeod, CC BY 4.0) 4 trek; slug-a görə növbə; description-a istinad
