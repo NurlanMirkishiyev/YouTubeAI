@@ -38,3 +38,52 @@ def test_render_one_saves_png_and_uses_fallback_when_prompt_is_refused(tmp_path)
     with Image.open(dest) as im:
         assert im.size == (1536, 864)
     assert "a scary thing" in seen[0] and scene_plan.FALLBACK_BG in seen[1]
+
+
+# E2E ep4: hesabin limiti deqiqede 5 sekil; 4 paralel sorgu + 1-4 s backoff 97-den 55-ni itirdi
+class FakeClock:
+    def __init__(self):
+        self.t = 0.0
+        self.slept = []
+
+    def now(self):
+        return self.t
+
+    def sleep(self, s):
+        self.slept.append(s)
+        self.t += s
+
+
+def test_rate_limiter_allows_at_most_n_starts_per_window():
+    c = FakeClock()
+    lim = rb.RateLimiter(per_min=2, now=c.now, sleep=c.sleep)
+    lim.acquire()
+    lim.acquire()
+    assert c.t == 0.0
+    lim.acquire()                      # ucuncu - birincinin pencereden cixmasini gozleyir
+    assert c.t >= 60.0
+
+
+def test_retry_waits_as_long_as_the_api_asks_on_429():
+    c = FakeClock()
+    calls = []
+
+    def gen(prompt):
+        calls.append(prompt)
+        if len(calls) < 3:
+            raise LLMError('HTTP 429: {"message": "Rate limit ... Please try again in 12s."}')
+        return b"png"
+
+    assert rb.with_429_retry(gen, sleep=c.sleep)("p") == b"png"
+    assert len(calls) == 3 and all(s >= 12 for s in c.slept)
+
+
+def test_retry_does_not_swallow_other_errors():
+    def gen(prompt):
+        raise LLMError("HTTP 400: moderation_blocked")
+    try:
+        rb.with_429_retry(gen, sleep=lambda s: None)("p")
+    except LLMError as e:
+        assert "moderation" in str(e)
+    else:
+        raise AssertionError("xeta udulmamalidir")

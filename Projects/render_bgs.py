@@ -13,7 +13,9 @@ import argparse
 import io
 import json
 import os
+import re
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -27,6 +29,8 @@ MODEL = "gpt-image-2"     # 2026-09-26 probu: kompozisiyaya gpt-image-1-den yaxs
 QUALITY = "low"
 SIZE = "1536x1024"        # en genis olcu; 16:9-a kesilir
 WORKERS = 4
+IMAGES_PER_MIN = 5        # OpenAI hesab limiti (2026-09-26: "input-images per min: Limit 5"); tier artsa boyut
+RETRIES_429 = 6
 STYLE = ("3D Pixar-style animated render, soft studio lighting, vibrant friendly colors, "
          "clean simple composition with one clear main subject, wide 16:9 framing.")
 RULES = "No text, no letters, no numbers, no logos, no people, no hands."
@@ -34,6 +38,45 @@ RULES = "No text, no letters, no numbers, no logos, no people, no hands."
 SPACE = {"right": "The main subject is on the left half; calm empty space on the right side.",
          "left": "The main subject is on the right half; calm empty space on the left side.",
          "center": "Empty uncluttered space in the lower center."}
+
+
+class RateLimiter:
+    """Surusen 60 s pencerede en cox per_min baslangic (thread-safe). Hesabin gpt-image limiti
+    deqiqede 5 sekildir - limitsiz 4 paralel sorgu 97 sekilden 55-ni 429 ile itirdi (ep4)."""
+
+    def __init__(self, per_min: int, now=time.monotonic, sleep=time.sleep):
+        self.per_min, self.now, self.sleep = per_min, now, sleep
+        self.starts: list[float] = []
+        self.lock = threading.Lock()
+
+    def acquire(self) -> None:
+        with self.lock:
+            while True:
+                t = self.now()
+                self.starts = [s for s in self.starts if t - s < 60.0]
+                if len(self.starts) < self.per_min:
+                    self.starts.append(t)
+                    return
+                self.sleep(60.0 - (t - self.starts[0]) + 0.1)
+
+
+_WAIT = re.compile(r"try again in ([\d.]+)\s*(ms|s)", re.I)
+
+
+def with_429_retry(gen, sleep=time.sleep, attempts: int = RETRIES_429):
+    """429-da API-nin dediyi qeder (+1 s) gozle ve tekrarla; diger xetalar oldugu kimi atilir."""
+    def wrapped(prompt: str) -> bytes:
+        for k in range(attempts):
+            try:
+                return gen(prompt)
+            except LLMError as e:
+                if "429" not in str(e) or k == attempts - 1:
+                    raise
+                m = _WAIT.search(str(e))
+                wait = (float(m[1]) / (1000 if m[2].lower() == "ms" else 1) if m else 15.0) + 1.0
+                sleep(max(wait, 5.0))
+        raise AssertionError("unreachable")
+    return wrapped
 
 
 def build_prompt(scene_prompt: str, pos: str) -> str:
@@ -95,8 +138,14 @@ def main() -> None:
             if (not a.only or i + 1 in a.only) and (a.force or not os.path.isfile(dest(i)))]
     print(f"[24] {len(todo)}/{len(scenes)} sehne cekilecek ({MODEL}/{QUALITY}) -> {bg_dir}", flush=True)
 
-    def gen(prompt: str) -> bytes:
+    limiter = RateLimiter(IMAGES_PER_MIN)
+
+    def raw_gen(prompt: str) -> bytes:
+        limiter.acquire()
         return generate_image(prompt, model=MODEL, size=SIZE, quality=QUALITY)
+
+    gen = with_429_retry(raw_gen)
+    print(f"  limit: deqiqede {IMAGES_PER_MIN} sekil -> ~{len(todo) / IMAGES_PER_MIN:.0f} deq", flush=True)
 
     def job(i: int) -> str | None:
         try:
