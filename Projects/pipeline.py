@@ -223,26 +223,34 @@ def default_music(slug: str, music_dir: str) -> str | None:
     return os.path.join(music_dir, tracks[k])
 
 
+DELIVER_OPTIONAL = (("narration.srt", "subtitles.srt"), ("script.md", "script.md"))
+
+
 def deliver(ep_dir: str, slug: str, out_dir: str) -> str:
-    """Hazir video out_dir-e: <slug>.mp4 (eyni diskde hardlink - yer tutmur), <slug>.png (thumbnail),
-    <slug>.txt (yuklemek ucun basliq + description + tags). Kohne nusxe evez olunur."""
-    os.makedirs(out_dir, exist_ok=True)
+    """Her movzunun oz qovlugu out_dir/<slug>/ (istifadeci 2026-09-27: movzular qarismasin):
+    <slug>.mp4 (eyni diskde hardlink - yer tutmur), thumbnail.png, youtube.txt (basliq + description +
+    tags), subtitles.srt ve script.md (varsa). Kohne nusxe evez olunur."""
+    topic = os.path.join(out_dir, slug)
+    os.makedirs(topic, exist_ok=True)
     ydir = os.path.join(ep_dir, "youtube")
-    video = os.path.join(out_dir, f"{slug}.mp4")
+    video = os.path.join(topic, f"{slug}.mp4")
     if os.path.exists(video):
         os.remove(video)
     try:
         os.link(os.path.join(ep_dir, f"{slug}.mp4"), video)
     except OSError:
         shutil.copy2(os.path.join(ep_dir, f"{slug}.mp4"), video)
-    shutil.copy2(os.path.join(ydir, "thumbnail.png"), os.path.join(out_dir, f"{slug}.png"))
+    shutil.copy2(os.path.join(ydir, "thumbnail.png"), os.path.join(topic, "thumbnail.png"))
+    for src, dst in DELIVER_OPTIONAL:
+        if os.path.isfile(os.path.join(ep_dir, src)):
+            shutil.copy2(os.path.join(ep_dir, src), os.path.join(topic, dst))
     parts = []
     for label, name in (("TITLE", "title.txt"), ("DESCRIPTION", "description.txt"), ("TAGS", "tags.txt")):
         with open(os.path.join(ydir, name), encoding="utf-8") as f:
             parts.append(f"=== {label} ===\n{f.read().strip()}\n")
-    with open(os.path.join(out_dir, f"{slug}.txt"), "w", encoding="utf-8") as f:
+    with open(os.path.join(topic, "youtube.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(parts))
-    return video
+    return topic
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -292,7 +300,7 @@ def main(argv: list[str] | None = None) -> int:
                       from_idx=stage_index(a.from_stage) if a.from_stage else None, comfy=guard)
     if rc == 0:
         mp4 = ctx.p(f"{ctx.slug}.mp4")
-        final = deliver(ctx.ep_dir, ctx.slug, DELIVERY_DIR)
-        print(f"\nHAZIRDIR: {final}  ({duration(mp4) / 60:.2f} deq)\n"
-              f"  thumbnail + yukleme metni: {DELIVERY_DIR}\\{ctx.slug}.png / .txt")
+        folder = deliver(ctx.ep_dir, ctx.slug, DELIVERY_DIR)
+        print(f"\nHAZIRDIR ({duration(mp4) / 60:.2f} deq): {folder}\n"
+              f"  {ctx.slug}.mp4 + thumbnail.png + youtube.txt + subtitles.srt + script.md")
     return rc

@@ -215,14 +215,27 @@ def _finished_episode(tmp_path):
     return ep
 
 
-def test_deliver_puts_video_thumbnail_and_upload_text_in_one_folder(tmp_path):
+def test_deliver_puts_each_topic_in_its_own_folder(tmp_path):
+    # Istifadeci 2026-09-27: her movzunun oz qovlugu - movzular qarismasin
+    ep = _finished_episode(tmp_path)
+    (ep / "narration.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\nHi\n", encoding="utf-8")
+    (ep / "script.md").write_text("# Cash\n", encoding="utf-8")
+    out = tmp_path / "Hazir_Videolar"
+    pl.deliver(str(ep), "cash", str(out))
+    assert [p.name for p in out.iterdir()] == ["cash"]
+    topic = out / "cash"
+    assert sorted(p.name for p in topic.iterdir()) == [
+        "cash.mp4", "script.md", "subtitles.srt", "thumbnail.png", "youtube.txt"]
+    assert (topic / "cash.mp4").read_bytes() == b"video"
+    text = (topic / "youtube.txt").read_text(encoding="utf-8")
+    assert "Cash Title" in text and "Desc 00:00 Intro" in text and "a,b" in text
+
+
+def test_deliver_skips_missing_optional_files(tmp_path):
     ep = _finished_episode(tmp_path)
     out = tmp_path / "Hazir_Videolar"
     pl.deliver(str(ep), "cash", str(out))
-    assert sorted(p.name for p in out.iterdir()) == ["cash.mp4", "cash.png", "cash.txt"]
-    assert (out / "cash.mp4").read_bytes() == b"video"
-    text = (out / "cash.txt").read_text(encoding="utf-8")
-    assert "Cash Title" in text and "Desc 00:00 Intro" in text and "a,b" in text
+    assert sorted(p.name for p in (out / "cash").iterdir()) == ["cash.mp4", "thumbnail.png", "youtube.txt"]
 
 
 def test_deliver_replaces_an_older_copy(tmp_path):
@@ -232,4 +245,4 @@ def test_deliver_replaces_an_older_copy(tmp_path):
     (ep / "cash.mp4").unlink()
     (ep / "cash.mp4").write_bytes(b"new video")
     pl.deliver(str(ep), "cash", str(out))
-    assert (out / "cash.mp4").read_bytes() == b"new video"
+    assert (out / "cash" / "cash.mp4").read_bytes() == b"new video"

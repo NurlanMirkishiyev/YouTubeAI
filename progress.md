@@ -26,9 +26,10 @@
 **İstifadə:** iş masasında **"ELI5 Yeni Video"** qısayolu = `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan
 yarımçıq epizod davam edir) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
 `Episodes\<slug>\<slug>.mp4` + `Episodes\<slug>\youtube\`. Yarımçıq qalsa: `python run.py --resume <slug>`.
-**Bütün hazır videolar bir yerdə:** `C:\YouTubeAI\Hazir_Videolar\` (iş masasında "ELI5 Hazir Videolar"):
-`<slug>.mp4` (hardlink, əlavə yer tutmur) + `<slug>.png` (thumbnail) + `<slug>.txt` (başlıq/description/tags) —
-pipeline sonda `deliver()` ilə avtomatik yazır.
+**Bütün hazır videolar:** `C:\YouTubeAI\Hazir_Videolar\<slug>\` — **hər mövzunun öz qovluğu** (istifadəçi 2026-09-27):
+`<slug>.mp4` (hardlink, əlavə yer tutmur) + `thumbnail.png` + `youtube.txt` (başlıq/description/tags) +
+`subtitles.srt` + `script.md` — pipeline sonda `deliver()` ilə avtomatik yazır. İş masasında qovluq qısayolu YOXDUR
+(istifadəçi sildi, lazım deyil); yalnız "ELI5 Yeni Video" qısayolu var.
 Musiqi: `--music` verilməsə `Music\*.mp3`-dən slug-a görə trek seçilir (sha1 → epizodlar arasında növbə, resume eyni trek).
 4 trek: Kevin MacLeod (incompetech), **CC BY 4.0** → `Music\credits.json` üzrə istinad description.txt-ə avtomatik yazılır.
 Yeni trek əlavə edəndə: mp3-ü `Music\`-ə qoy; CC BY-dırsa `credits.json`-a `"fayl.mp3": "Başlıq"` sətri əlavə et.
@@ -254,7 +255,9 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 - Köhnə sol-kompozisiyalı fonlar `flip` ilə güzgülənir (fonlarda yazı yoxdur → güzgü təhlükəsizdir)
 - İş masasına "ELI5 Yeni Video" qısayolu; bat musiqini pipeline-a buraxır. 127 test.
 - İstifadəçi: "köhnə videoları sil, yeni videolar bir qovluğa" → 2 köhnə epizod silindi; `deliver()` →
-  `Hazir_Videolar\` (mp4 hardlink + png + txt), iş masasında "ELI5 Hazir Videolar". 129 test.
+  `Hazir_Videolar\` (mp4 hardlink + png + txt). 129 test.
+- İstifadəçi: "hər mövzunun ayrıca qovluğu olsun, qarışmasın" → `Hazir_Videolar\<slug>\` (mp4 + thumbnail.png +
+  youtube.txt + subtitles.srt + script.md); iş masasındakı qovluq qısayolu istifadəçi tərəfindən silindi. 130 test.
 
 ### 2026-09-26 — E2E: `what-is-cash-flow` (ChatGPT şəkilləri, 8–10 dəq qaydası)
 - Video HAZIR: **8.52 dəq** (511 s), 1920×1080 H.264 High 4.1 yuv420p, AAC 48 kHz stereo, −14.2 LUFS, 376 MB,
