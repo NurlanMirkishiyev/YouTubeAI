@@ -20,6 +20,7 @@
 | FAZA G (5 şikayət + Remotion) | **TAMAM** (2026-09-26) — `what-is-business-automation` 15.59 dəq HAZIRDIR |
 | Avtomatik keyfiyyət (check_bgs) | **TAMAM** (2026-09-26) — əl ilə fon yoxlaması artıq lazım deyil |
 | Şəkillər ChatGPT ilə (gpt-image-2) + təmizlik | **TAMAM** (2026-09-26) — SDXL silindi, LTX plandan çıxarıldı |
+| Video 8–10 dəq + E2E `what-is-cash-flow` | **mp4 HAZIR** (8.52 dəq); publish paketi OpenAI krediti gözləyir |
 
 **İstifadə:** `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan yarımçıq epizod davam edir;
 `Music\*.mp3` varsa avtomatik fon musiqisi) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
@@ -130,11 +131,13 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 `final_video_problems=[]`, youtube/ (8 fəsil, thumbnail). `check_bgs`: raund 1 → 10/97 pis, raund 2 → 6, raund 3 → 2
 (ehtiyat fona keçdi); 10 fon avtomatik yenidən çəkildi. 128 test keçir.
 
-**Növbəti:** yeni mövzu → `python run.py "Mövzu"` (~1.5–2 saat: skript, 98-ə yaxın fon, TTS, Remotion).
-Fon yoxlamasını pipeline özü edir (`check_bgs`, hesabat `Episodes/<slug>/bg_qa.json`). Claude pipeline-ı
-`Start-Process` ilə müstəqil açır (sessiya bağlansa ölməsin).
-Açıq qalan (istifadəçi qərarı lazımdır): fon musiqisi (`Music/` boşdur — mp3 qoyulsa bat özü götürür),
-Sənəd işarələri + plan 29–36 aktuallaşdırıldı (2026-09-26).
+**SESSİYA BURADA DAYANDI (2026-09-26 axşam, istifadəçi: "yaddaşa yaz, sonra davam edəcəyik"):**
+1. `what-is-cash-flow.mp4` HAZIR (8.52 dəq, yoxlanıb). **Publish paketi gözləyir — OpenAI krediti bitib.**
+   İstifadəçi kredit əlavə edəndən sonra: `python run.py --resume what-is-cash-flow` → youtube/ + thumbnail yoxla.
+2. Sonra: istifadəçi yeni mövzu verir → `python run.py "Mövzu"` (~45 dəq: skript 1 dəq, ~50 ChatGPT şəkli ~10 dəq
+   [limit 5/dəq], hakim ~2 dəq, upscale ~13 dəq, TTS+SRT ~2 dəq, Remotion ~11 dəq). Claude `Start-Process` ilə
+   müstəqil açır; fon yoxlamasını pipeline özü edir (`check_bgs`, `Episodes/<slug>/bg_qa.json`).
+Açıq qalan (istifadəçi qərarı): fon musiqisi (`Music/` boşdur — mp3 qoyulsa bat özü götürür).
 
 ---
 
