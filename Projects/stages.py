@@ -8,6 +8,8 @@ from typing import Callable
 
 from PIL import Image
 
+from checks import duration
+
 ROOT = r"C:\YouTubeAI"
 PROJ = os.path.join(ROOT, "Projects")
 PY = {"projects": os.path.join(PROJ, ".venv", "Scripts", "python.exe"),
@@ -16,6 +18,7 @@ PY = {"projects": os.path.join(PROJ, ".venv", "Scripts", "python.exe"),
 BG_MIN = (1536, 864)      # gpt-image 1536x1024 -> 16:9
 HD_MIN = (3840, 2160)
 SRT_WORD_TOL = 0.05
+VIDEO_TOL_S = 2.0         # kodlama/kecid yuvarlaqlasdirmasi
 
 
 @dataclass(frozen=True)
@@ -26,6 +29,7 @@ class Ctx:
     words: int
     music: str | None
     min_seconds: float
+    max_seconds: float
     provider: str
 
     def p(self, *parts: str) -> str:
@@ -114,8 +118,13 @@ def verify_srt(ctx: Ctx) -> list[str]:
 
 
 def verify_video(ctx: Ctx) -> list[str]:
-    from checks import final_video_problems
-    return final_video_problems(ctx.p(f"{ctx.slug}.mp4"))
+    import checks
+    path = ctx.p(f"{ctx.slug}.mp4")
+    problems = checks.final_video_problems(path)
+    secs = duration(path)
+    if secs > ctx.max_seconds + VIDEO_TOL_S:         # istifadeci: 10 deq-den uzun olmamalidir
+        problems.append(f"video {secs:.0f} s > max {ctx.max_seconds:.0f} s")
+    return problems
 
 
 def verify_pack(ctx: Ctx) -> list[str]:

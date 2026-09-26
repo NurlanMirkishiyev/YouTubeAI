@@ -6,8 +6,8 @@ import state
 
 
 def _ctx(tmp_path, **kw):
-    base = dict(topic="T", slug="t", ep_dir=str(tmp_path), words=2150, music=None,
-                min_seconds=600.0, provider="openai")
+    base = dict(topic="T", slug="t", ep_dir=str(tmp_path), words=1230, music=None,
+                min_seconds=480.0, max_seconds=600.0, provider="openai")
     base.update(kw)
     return st.Ctx(**base)
 
@@ -21,7 +21,7 @@ def test_stage_order():
 def test_commands(tmp_path):
     ctx = _ctx(tmp_path, music="m.mp3")
     cmd = st.STAGES[0].command(ctx, True)
-    assert cmd[0] == st.PY["projects"] and "--words" in cmd and "2150" in cmd and cmd[-1] == "--force"
+    assert cmd[0] == st.PY["projects"] and "--words" in cmd and "1230" in cmd and cmd[-1] == "--force"
     assert st.STAGES[st.stage_index("tts_gen")].command(ctx, False)[0] == st.PY["tts"]
     assert st.STAGES[st.stage_index("make_srt")].command(ctx, False)[0] == st.PY["whisper"]
     build = st.STAGES[st.stage_index("build_episode")].command(ctx, False)
@@ -38,7 +38,8 @@ def test_check_bgs_stage_judges_backgrounds_before_upscale(tmp_path):
 
 
 def test_parse_args_requires_topic_or_resume():
-    assert pl.parse_args(["Topic"]).words == 2150
+    a = pl.parse_args(["Topic"])
+    assert (a.words, a.min_seconds, a.max_seconds) == (1230, 480.0, 600.0)    # video 8-10 deq
     assert pl.parse_args(["--resume", "t", "--from", "build_episode"]).from_stage == "build_episode"
 
 
@@ -103,7 +104,8 @@ def test_make_ctx_falls_back_to_meta_topic(tmp_path, monkeypatch):
 
 def test_build_stage_renders_with_remotion():
     import stages
-    ctx = stages.Ctx(topic="T", slug="t", ep_dir="E", words=100, music=None, min_seconds=600.0, provider="openai")
+    ctx = stages.Ctx(topic="T", slug="t", ep_dir="E", words=100, music=None, min_seconds=480.0,
+                       max_seconds=600.0, provider="openai")
     cmd = stages._build_cmd(ctx, False)
     assert cmd[1].endswith("remotion_build.py") and "E" in cmd and "--music" not in cmd
 
@@ -120,3 +122,39 @@ def test_run_pipeline_retries_a_stage_after_transient_failure(tmp_path):
     rc = pl.run_pipeline(_ctx(tmp_path), str(tmp_path / "s.json"), stages=stages, runner=runner,
                          gates={}, sleep=waits.append)
     assert rc == 0 and ran == ["a", "a", "b"] and len(waits) == 1
+
+
+def _script(tmp_path, n):
+    (tmp_path / "script.md").write_text("# T\n\n## Hook\n\n" + "w " * n, encoding="utf-8")
+
+
+def test_word_gate_shortens_a_script_that_would_run_over_10_minutes(tmp_path, monkeypatch):
+    _script(tmp_path, 1700)
+    cuts = []
+
+    def fake_shorten(ctx, words, log_dir):
+        cuts.append(words)
+        _script(tmp_path, 1400)
+        return []
+
+    monkeypatch.setattr(pl, "shorten_script", fake_shorten)
+    g = pl.word_gate(_ctx(tmp_path), str(tmp_path), 0)
+    assert g.status == "ok" and cuts == [1700 - 1455]
+
+
+def test_length_gate_shortens_and_restarts_when_narration_is_too_long(tmp_path, monkeypatch):
+    monkeypatch.setattr(pl, "duration", lambda p: 700.0)
+    seen = []
+    monkeypatch.setattr(pl, "shorten_script", lambda c, w, l: seen.append(w) or [])
+    monkeypatch.setattr(pl, "invalidate_after_script", lambda ep, slug: None)
+    g = pl.length_gate(_ctx(tmp_path), str(tmp_path), 0)
+    assert g.status == "restart" and g.restart_at == "scene_plan" and seen and seen[0] > 0
+
+
+def test_verify_video_rejects_a_video_longer_than_max(tmp_path, monkeypatch):
+    import checks
+    monkeypatch.setattr(checks, "final_video_problems", lambda p: [])
+    monkeypatch.setattr(st, "duration", lambda p: 650.0)
+    assert any("650" in p for p in st.verify_video(_ctx(tmp_path)))
+    monkeypatch.setattr(st, "duration", lambda p: 560.0)
+    assert st.verify_video(_ctx(tmp_path)) == []

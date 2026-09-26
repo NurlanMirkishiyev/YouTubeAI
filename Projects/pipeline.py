@@ -1,6 +1,6 @@
 """FAZA F orchestrator: movzu -> hazir video + youtube\\ paketi.
 Istifade (koku qovluqdan):
-  python run.py "Movzu" [--words 2150] [--music Music\\x.mp3]
+  python run.py "Movzu" [--words 1230] [--music Music\\x.mp3]
   python run.py --resume <slug> [--from build_episode]
 Her merhele oz venv-i ile subprocess kimi isleyir; log: Episodes\\<slug>\\logs\\<merhele>.log.
 Merhele "bitib" = fayl sistemi + yoxlama; state.json yalniz jurnaldir.
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -19,12 +20,16 @@ from dataclasses import dataclass
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from checks import duration  # noqa: E402
 from comfy import ComfyGuard  # noqa: E402
-from script_gen import EPISODES, slugify, word_count, words_for_seconds, words_to_add  # noqa: E402
+from script_gen import (EFFECTIVE_WPM, EPISODES, slugify, word_count, words_for_seconds,  # noqa: E402
+                        words_to_add, words_to_cut)
 from stages import PROJ, PY, ROOT, STAGES, Ctx, stage_index  # noqa: E402
 from state import new_state, now_iso, read_state, with_stage, write_state  # noqa: E402
 
-DEFAULT_WORDS = 2150
-MIN_SECONDS = 600.0
+# Istifadeci (2026-09-26): video 8-10 deq, 10 deq-den uzun olmamalidir. LLM hedefi ~10% asir ->
+# 1230 istenen ~1350 soz ~ 9 deq video (EFFECTIVE_WPM ile)
+DEFAULT_WORDS = 1230
+MIN_SECONDS = 480.0
+MAX_SECONDS = 600.0
 MAX_EXTENSIONS = 2
 INVALIDATE_DIRS = ("bg", "bg_hd", "audio", "cards", "remotion", "youtube")
 INVALIDATE_FILES = ("scenes.json", "narration.wav", "narration.srt", "narration.words.json",
@@ -69,34 +74,54 @@ def invalidate_after_script(ep_dir: str, slug: str) -> None:
             os.remove(p)
 
 
+def shorten_script(ctx: Ctx, words: int, log_dir: str) -> list[str]:
+    log = os.path.join(log_dir, "script_shorten.log")
+    cmd = [PY["projects"], os.path.join(PROJ, "script_gen.py"), ctx.topic, "--slug", ctx.slug,
+           "--shorten", str(words), "--provider", ctx.provider]
+    rc = _logged_call(cmd, log)
+    return [f"skript qisaldilmadi (exit {rc}) - bax: {log}"] if rc else []
+
+
 def word_gate(ctx: Ctx, log_dir: str, attempt: int) -> Gate:
+    """Skriptin tehmini video uzunlugu [min, max] araligina salinir (uzat / qisalt)."""
     n = 0
     for k in range(MAX_EXTENSIONS + 1):
         with open(ctx.p("script.md"), encoding="utf-8") as f:
             n = word_count(f.read())
-        need = words_to_add(n, ctx.min_seconds)
-        if need == 0:
-            return Gate("ok", f"skript {n} soz")
+        add, cut = words_to_add(n, ctx.min_seconds), words_to_cut(n, ctx.max_seconds)
+        if not add and not cut:
+            return Gate("ok", f"skript {n} soz ~{n / EFFECTIVE_WPM:.1f} deq")
         if k == MAX_EXTENSIONS:
             break
-        print(f"  skript {n} soz - {ctx.min_seconds:.0f} s ucun +{need} soz elave olunur", flush=True)
-        problems = extend_script(ctx, need, log_dir)
+        if add:
+            print(f"  skript {n} soz - {ctx.min_seconds:.0f} s ucun +{add} soz elave olunur", flush=True)
+            problems = extend_script(ctx, add, log_dir)
+        else:
+            print(f"  skript {n} soz - {ctx.max_seconds:.0f} s-e sigmaq ucun -{cut} soz", flush=True)
+            problems = shorten_script(ctx, cut, log_dir)
         if problems:
             return Gate("fail", problems[0])
-    return Gate("fail", f"skript {n} soz - {MAX_EXTENSIONS} uzatmadan sonra da {ctx.min_seconds:.0f} s-e catmir")
+    return Gate("fail", f"skript {n} soz - {MAX_EXTENSIONS} cehdden sonra da "
+                        f"{ctx.min_seconds:.0f}-{ctx.max_seconds:.0f} s araligina dusmur")
 
 
 def length_gate(ctx: Ctx, log_dir: str, attempt: int) -> Gate:
+    """Real TTS uzunlugu yoxlanir; araliqdan kenardirsa skript duzelir ve scene_plan-dan tekrar."""
     secs = duration(ctx.p("narration.wav"))
-    if secs >= ctx.min_seconds:
+    if ctx.min_seconds <= secs <= ctx.max_seconds:
         return Gate("ok", f"narration {secs:.0f} s")
     if attempt >= MAX_EXTENSIONS:
-        return Gate("fail", f"narration {secs:.0f} s < {ctx.min_seconds:.0f} s, {MAX_EXTENSIONS} cehd bitdi")
-    problems = extend_script(ctx, words_for_seconds(ctx.min_seconds - secs), log_dir)
+        return Gate("fail", f"narration {secs:.0f} s {ctx.min_seconds:.0f}-{ctx.max_seconds:.0f} s "
+                            f"araliginda deyil, {MAX_EXTENSIONS} cehd bitdi")
+    if secs < ctx.min_seconds:
+        problems, what = extend_script(ctx, words_for_seconds(ctx.min_seconds - secs), log_dir), "uzadildi"
+    else:
+        cut = math.ceil((secs - ctx.max_seconds * 0.95) / 60.0 * EFFECTIVE_WPM)
+        problems, what = shorten_script(ctx, cut, log_dir), "qisaldildi"
     if problems:
         return Gate("fail", problems[0])
     invalidate_after_script(ctx.ep_dir, ctx.slug)
-    return Gate("restart", f"narration {secs:.0f} s qisadir - skript uzadildi, scene_plan-dan tekrar", "scene_plan")
+    return Gate("restart", f"narration {secs:.0f} s - skript {what}, scene_plan-dan tekrar", "scene_plan")
 
 
 DEFAULT_GATES = {"script_gen": word_gate, "tts_gen": length_gate}
@@ -180,7 +205,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--music", help="royalty-free fon musiqisi")
     ap.add_argument("--resume", metavar="SLUG")
     ap.add_argument("--from", dest="from_stage", choices=[s.name for s in STAGES])
-    ap.add_argument("--min-seconds", type=float, default=MIN_SECONDS, help="yalniz test ucun asagi sal")
+    ap.add_argument("--min-seconds", type=float, default=MIN_SECONDS, help="video minimum uzunlugu (s)")
+    ap.add_argument("--max-seconds", type=float, default=MAX_SECONDS, help="video maksimum uzunlugu (s)")
     ap.add_argument("--provider", default="openai")
     a = ap.parse_args(argv)
     if not a.topic and not a.resume:
@@ -200,7 +226,8 @@ def make_ctx(a: argparse.Namespace) -> Ctx:
         raise SystemExit(f"movzu tapilmadi: {ep} (state.json / meta.json) - movzunu da ver")
     if a.music and not os.path.isfile(a.music):
         raise SystemExit("musiqi tapilmadi: " + a.music)
-    return Ctx(topic, slug, ep, a.words, a.music and os.path.abspath(a.music), a.min_seconds, a.provider)
+    return Ctx(topic, slug, ep, a.words, a.music and os.path.abspath(a.music), a.min_seconds, a.max_seconds,
+               a.provider)
 
 
 def main(argv: list[str] | None = None) -> int:

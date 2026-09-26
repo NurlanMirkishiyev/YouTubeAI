@@ -26,13 +26,35 @@ y
 """
 
 
+# Uzunluq effektiv suretle (intro/basliq/outro + pauzalar daxil) hesablanir: 2402 soz -> 935 s,
+# 2364 soz -> 967 s (~150 soz/deq). Xalis 199 wpm ile 16 deq-lik video cixirdi.
 def test_words_to_add():
-    assert sg.words_to_add(1500, 600) == 590     # ceil(600/60*199*1.05)=2090
-    assert sg.words_to_add(2500, 600) == 0
+    assert sg.words_to_add(1000, 480) == 260     # ceil(480/60*150*1.05)=1260
+    assert sg.words_to_add(1400, 480) == 0
+
+
+def test_words_to_cut_for_max_length():
+    assert sg.words_to_cut(1600, 600) == 145     # 1600 - floor(600/60*150*0.97)=1455
+    assert sg.words_to_cut(1300, 600) == 0
 
 
 def test_words_for_seconds():
-    assert sg.words_for_seconds(30) == 110       # ceil(0.5*199*1.10)
+    assert sg.words_for_seconds(30) == 83        # ceil(0.5*150*1.10)
+
+
+def test_shorten_rewrites_the_longest_teaching_sections_until_enough_is_cut():
+    md = ("# T\n\n## Hook\n\n" + "h " * 50 + "\n\n## Section 1: A\n\n" + "a " * 300
+          + "\n\n## Section 2: B\n\n" + "b " * 200 + "\n\n## Common Mistakes\n\n" + "m " * 100)
+    asked = []
+
+    def rewrite(heading, body, target):
+        asked.append((heading, target))
+        return "x " * target
+
+    out = sg.shorten(md, 150, rewrite)
+    assert asked == [("Section 1: A", 150)]
+    assert sg.word_count(out) == sg.word_count(md) - 150
+    assert "## Section 2: B" in out and "## Common Mistakes" in out and "h h" in out
 
 
 def test_teaching_headings():

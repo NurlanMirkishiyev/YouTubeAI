@@ -1,4 +1,4 @@
-"""Add'im 22 - movzu -> ~10 deqiqelik ELI5 Business skripti (1700-2050 soz).
+"""Add'im 22 - movzu -> 8-10 deqiqelik ELI5 Business skripti (~1350 soz).
 Istifade:
   python Projects\\script_gen.py "Trademark vs Copyright vs Patent" [--provider openai|deepseek|ollama]
   python Projects\\script_gen.py "..." --slug trademark-copyright-patent --words 1850
@@ -23,6 +23,10 @@ WPM = 199.0          # OLCULMUS: Kokoro am_fenrir speed=1.0 -> 199 soz/deq (1550
 OVERSHOOT = 1.18     # model hedefin ~85-95%-ni verir - bolme hedefleri bu qeder boyudulur
 SHORT_RATIO = 0.90   # bolme hedefin bu qederinden az cixarsa yenidden yazdirilir
 LENGTH_MARGIN = 1.05  # TTS bosluqlarina ve tehmin xetasina ehtiyat
+# OLCULMUS: video uzunlugu (intro/basliq/outro + pauzalar daxil) skript sozune gore - 2402 soz -> 935 s,
+# 2364 soz -> 967 s. Xalis 199 wpm ile hesablananda video 16 deq cixirdi (hedef 8-10 deq).
+EFFECTIVE_WPM = 150.0
+MIN_SECTION_WORDS = 110  # qisaldilan bolme bundan az olmur - analogiya + misal yerlesmelidir
 
 SYSTEM = """You write scripts for an ELI5 Business YouTube channel.
 The host is a friendly cartoon owl in a suit who explains business and money topics
@@ -119,14 +123,41 @@ def check_headings(markdown: str) -> list[str]:
     return [h for h in required if h not in markdown]
 
 
-def words_to_add(current: int, min_seconds: float, wpm: float = WPM,
+def words_to_add(current: int, min_seconds: float, wpm: float = EFFECTIVE_WPM,
                  margin: float = LENGTH_MARGIN) -> int:
-    """min_seconds danisiq ucun catismayan soz sayi (0 = kifayetdir)."""
+    """min_seconds video ucun catismayan soz sayi (0 = kifayetdir)."""
     return max(0, math.ceil(min_seconds / 60.0 * wpm * margin) - current)
 
 
-def words_for_seconds(seconds: float, wpm: float = WPM, margin: float = 1.10) -> int:
+def words_to_cut(current: int, max_seconds: float, wpm: float = EFFECTIVE_WPM, margin: float = 0.97) -> int:
+    """max_seconds-i asmamaq ucun atilmali soz sayi (0 = sigir)."""
+    return max(0, current - math.floor(max_seconds / 60.0 * wpm * margin))
+
+
+def words_for_seconds(seconds: float, wpm: float = EFFECTIVE_WPM, margin: float = 1.10) -> int:
     return math.ceil(seconds / 60.0 * wpm * margin)
+
+
+_SECTION = re.compile(r"^## (Section \d+: [^\n]+)\n(.*?)(?=^## |\Z)", re.M | re.S)
+
+
+def shorten(markdown: str, cut: int, rewrite) -> str:
+    """En uzun tedris bolmelerini rewrite(heading, body, target_words) ile qisaldir, cemi `cut` soz
+    atilana qeder. Hook / Mistakes / Recap / CTA toxunulmur."""
+    sections = sorted(((m[1], m[2].strip()) for m in _SECTION.finditer(markdown)),
+                      key=lambda hb: -len(hb[1].split()))
+    left = cut
+    for heading, body in sections:
+        if left <= 0:
+            break
+        n = len(body.split())
+        target = max(MIN_SECTION_WORDS, n - left)
+        if target >= n:
+            continue
+        new = rewrite(heading, body, target).strip()
+        markdown = markdown.replace(body, new, 1)
+        left -= n - len(new.split())
+    return markdown
 
 
 def teaching_headings(markdown: str) -> list[str]:
@@ -238,6 +269,39 @@ def extend(topic: str, markdown: str, words: int, domains: list[str], **llm_kw) 
         str(sec.get("domain", "")).strip()
 
 
+SHORTEN_USER = """Topic: {topic}
+
+Rewrite this section of the video script ("{heading}") to about {words} words.
+Keep the core idea, the same analogy and the example; cut repetition and side remarks first.
+Write flowing narration paragraphs separated by blank lines. No heading, no lists, no meta commentary.
+
+Current text:
+{body}"""
+
+
+def run_shorten(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
+    if not os.path.isfile(script_path):
+        raise SystemExit("qisaltmaq ucun script.md yoxdur: " + script_path)
+    with open(script_path, encoding="utf-8") as f:
+        current = f.read()
+    print(f"[22-] skript qisaldilir: -{a.shorten} soz")
+
+    def rewrite(heading: str, body: str, target: int) -> str:
+        print(f"  [{heading}] {len(body.split())} -> {target} soz")
+        return chat(SYSTEM, SHORTEN_USER.format(topic=a.topic, heading=heading, words=target, body=body),
+                    max_tokens=min(4000, target * 4), provider=a.provider, model=a.model,
+                    temperature=a.temperature)
+
+    try:
+        script = shorten(current, a.shorten, rewrite)
+    except LLMError as e:
+        raise SystemExit("qisaltma xetasi: " + str(e)) from e
+    with open(script_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(script.rstrip() + "\n")
+    n = word_count(script)
+    print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
+
+
 def run_extend(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     if not os.path.isfile(script_path):
         raise SystemExit("uzatmaq ucun script.md yoxdur: " + script_path)
@@ -257,20 +321,22 @@ def run_extend(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     n = word_count(script)
     with open(script_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(script.rstrip() + "\n")
-    meta = {**meta, "words": n, "est_minutes": round(n / WPM, 1),
+    meta = {**meta, "words": n, "est_minutes": round(n / EFFECTIVE_WPM, 1),
             "domains": [*meta.get("domains", []), domain]}
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
-    print(f"  {n} soz  ~{n / WPM:.1f} deq  -> {script_path}")
+    print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("topic")
     ap.add_argument("--slug", help="default: movzudan yaradilir")
-    ap.add_argument("--words", type=int, default=2150)   # ~10.8 deq @ 199 wpm
+    ap.add_argument("--words", type=int, default=1230)   # LLM ~10% asir -> ~1350 soz ~ 9 deq video
     ap.add_argument("--extend", type=int, metavar="SOZ",
                     help="movcud script.md-ye bu qeder sozluk yeni tedris bolmesi elave et")
+    ap.add_argument("--shorten", type=int, metavar="SOZ",
+                    help="movcud script.md-nin en uzun tedris bolmelerini bu qeder soz qisalt")
     ap.add_argument("--force", action="store_true", help="movcud script.md uzerine yaz")
     add_provider_arg(ap)
     a = ap.parse_args()
@@ -282,6 +348,9 @@ def main() -> None:
     script_path = os.path.join(out_dir, "script.md")
     if a.extend:
         run_extend(a, out_dir, script_path)
+        return
+    if a.shorten:
+        run_shorten(a, out_dir, script_path)
         return
     if os.path.isfile(script_path) and not a.force:
         raise SystemExit(f"artiq movcuddur: {script_path}  (--force ile uzerine yaz)")
@@ -300,10 +369,10 @@ def main() -> None:
         f.write(script.rstrip() + "\n")
     with open(os.path.join(out_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump({"topic": a.topic, "slug": slug, "words": n,
-                   "est_minutes": round(n / WPM, 1), "domains": domains,
+                   "est_minutes": round(n / EFFECTIVE_WPM, 1), "domains": domains,
                    "provider": a.provider, "model": a.model or "default"}, f, indent=2)
 
-    print(f"  {n} soz  ~{n / WPM:.1f} deq  -> {script_path}")
+    print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
     if missing:
         print("  DIQQET: catismayan basliqlar:", ", ".join(missing))
     if not WORDS_MIN <= n <= WORDS_MAX:

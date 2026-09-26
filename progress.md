@@ -58,6 +58,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 14 | Hakim API limitinə (429) düşən fonu yoxlamadan keçirdi (ep3 sc89) | 1–4 s backoff TPM limitinə azdır | xətalı fonlar 30 s gözləyib ardıcıl yenidən yoxlanır (`3cee56c`) |
 | 15 | Mərhələ bir dəfəlik xəta ilə bütün videonu dayandırırdı | retry yox idi | uğursuz mərhələ 30 s sonra 2 dəfə yenidən cəhd edilir (`547950f`) |
 | 16 | "smart kitchen scale/oven" ekranında rəqəm/yazı (ep3 sc16/sc23) | ekranlı cihaz | `digital …`, `smart <cihaz>` yazı daşıyan sayılır, "smart robot" qalır (`547950f`) |
+| 17 | gpt-image 97 şəkildən 55-ni 429 ilə itirdi (ep4) | hesab limiti dəqiqədə 5 şəkil | sürüşən pəncərə limiter + API-nin dediyi qədər gözləmə (`63e3379`) |
+| 18 | Video 16 dəq çıxırdı; istifadəçi: **8–10 dəq, 10-dan uzun olmasın** | söz hədəfi xalis 199 wpm ilə, max qaydası yox idi | effektiv 150 söz/dəq, default 1230 söz, skript və TTS qapıları həm uzadır həm qısaldır (`--shorten`), final video > 600 s → xəta |
 
 **Hələ avtomatlaşdırılmayan (istifadəçi qərarı):** fon musiqisi (`Music\*.mp3`).
 
@@ -188,7 +190,7 @@ Səhv → dayan, səbəbi yaz.
   fon musiqisi ducking ilə
 - YouTube: audio 48 kHz stereo, **-14 LUFS**, `youtube/` qovluğu (title, description+chapters, tags, thumbnail.png)
 
-**Uzunluq ≥ 10 dəq (sərt qayda)**
+**Uzunluq 8–10 dəq (sərt qayda, 2026-09-26; əvvəl ≥ 10 dəq idi)**
 `--words 2150` (199 wpm → 10.8 dəq). Addım 5-dən sonra yoxlama: narration < 600 s olsa,
 avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 
