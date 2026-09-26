@@ -87,6 +87,10 @@ def _post(url: str, key: str, payload: dict) -> dict:
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:500]
             last = f"HTTP {e.code}: {detail}"
+            if "insufficient_quota" in detail or "credit_balance_exhausted" in detail:
+                # 429 ile gelir, amma muveqqeti deyil - tekrar hec ne vermir (ep4 publish 4x tekrarlandi)
+                raise LLMError("OpenAI BALANSI BITIB - https://platform.openai.com/settings/organization/"
+                               "billing -de kredit elave et, sonra: python run.py --resume <slug>") from e
             if e.code not in (408, 409, 429) and e.code < 500:
                 raise LLMError(last) from e
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:

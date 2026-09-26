@@ -53,7 +53,17 @@ def _logged_call(cmd: list[str], log: str) -> int:
 def run_stage(stage, ctx: Ctx, force: bool, log_dir: str) -> list[str]:
     log = os.path.join(log_dir, f"{stage.name}.log")
     rc = _logged_call(stage.command(ctx, force), log)
-    return [f"exit {rc} - bax: {log}"] if rc else stage.verify(ctx)
+    return [f"exit {rc}: {_last_line(log)} - bax: {log}"] if rc else stage.verify(ctx)
+
+
+def _last_line(log: str) -> str:
+    """Xetanin sebebi istifadeciye gorunsun (evvel yalniz "exit 1 - bax: log" yazilirdi)."""
+    try:
+        with open(log, encoding="utf-8", errors="replace") as f:
+            lines = [ln.strip() for ln in f if ln.strip()]
+    except OSError:
+        return ""
+    return lines[-1][:200] if lines else ""
 
 
 def extend_script(ctx: Ctx, words: int, log_dir: str) -> list[str]:
@@ -143,13 +153,14 @@ def _step(stage, ctx, force, log_dir, runner, comfy, remaining) -> list[str]:
 
 STAGE_RETRIES = 2          # muveqqeti xeta (sebeke, ComfyUI/Remotion cokmesi) - merhele yeniden cehd edilir
 RETRY_WAIT_S = 30
+NO_RETRY = "BALANSI BITIB"   # llm.py-in balans xetasi mesaji
 
 
 def _step_with_retries(stage, ctx, force, log_dir, runner, comfy, remaining, sleep) -> list[str]:
     """Skriptler qaldigi yerden davam edir (hazir fayllari kecir) - tekrar cehd ucuzdur."""
     problems = _step(stage, ctx, force, log_dir, runner, comfy, remaining)
     for k in range(STAGE_RETRIES):
-        if not problems:
+        if not problems or any(NO_RETRY in p for p in problems):     # balans bitibse tekrar hec ne vermir
             break
         print(f"  {stage.name} ugursuz ({'; '.join(problems)[:200]}) - {RETRY_WAIT_S}s sonra "
               f"tekrar cehd {k + 1}/{STAGE_RETRIES}", flush=True)

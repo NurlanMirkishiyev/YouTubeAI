@@ -158,3 +158,15 @@ def test_verify_video_rejects_a_video_longer_than_max(tmp_path, monkeypatch):
     assert any("650" in p for p in st.verify_video(_ctx(tmp_path)))
     monkeypatch.setattr(st, "duration", lambda p: 560.0)
     assert st.verify_video(_ctx(tmp_path)) == []
+
+
+def test_failed_stage_shows_the_last_log_line_and_quota_errors_are_not_retried(tmp_path, monkeypatch):
+    stage = _fake_stage("publish", False)
+    monkeypatch.setattr(pl, "_logged_call", lambda cmd, log: open(log, "a", encoding="utf-8").write(
+        "noise\npublish paketi xetasi: OpenAI BALANSI BITIB - kredit elave et\n") and 1)
+    problems = pl.run_stage(stage, _ctx(tmp_path), False, str(tmp_path))
+    assert "BALANSI BITIB" in problems[0]
+    calls = []
+    got = pl._step_with_retries(stage, _ctx(tmp_path), False, str(tmp_path),
+                                lambda *a: calls.append(1) or problems, None, [], lambda s: None)
+    assert len(calls) == 1 and got == problems
