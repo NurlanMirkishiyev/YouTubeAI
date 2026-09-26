@@ -17,6 +17,7 @@
 |---|---|
 | FAZA A–E (addım 01–28) | **TAMAM** — ilk epizod çıxdı və oynadılır |
 | FAZA F / Faza 1 (automation + keyfiyyət) | **Task 0–16 icra olundu, 90 test keçir** — E2E işlədi, amma **fonlarda yazı problemi açıqdır** (aşağıya bax) |
+| FAZA G (5 şikayət + Remotion) | **TAMAM** (2026-09-26) — `what-is-business-automation` 15.59 dəq HAZIRDIR |
 | FAZA F / Faza 2 (LTX-Video) | başlanmayıb — ayrıca spec lazımdır |
 
 **İstifadə:** `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
@@ -61,7 +62,7 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
    - **2026-09-25 TAMAM:** yenidən qurma 11.19 dəq HAZIRDIR (19:13→19:42, ~30 dəq), 37 fonun hamısı yazısız,
      kadrlar 30/120/300/500 s + thumbnail vizual yoxlandı — qüsur yoxdur. **Faza 1 bağlandı.**
 
-**FAZA G — keyfiyyət düzəlişi (2026-09-26, DAVAM EDİR).** İstifadəçinin 5 şikayəti + "Remotion istifadə et":
+**FAZA G — keyfiyyət düzəlişi (2026-09-26, TAMAM).** İstifadəçinin 5 şikayəti + "Remotion istifadə et":
 1. Səs yazıları oxumur → intro/bölmə başlığı/outro indi səsləndirilir (`tts_gen`, commit dddd4f3)
 2. Şəkillər təkrar → səhnə 14–32 söz (~7 s, ~98 şəkil), LLM hissə-hissə + son mövzular, təkrar yenidən soruşulur,
    fallback pool təkrarsız (commit 6571652)
@@ -80,12 +81,16 @@ Tam dekod testi xətasız. Oynadılması istifadəçi tərəfindən təsdiqləni
 - `what-is-business-automation`: 98 səhnə, narration 935 s (15.6 dəq). 98 fon vizual yoxlandı (scratchpad sheet1–4.jpg):
   bir aydın obyekt, məntiqli. 6 problemli səhnə (21, 23, 28, 47, 56, 91) promptu əl ilə dəyişdirildi, `--only` ilə
   yenidən render + upscale edildi, yoxlandı — yaxşıdır. scene_plan/render/upscale/tts/srt HAZIR.
-- **Son addım (yarımçıq):** `run.py --resume what-is-business-automation --from build_episode` arxa planda başladıldı
-  (Remotion render ~28k kadr, ~1 saat; log scratchpad `ep2v6.log`, `Episodes/.../logs/build_episode.log`).
-  Sessiya bağlansa proses ölə bilər → **davam: mp4 yoxdursa eyni əmri yenidən işə sal.**
-- **Sonra:** final mp4 yoxla — kadrlar (intro, bölmə başlığı, outro, bayquş, altyazı), hamarlıq (scratchpad `smooth.py`
-  itə bilər: faza korrelyasiyası 90 kadr), intro/başlıq/outro səsi, `final_video_problems`, publish paketi;
-  commit; memory + progress yenilə; istifadəçiyə 5 şikayət üzrə hesabat (Azərbaycanca, "Yoxlama:" sətri ilə).
+- **2026-09-26 TAMAM — FAZA G bağlandı.** Əvvəlki render sessiya bağlananda 4563/28054-də ölmüşdü → yenidən.
+  Yoxlamada tapıldı: Ken Burns `inOut(sin)` hər ~7 s-lik səhnənin başında/sonunda fonu dayandırırdı ("dur-get")
+  → sabit sürət (commit `425128e`), epizod yenidən render edildi (Remotion ~22 dəq, 8x concurrency).
+  Final: **15.59 dəq**, 1920×1080 H.264 High 4.1 yuv420p, AAC 48 kHz stereo, **−14.2 LUFS**, 435 MB,
+  tam dekod xətasız, `final_video_problems=[]`, youtube/ paketi (8 fəsil, thumbnail) hazır.
+  Kadrlar (intro, bölmə başlığı, səhnələr, outro, thumbnail) vizual yoxlandı. 114 test keçir.
+
+**Növbəti:** yeni mövzu → `python run.py "Mövzu"` (~1.5–2 saat: skript, 98-ə yaxın fon, TTS, Remotion).
+render_bgs-dən sonra fonlara kontakt vərəqi ilə bax (pis olanları `--only N --force` ilə yenidən çək).
+Açıq qalan: fon musiqisi (`Music/` boşdur, `--music` verilməsə musiqisiz), Faza 2 (LTX).
 
 ---
 
