@@ -78,7 +78,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 25 | Personaj tərpənirdi, bölmə dəyişəndə sağ↔sol tullanırdı; istifadəçi: **"sabit dayansın, tərpənməsin, şəkli səhnəyə uyğunlaşsın"** | `Owl.tsx` nəfəs/yellənmə/danışıq/spring + `assign_positions` növbəsi; `vary_poses` pozu zorla dəyişirdi | `Owl.tsx` hərəkətsiz, poz fon keçidinin ortasında ani dəyişir; bayquş həmişə sağda; `fit_poses` LLM seçimini saxlayır; sol-kompozisiyalı köhnə fonlar güzgülənir (`flip`) |
 | 26 | AI musiqi: kliplər sonda sükut, 7 dB səviyyə fərqi (proba); dövr nöqtəsində videoda 1.25 s sükut (ep5 228 s) | model klipi 0.8–2.4 s sükut / ~4 s reverb quyruğu (−21→−50 dB) ilə bitirir | hər klip: baş −50 dB, son **−35 dB** ilə kəsilir, −18 LUFS; yekun trek 0.4 s fade-out (`58b0db5` + bu commit) |
 
-**Açıq qalan:** yoxdur. İstifadəçiyə xatırlat: Stability pulsuz kommersiya qeydiyyatı (aşağıda).
+**Açıq qalan:** yoxdur.
 
 ---
 
@@ -104,7 +104,7 @@ Qərarlar: musiqi = AI (Stable Audio Open, lokal GPU); bayquş = ayrıca şəffa
 
 **Mühit:** `MusicGen\.venv` (uv, py3.12, torch 2.x cu128, diffusers). HF gated model qəbul edildi
 (hesab MNurlan1993, org "Eli5 Youtube", istifadəçi təsdiqi ilə). Lisenziya: Stability Community (<$1M pulsuz,
-çıxış istinadsız). **Stability-də pulsuz kommersiya qeydiyyatı hələ edilməyib** (https://stability.ai/community-license) — istifadəçiyə xatırlat.
+çıxış istinadsız). **Stability Community License AKTİVDİR** (2026-09-28, Nurlan Mirkishiyev / "Eli5 Business", umman65@gmail.com, submission `169a89b8-4c5f-43a5-8f27-9a6b2eef5bd1`) — AI musiqi kommersiya istifadəsi üçün qanunidir.
 
 **2026-09-27 axşam: addım 1–2 TAMAM (commit `58b0db5`, 147 test).** Model tam yükləndi (transformer 4.0 GB).
 Proba: yükləmə 6 s, 45 s-lik klip ~30 s, VRAM 5.9 GB (8 GB-a sığır, offload lazım deyil). Tapılıb düzəldilən:
