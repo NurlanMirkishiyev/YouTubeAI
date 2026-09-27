@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-26
+**Son yenilənmə:** 2026-09-27
 
 ---
 
@@ -22,6 +22,7 @@
 | Şəkillər ChatGPT ilə (gpt-image-2) + təmizlik | **TAMAM** (2026-09-26) — SDXL silindi, LTX plandan çıxarıldı |
 | Video 8–10 dəq + E2E `what-is-cash-flow` | **TAMAM** (2026-09-27) — kredit əlavə edildi, paket hazırdır |
 | Musiqi + sabit personaj (FAZA H) | **TAMAM** (2026-09-27) — `Music\*.mp3` avtomatik, bayquş hərəkətsiz, poz səhnəyə uyğun |
+| Səhnə bayquşu + AI musiqi (FAZA I) | **TAMAM** (2026-09-27) — E2E `what-is-profit-margin` 8.92 dəq HAZIRDIR, 52/52 bayquş ilk cəhddə keçdi |
 
 **İstifadə:** iş masasında **"ELI5 Yeni Video"** qısayolu = `Yeni_Video.bat` (iki klik → mövzu yaz; `resume` yazsan
 yarımçıq epizod davam edir) və ya `python run.py "Mövzu"` (istənilən python; özünü `Projects\.venv`-ə keçirir) →
@@ -30,9 +31,9 @@ yarımçıq epizod davam edir) və ya `python run.py "Mövzu"` (istənilən pyth
 `<slug>.mp4` (hardlink, əlavə yer tutmur) + `thumbnail.png` + `youtube.txt` (başlıq/description/tags) +
 `subtitles.srt` + `script.md` — pipeline sonda `deliver()` ilə avtomatik yazır. İş masasında qovluq qısayolu YOXDUR
 (istifadəçi sildi, lazım deyil); yalnız "ELI5 Yeni Video" qısayolu var.
-Musiqi: `--music` verilməsə `Music\*.mp3`-dən slug-a görə trek seçilir (sha1 → epizodlar arasında növbə, resume eyni trek).
-4 trek: Kevin MacLeod (incompetech), **CC BY 4.0** → `Music\credits.json` üzrə istinad description.txt-ə avtomatik yazılır.
-Yeni trek əlavə edəndə: mp3-ü `Music\`-ə qoy; CC BY-dırsa `credits.json`-a `"fayl.mp3": "Başlıq"` sətri əlavə et.
+Musiqi (FAZA I-dən): `music_gen` mərhələsi hər epizoda öz AI musiqisini yaradır (Stable Audio Open, lokal GPU,
+pulsuz, istinadsız) → `Episodes\<slug>\music.wav` (~3.8 dəq, video boyu dövr edir); description-da kredit yoxdur.
+`--music <fayl>` versən o istifadə olunur. `Music\*.mp3` və `credits.json` artıq istifadə olunmur (silinməyib).
 
 **Ölçülmüş (2026-09-23):** fon upscale 15 s/fon · sprite HD 8 ədəd 71 s · 8.14 dəq epizodun montajı ~7 dəq ·
 köhnə epizodun FAZA F versiyası (`faza1_test.mp4`) bütün A2/A3/A4/A8 yoxlamalarından keçdi.
@@ -75,14 +76,17 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 23 | OpenAI krediti bitdi → publish 4×3 dəfə boş təkrar, istifadəçi JSON gördü (ep4) | `insufficient_quota` 429 ilə gəlir | dərhal "OpenAI BALANSI BITIB …" xətası, mərhələ təkrarlanmır, konsolda loqun son sətri görünür |
 | 24 | Video musiqisiz çıxırdı | `Music\` boş, bat yalnız `--music` ilə ötürürdü | 4 CC BY trek + `pipeline.default_music` + `publish_pack.music_credit` |
 | 25 | Personaj tərpənirdi, bölmə dəyişəndə sağ↔sol tullanırdı; istifadəçi: **"sabit dayansın, tərpənməsin, şəkli səhnəyə uyğunlaşsın"** | `Owl.tsx` nəfəs/yellənmə/danışıq/spring + `assign_positions` növbəsi; `vary_poses` pozu zorla dəyişirdi | `Owl.tsx` hərəkətsiz, poz fon keçidinin ortasında ani dəyişir; bayquş həmişə sağda; `fit_poses` LLM seçimini saxlayır; sol-kompozisiyalı köhnə fonlar güzgülənir (`flip`) |
+| 26 | AI musiqi: kliplər sonda sükut, 7 dB səviyyə fərqi (proba); dövr nöqtəsində videoda 1.25 s sükut (ep5 228 s) | model klipi 0.8–2.4 s sükut / ~4 s reverb quyruğu (−21→−50 dB) ilə bitirir | hər klip: baş −50 dB, son **−35 dB** ilə kəsilir, −18 LUFS; yekun trek 0.4 s fade-out (`58b0db5` + bu commit) |
 
-**Açıq qalan:** FAZA I (səhnə bayquşu + AI musiqi) — aşağıda "Növbəti dəqiq addım".
+**Açıq qalan:** yoxdur. İstifadəçiyə xatırlat: Stability pulsuz kommersiya qeydiyyatı (aşağıda).
 
 ---
 
 ## Növbəti dəqiq addım
 
-### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27, istifadəçi "sabah davam edəcəyik" dedi — BURADA DAYANDI)
+**Növbəti:** pipeline tam hazırdır — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
+
+### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27) — TAMAM
 İstifadəçi tələbi: (1) musiqi **lisenziyasız/istinadsız və ödənişsiz**; (2) bayquş hər səhnədə mətnə uyğun
 detallı görünüşdə (ChatGPT), **əsl görünüşü dəyişməsin**. Spec: `docs/superpowers/specs/2026-09-27-scene-owl-and-ai-music-design.md`.
 Qərarlar: musiqi = AI (Stable Audio Open, lokal GPU); bayquş = ayrıca şəffaf şəkil, fonun üstündə sağda.
@@ -102,15 +106,20 @@ Qərarlar: musiqi = AI (Stable Audio Open, lokal GPU); bayquş = ayrıca şəffa
 (hesab MNurlan1993, org "Eli5 Youtube", istifadəçi təsdiqi ilə). Lisenziya: Stability Community (<$1M pulsuz,
 çıxış istinadsız). **Stability-də pulsuz kommersiya qeydiyyatı hələ edilməyib** (https://stability.ai/community-license) — istifadəçiyə xatırlat.
 
+**2026-09-27 axşam: addım 1–2 TAMAM (commit `58b0db5`, 147 test).** Model tam yükləndi (transformer 4.0 GB).
+Proba: yükləmə 6 s, 45 s-lik klip ~30 s, VRAM 5.9 GB (8 GB-a sığır, offload lazım deyil). Tapılıb düzəldilən:
+repo id ilə `from_pretrained` kökdəki 4.8 GB `model.safetensors`-u yükləməyə başlayırdı → `model_dir()`;
+kliplər 0.8–2.4 s sükutla bitirdi → kəsilir; kliplər 7 dB fərqli idi → hər biri −18 LUFS. İndi: addım 3 (E2E).
+
 **Növbəti addımlar (ardıcıl):**
-1. Model yükləməsini yoxla/tamamla (sessiya bitəndə yarımçıq qala bilər). Xet ilişir → **`HF_HUB_DISABLE_XET=1`**,
+1. ~~Model yükləməsini yoxla/tamamla~~ TAMAM (sessiya bitəndə yarımçıq qala bilər). Xet ilişir → **`HF_HUB_DISABLE_XET=1`**,
    yalnız alt qovluqlar (kökdəki 4.8 GB `model.safetensors`/`model.ckpt` LAZIM DEYİL):
    `HF_HUB_DISABLE_XET=1 MusicGen\.venv\Scripts\python -c "from huggingface_hub import snapshot_download; snapshot_download('stabilityai/stable-audio-open-1.0', allow_patterns=['model_index.json','projection_model/*','scheduler/*','text_encoder/*','tokenizer/*','transformer/*','vae/*'])"`
    (əvvəl `blobs/*.incomplete` sil). Tam ölçü ~5.3 GB (transformer 4.2 GB).
 2. Musiqi probu: scratchpad-dakı `probe_music.py` kimi 2 klip → vaxt/VRAM ölç, dinləmə yoxdur → spektr/səs
    səviyyəsi + ffprobe ilə yoxla; 8 GB VRAM-a sığmazsa `enable_model_cpu_offload()`.
-3. `run.py "Test mövzu"` ilə E2E: bayquş kadrlarını (fərqli pozlar, eyni personaj) + musiqini yoxla.
-4. `progress.md`, yaddaş, commit. `Music\*.mp3` və `credits.json` artıq istifadə olunmur (silinməyib).
+3. ~~E2E~~ TAMAM — `what-is-profit-margin` (jurnala bax). Dövr nöqtəsində sükut tapıldı → reyestr #26.
+4. ~~progress.md, yaddaş, commit~~ TAMAM.
 
 **FAZA F dizaynı TƏSDİQLƏNDİ (2026-09-23):** Faza 1 / Faza 2 bölgüsü, dizayn dəyişməz qəbul edildi.
 
@@ -275,6 +284,15 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-27 — FAZA I E2E: `what-is-profit-margin` HAZIRDIR (səhnə bayquşu + AI musiqi ilk dəfə)
+- **8.92 dəq** (535 s), 1920×1080 H.264 + AAC, −14.2 LUFS, `final_video_problems=[]`, 65 dəq (18:47→19:52 UTC), xəta yox
+- Mərhələ vaxtları: render_bgs 10 dəq · check_bgs 2.5 · **render_owls 11** · upscale_bgs 15 · tts 2.5 · **music_gen 3** · build 18
+- Bayquş: 52/52 `owl_qa` ilk cəhddə ok; 12 kadr vizual yoxlandı — eyni personaj (eynək/kostyum/qalstuk), poz və
+  əşya səhnəyə uyğun (pambıq qənd, tərəzi, pul, gül, sınıq qumbara), RGBA kənarı təmiz
+- Musiqi: 6 klip × 25–27 s, trek 229 s, −17.8 LUFS. Videoda dövr nöqtəsində (228 s) 1.25 s sükut tapıldı → düzəldildi
+  (reyestr #26), bu epizodun səsi video yenidən render olunmadan yenidən mikslənib (`-c:v copy`, hardlink bərpa)
+- youtube.txt-də CC BY kredit yoxdur; thumbnail vizual yoxlandı
 
 ### 2026-09-27 — `will-ai-replace-employees` HAZIRDIR (tetik "Video: Will AI Replace Employees?")
 - **9.38 dəq** (563 s), 1920×1080 H.264 High yuv420p, AAC 48 kHz stereo, 324 MB, musiqi Life_of_Riley

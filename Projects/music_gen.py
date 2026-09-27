@@ -27,6 +27,8 @@ OUT = "music.wav"
 CLIP_LUFS = -18  # kohne CC BY trekler -18..-20 idi; audio_master.MUSIC_DB buna gore kalibrlidir
 CLIP_TP = -1.5
 SILENCE_DB = -50
+TAIL_DB = -35  # klip sonu reverb quyrugu ile -50 dB-e qeder 4 s sonur - dovr noqtesinde desik olurdu
+END_FADE_S = 0.4
 NEGATIVE = "vocals, singing, speech, voice, low quality, distortion, noise, harsh, loud drums"
 STYLES = (
     "Light upbeat corporate background music, soft acoustic guitar, warm piano, gentle claps, positive, "
@@ -65,15 +67,17 @@ def crossfade_cmd(clips: list[str], out: str, fade: float) -> list[str]:
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error"]
     for c in clips:
         cmd += ["-i", c]
-    trim = f"silenceremove=start_periods=1:start_threshold={SILENCE_DB}dB:start_silence=0.05"
-    parts = [f"[{i}:a]{trim},areverse,{trim},areverse,"
+    head = f"silenceremove=start_periods=1:start_threshold={SILENCE_DB}dB:start_silence=0.05"
+    tail = f"silenceremove=start_periods=1:start_threshold={TAIL_DB}dB:start_silence=0.05"
+    parts = [f"[{i}:a]{head},areverse,{tail},areverse,"
              f"loudnorm=I={CLIP_LUFS}:TP={CLIP_TP}:LRA=11[n{i}]" for i in range(len(clips))]
     prev = "[n0]"
     for i in range(1, len(clips)):
         label = f"[x{i}]"
         parts.append(f"{prev}[n{i}]acrossfade=d={fade}:c1=tri:c2=tri{label}")
         prev = label
-    cmd += ["-filter_complex", ";".join(parts), "-map", prev]
+    parts.append(f"{prev}areverse,afade=t=in:d={END_FADE_S},areverse[out]")  # dovr ucun kesik yox
+    cmd += ["-filter_complex", ";".join(parts), "-map", "[out]"]
     return cmd + ["-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", out]
 
 

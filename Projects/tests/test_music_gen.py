@@ -34,8 +34,20 @@ def test_clip_edge_silence_is_trimmed():
     # olculdu 2026-09-27: klipler 0.8-2.4 s sukutla bitir -> dovr edende musiqide bosluq
     cmd = mg.crossfade_cmd(["a.wav", "b.wav"], "out.wav", fade=3.0)
     graph = cmd[cmd.index("-filter_complex") + 1]
-    assert graph.count("areverse") == 4 and graph.count("silenceremove") == 4
+    assert graph.count("areverse") == 4 + 2 and graph.count("silenceremove") == 4  # +2: yekun fade-out
     assert graph.index("silenceremove") < graph.index("loudnorm")
+
+
+def test_reverb_tail_is_cut_harder_so_the_loop_seam_has_no_hole():
+    # olculdu 2026-09-27 (what-is-profit-margin): son klip ~4 s reverb quyrugu ile -21 -> -50 dB sonur,
+    # -50 dB hedd onu kesmirdi -> dovr noqtesinde videoda 1.25 s sukut
+    cmd = mg.crossfade_cmd(["a.wav", "b.wav"], "out.wav", fade=3.0)
+    graph = cmd[cmd.index("-filter_complex") + 1]
+    assert graph.count(f"start_threshold={mg.TAIL_DB}dB") == 2       # areverse-den sonra = klipin sonu
+    assert graph.count(f"start_threshold={mg.SILENCE_DB}dB") == 2    # klipin basi yumsaq qalir
+    assert mg.SILENCE_DB < mg.TAIL_DB <= -30
+    last = graph.split(";")[-1]                                     # yekun trek qisa fade ile bitir
+    assert f"areverse,afade=t=in:d={mg.END_FADE_S},areverse" in last and cmd[cmd.index("-map") + 1] in last
 
 
 def test_single_clip_is_normalized_too():
