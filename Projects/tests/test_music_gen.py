@@ -22,9 +22,26 @@ def test_crossfade_chains_every_clip_into_one_track():
     assert "-ar" in cmd and cmd[cmd.index("-ar") + 1] == "48000"
 
 
-def test_single_clip_is_just_converted():
+def test_every_clip_is_loudness_normalized_before_crossfade():
+    # olculdu 2026-09-27: iki klip -17.3 ve -10.3 LUFS - normallasdirmasa musiqi 7 dB sicrayir
+    cmd = mg.crossfade_cmd(["a.wav", "b.wav", "c.wav"], "out.wav", fade=3.0)
+    graph = cmd[cmd.index("-filter_complex") + 1]
+    assert graph.count(f"loudnorm=I={mg.CLIP_LUFS}") == 3
+    assert graph.index("loudnorm") < graph.index("acrossfade")
+
+
+def test_clip_edge_silence_is_trimmed():
+    # olculdu 2026-09-27: klipler 0.8-2.4 s sukutla bitir -> dovr edende musiqide bosluq
+    cmd = mg.crossfade_cmd(["a.wav", "b.wav"], "out.wav", fade=3.0)
+    graph = cmd[cmd.index("-filter_complex") + 1]
+    assert graph.count("areverse") == 4 and graph.count("silenceremove") == 4
+    assert graph.index("silenceremove") < graph.index("loudnorm")
+
+
+def test_single_clip_is_normalized_too():
     cmd = mg.crossfade_cmd(["a.wav"], "out.wav", fade=3.0)
-    assert "-filter_complex" not in cmd and cmd[-1] == "out.wav"
+    graph = cmd[cmd.index("-filter_complex") + 1]
+    assert "loudnorm" in graph and "acrossfade" not in graph and cmd[-1] == "out.wav"
 
 
 def test_track_length_matches_clip_count():
