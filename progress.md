@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-28
+**Son yenilənmə:** 2026-09-29
 
 ---
 
@@ -89,6 +89,9 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 ## Növbəti dəqiq addım
 
 **Növbəti:** pipeline tam hazırdır — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
+
+**AÇIQ YOXLAMA (2026-09-29, istifadəçi: "sonra yoxlayarıq"):** #29 (təkrar kadr qəti yox, CLIP) və #30 (yetkin görünüş, realist foto) kodda, 168 test keçir, amma **real videoda sınanmayıb**. Növbəti mövzu = ilk E2E sınaq. Bitəndə əlavə yoxla: fonlar realist foto (oyuncaq/3D yox), ssenari yetkin ton, `bg_qa.json` `"duplicates": []` + kadrlarda gözlə təkrar yox, CLIP dövrəsi neçə raund çəkdi; 0.88 həddi realist fotoda uyğun deyilsə `bg_dedupe.DUP_SIM`-i yenidən kalibrlə.
+**İstifadəçiyə açıq sual:** `Hazir_Videolar\why-9-99-feels-cheaper-than-10-the-psychology-of-pricing` köhnə stildədir (təkrarlar + oyuncaq üslubu) — yeni qaydalarla yenidən çəkilsinmi (~1 saat + gpt-image xərci)?
 
 ### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27) — TAMAM
 İstifadəçi tələbi: (1) musiqi **lisenziyasız/istinadsız və ödənişsiz**; (2) bayquş hər səhnədə mətnə uyğun
