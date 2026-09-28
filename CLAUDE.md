@@ -14,6 +14,7 @@
 4. Bitəndə özün yoxla (istifadəçidən soruşma):
    - `owl_qa.json` (hamısı ok), bir neçə kadr + `thumbnail.png` vizual — bayquş eyni personaj, sağda, yazı/insan yox;
    - `checks.final_video_problems(mp4) == []`, müddət 8–10 dəq, −14 LUFS;
+   - `bg_qa.json` → `"duplicates": []`; kadrlarda uşaqsayağı görüntü (oyuncaq/cizgi fon) yoxdur;
    - musiqi dövr nöqtəsində sükut yoxdur (`silencedetect=n=-40dB:d=0.4`; ~0.4 s danışıq fasiləsi normaldır).
 5. `Hazir_Videolar\<slug>\` hazır olduğunu qısa bildir, `progress.md` jurnalına sətir yaz, commit et.
 Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). Yalnız həqiqi blokerdə soruş
@@ -23,6 +24,12 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 - Video **8–10 dəq**, heç vaxt 10 dəqiqədən uzun deyil.
 - İlk saniyələrdə **"Hook" yazısı/sözü olmur** (nə ekranda, nə səsdə); giriş kartındakı mövzu başlığı və
   bölmə başlıqları (lower-third) qalır (2026-09-28). Test: `Projects/tests/test_spoken_titles.py`.
+- **Təkrar kadr QƏTİ olmur** (2026-09-28): bir epizodda eyni obyekt/fon iki dəfə yox. `check_bgs` CLIP ilə
+  (`bg_dedupe.py`, hədd 0.88) yoxlayır, sonrakı təkrarı yenidən çəkir; qalarsa mərhələ keçmir.
+  Test: `Projects/tests/test_no_repeats.py`.
+- **Uşaq videosu kimi görünmür** (2026-09-28, seçim A): fonlar realist fotoqrafiya (Pixar/3D yox), oyuncaq/
+  konfet/karusel yox; ssenari 25–45 yaş yetkinlər üçün; uşaq musiqisi yox. Bayquş dəyişmir.
+  Test: `Projects/tests/test_adult_look.py`.
 - Bayquş sabit (animasiya yox), həmişə sağda; hər səhnədə mətnə uyğun ChatGPT bayquşu, görünüşü
   (dəyirmi eynək, göy kostyum, sarı qalstuk) dəyişməz.
 - Musiqi: AI, lokal (Stable Audio Open), pulsuz, istinadsız. Stability Community License aktivdir (2026-09-28).

@@ -31,11 +31,13 @@ SIZE = "1536x1024"        # en genis olcu; 16:9-a kesilir
 WORKERS = 4
 IMAGES_PER_MIN = 5        # OpenAI hesab limiti (2026-09-26: "input-images per min: Limit 5"); tier artsa boyut
 RETRIES_429 = 6
-STYLE = ("3D Pixar-style animated render, soft studio lighting, vibrant friendly colors, "
-         "clean simple composition with one clear main subject, wide 16:9 framing.")
-# "Pixar-style" deyilende model ozu kucuk/pisik/dovsan elave edirdi (ep4, 7 fon) - bayqus-aparicini kolgede qoyur
+# Istifadeci (2026-09-28, secim A): usaq videosu kimi gorunmesin -> realist fotoqrafiya (Pixar 3D evezine)
+STYLE = ("Realistic editorial photograph, shot on a full-frame camera, natural cinematic lighting, "
+         "muted true-to-life colors, shallow depth of field, clean composition with one clear main subject, "
+         "wide 16:9 framing.")
+# model ozu kucuk/pisik/dovsan elave edirdi (ep4, 7 fon); pricing E2E-de oyuncaq robot/karusel
 RULES = ("No text, no letters, no numbers, no logos, no people, no hands, "
-         "no animals or cartoon characters (robots are fine).")
+         "no animals or cartoon characters, no toys, not childish.")
 # bayqus hansi terefdedirse, fonun o terefi bos qalmalidir
 SPACE = {"right": "The main subject is on the left half; calm empty space on the right side.",
          "left": "The main subject is on the right half; calm empty space on the left side.",

@@ -79,6 +79,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 26 | AI musiqi: kliplər sonda sükut, 7 dB səviyyə fərqi (proba); dövr nöqtəsində videoda 1.25 s sükut (ep5 228 s) | model klipi 0.8–2.4 s sükut / ~4 s reverb quyruğu (−21→−50 dB) ilə bitirir | hər klip: baş −50 dB, son **−35 dB** ilə kəsilir, −18 LUFS; yekun trek 0.4 s fade-out (`58b0db5` + bu commit) |
 | 27 | Altyazıda qiymət bölünürdü: `$39 .99`, `$9 .99` (ep6), köhnələrdə `t -shirt`, `0 .67` | Whisper `" $39"` + `".99"` verir, `compact_words` hər tokeni ayrı söz sayırdı | boşluqsuz başlayan token əvvəlki sözə birləşir (`test_subword_tokens_are_merged_into_previous_word`) |
 | 28 | İlk saniyələrdə yuxarı solda **"Hook"** yazısı + səsdə "Hook." (subtitrdə "Huggy."); istifadəçi: **"hook yazısı olmasın, digər başlıqlar qalsın"** | `spoken_titles` regex-ində `\b` əvəzinə backspace (0x08) yazılmışdı → Hook heç vaxt tanınmırdı | funksiya `timeline.py`-yə köçdü (test edilə bilir), regex `hook\b`; `test_spoken_titles.py` |
+| 29 | **Təkrar kadrlar** (pricing: 55 səhnədən 10-u eyni ehtiyat fon, 6 peçenye, 3 donuz qumbarası, 2 eyni sikkə); istifadəçi: **"təkrar kadrlar olmasın, qəti"** | ehtiyat hovuz bitəndə hər dəfə `FALLBACK_BG`; eyni obyekt 2 dəfə icazəli idi; son addım yalnız yan-yana təkrarı əvəz edirdi; söz yoxlaması "stack of cookies"/"single cookie" fərqini tutmurdu | `MAX_SAME_HERO=1`, bütün təkrarlar əvəz olunur, hovuz 44 ayrı obyekt və təkrarsız (bitərsə xəta), `next_prompt` epizoddakı obyekti təkrarlamır, **CLIP şəkil yoxlaması** (`bg_dedupe.py`, 0.88) sonrakı təkrarı yenidən çəkir, qalarsa `check_bgs` keçmir (`test_no_repeats.py`) |
+| 30 | **Video uşaq videosu kimi görünürdü** (karusel, oyuncaq fabrik/qatar, peçenye, "Pixar" fon, "kids educational" musiqi, "10 yaşlı uşaq" ssenari) | promptlar uşaq auditoriyası üçün yazılmışdı | seçim A: realist foto fon, yetkin (25–45) ssenari və səhnə direktoru, `CHILDISH` söz filtri, hakimdə `childish` yoxlaması, uşaq musiqi stilləri çıxarıldı (`test_adult_look.py`) |
 
 **Açıq qalan:** yoxdur.
 
@@ -286,6 +288,11 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-29 — Qaydalar: təkrar kadr qəti yox (#29) + yetkin görünüş, realist foto (#30)
+- Kod + TDD: 168 test keçdi; CLIP modeli (`openai/clip-vit-base-patch32`) MusicGen venv-də, bir epizod ~17 s
+- Kalibrasiya pricing fonlarında: təkrarlar ≥ 0.884, fərqli obyektlər ≤ 0.873 → hədd 0.88; köhnə epizodda 25 səhnə təkrar kimi tutuldu (qəbul olunan davranış)
+- Video yaradılmadı (istifadəçi istəyi); növbəti mövzuda yeni stil ilk dəfə E2E yoxlanacaq
 
 ### 2026-09-28 — E2E: `why-9-99-feels-cheaper-than-10-the-psychology-of-pricing` HAZIRDIR
 - **9.03 dəq** (542 s), −14.3 LUFS, `final_video_problems=[]`, musiqidə sükut yox; 55 səhnə, `owl_qa` 55/55 ilk cəhddə ok

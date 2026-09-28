@@ -26,9 +26,12 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from llm import DEFAULT_PROVIDER, LLMError, chat_json  # noqa: E402
-from scene_plan import FALLBACK_BG, FALLBACK_POOL, clean_bg_prompt  # noqa: E402
+from scene_plan import FALLBACK_BG, FALLBACK_POOL, clean_bg_prompt, hero  # noqa: E402
 
 MAX_ATTEMPTS = 3
+# Tekrar kadr (CLIP oxsarligi) ucun elave raundlar - her raundda tekrar olan sonraki sehneler yeniden cekilir
+DEDUPE_ROUNDS = 3
+MUSIC_PY = os.path.join(os.path.dirname(HERE), "MusicGen", ".venv", "Scripts", "python.exe")   # torch burada
 JUDGE_WIDTH = 768
 # gpt-4o: sekil "low" detail-de ~85 token (4o-mini ~2800 token sayir ve 6 paralel sorgu 200k TPM
 # limitine direndi), gorme deqiqliyi de yuksekdir; epizod ~$0.2
@@ -38,14 +41,15 @@ REPORT = "bg_qa.json"
 # JSON acari -> problem kodu. Her yoxlama ayrica sual: umumi "ok" sualinda model narration-daki
 # "you"-dan insan "gorurdu" (97 fonun 84-u "human" cixmisdi)
 CHECKS = (("people", "human"), ("writing", "text"), ("collage", "collage"),
-          ("no_subject", "empty"), ("deformed", "deformed"), ("off_topic", "mismatch"))
+          ("no_subject", "empty"), ("deformed", "deformed"), ("off_topic", "mismatch"),
+          ("childish", "childish"))
 
 SYSTEM = """You check background images of an explainer video. A cartoon owl is added later, so the image
 itself must not contain people. First write "description": one factual sentence of what is ACTUALLY
 visible. Then answer each check with true/false, judging ONLY what is visible in the image. The narration
 talks to the viewer ("you") - never infer people or writing from it.
-- "people": a human or a human body part (face, hand, arm, cartoon child) is clearly visible. Robots,
-  robotic hands and toys are NOT people.
+- "people": a human or a human body part (face, hand, arm, cartoon child) is clearly visible. Robots
+  and robotic hands are NOT people.
 - "writing": clearly visible letters, words, numbers or scribbled lines of writing (on paper, boards,
   screens, signs, labels, clipboards). Clock faces, dice dots and tiny unreadable brand specks are fine.
 - "collage": several panels, split screen, grid or picture-in-picture.
@@ -53,10 +57,13 @@ talks to the viewer ("you") - never infer people or writing from it.
 - "deformed": melted, broken or impossible objects that look like generation mistakes.
 - "off_topic": the image is unrelated to the narration even as a metaphor, or shows gambling, weapons,
   alcohol or medicine.
-Also give "fix_prompt": if any check is true, a new image prompt of 8-20 words - ONE clear physical object
-or robot in a simple setting that illustrates the narration as a visual metaphor, with no people, hands,
-screens, papers, books, signs, cards or brand names; otherwise "".
-Answer ONLY JSON with keys: description, people, writing, collage, no_subject, deformed, off_topic, fix_prompt."""
+- "childish": it looks like a children's video - toys, candy, carnival or playground things, cartoonish
+  plastic toy-like objects, or a cute kids-show look. The video is for adult professionals.
+Also give "fix_prompt": if any check is true, a new image prompt of 8-20 words - ONE clear real-world adult
+object or place (office, shop, cafe, warehouse, tool, product) that illustrates the narration, with no
+people, hands, toys, screens, papers, books, signs, cards or brand names; otherwise "".
+Answer ONLY JSON with keys: description, people, writing, collage, no_subject, deformed, off_topic, childish,
+fix_prompt."""
 
 
 @dataclass(frozen=True)
@@ -75,12 +82,22 @@ def parse_verdict(d: dict) -> Verdict:
 
 def next_prompt(fix: str, attempt: int, used: set[str]) -> str:
     """Hakimin teklifi soz filtrlerinden kecir; son cehdde ve ya teklif yararsizdirsa istifade olunmamis
-    FALLBACK_POOL fonu (sinanmis, yazisiz, insansiz)."""
-    if attempt < MAX_ATTEMPTS and fix.strip():
-        p = clean_bg_prompt(fix)
-        if p != FALLBACK_BG:
-            return p
-    return next((p for p in FALLBACK_POOL if p not in used), FALLBACK_BG)
+    FALLBACK_POOL fonu. Istifadeci (2026-09-28): tekrar kadr QETI olmasin - epizodda olan obyekt
+    (hero) ne teklifde, ne ehtiyat fonda tekrarlanmir (pricing E2E: eyni ehtiyat fon 10 sehnede)."""
+    used_heroes = {hero(u) for u in used}
+    fixed = clean_bg_prompt(fix) if fix.strip() else FALLBACK_BG
+
+    def fresh(p: str) -> bool:
+        return p != FALLBACK_BG and p not in used and hero(p) not in used_heroes
+
+    if attempt < MAX_ATTEMPTS and fresh(fixed):
+        return fixed
+    pick = next((p for p in FALLBACK_POOL if fresh(p)), None)
+    if pick is None and fresh(fixed):
+        return fixed
+    if pick is None:
+        raise RuntimeError("tekrarsiz ehtiyat fon qalmadi")
+    return pick
 
 
 def apply_changes(scenes_path: str, changes: dict[int, str]) -> None:
@@ -143,6 +160,13 @@ def rerender(ep: str, nums: list[int]) -> None:
     subprocess.run(cmd, check=True)
 
 
+def find_duplicates(ep: str) -> dict:
+    """CLIP ile eyni gorunen fonlar: {"pairs": [[a, b], ...], "redo": [b, ...]} (bg_dedupe.py, MusicGen venv)."""
+    out = subprocess.run([MUSIC_PY, os.path.join(HERE, "bg_dedupe.py"), ep], check=True,
+                         capture_output=True, text=True).stdout
+    return json.loads(out.strip().splitlines()[-1])
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("episode_dir")
@@ -155,33 +179,48 @@ def main() -> None:
     report: dict[str, dict] = {}
     with open(scenes_path, encoding="utf-8") as f:
         pending = list(range(1, len(json.load(f)["scenes"]) + 1))
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    tries: dict[int, int] = {}
+    clean = False               # hakim + tekrar yoxlamasi temiz bitdi
+    for rnd in range(1, MAX_ATTEMPTS + DEDUPE_ROUNDS + 1):
         with open(scenes_path, encoding="utf-8") as f:
             scenes = json.load(f)["scenes"]
         paths = {n: os.path.join(ep, "bg", f"sc{n:02d}.png") for n in pending}
         verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider))
-        bad = [n for n in pending if not verdicts[n].ok]
+        # MAX_ATTEMPTS defe yeniden cekilib hele pisdirse sonuncu (ehtiyat) fon qalir - pipeline ilismir
+        bad = [n for n in pending if not verdicts[n].ok and tries.get(n, 0) < MAX_ATTEMPTS]
         for n in pending:
             v = verdicts[n]
-            report[str(n)] = {"ok": v.ok, "problems": list(v.problems), "attempts": attempt - 1
+            report[str(n)] = {"ok": v.ok, "problems": list(v.problems), "attempts": tries.get(n, 0)
                               + (0 if v.ok else 1), "prompt": scenes[n - 1]["bg_prompt"]}
-        print(f"[qa] raund {attempt}: {len(pending)} yoxlandi, {len(bad)} pis: "
+        print(f"[qa] raund {rnd}: {len(pending)} yoxlandi, {len(bad)} pis: "
               + ", ".join(f"sc{n:02d}({'/'.join(verdicts[n].problems)})" for n in bad), flush=True)
-        if not bad:
+        # hakim temiz olanda tekrar kadr yoxlamasi: eyni gorunen fonlarin sonrakilari yeniden cekilir
+        dups = [] if bad else find_duplicates(ep)["redo"]
+        if dups:
+            print(f"[qa] tekrar kadr: {len(dups)} sehne yeniden cekilir {dups}", flush=True)
+        redo = bad or dups
+        if not redo:
+            clean = True
             break
         used = {s["bg_prompt"] for s in scenes}
         changes = {}
-        for n in bad:
-            p = next_prompt(verdicts[n].fix_prompt, attempt, used)
+        for n in redo:
+            tries[n] = tries.get(n, 0) + 1
+            if n in bad:        # oz pis promptunun obyekti basqa sehnede yoxdursa, teklifde qala biler
+                p = next_prompt(verdicts[n].fix_prompt, tries[n], used - {scenes[n - 1]["bg_prompt"]})
+            else:               # tekrar kadr: epizodda olmayan ehtiyat obyekt
+                p = next_prompt("", MAX_ATTEMPTS, used)
             used.add(p)
             changes[n] = p
             print(f"  sc{n:02d} -> {p}")
         apply_changes(scenes_path, changes)
-        rerender(ep, bad)
-        pending = bad
+        rerender(ep, redo)
+        pending = redo
 
+    duplicates = [] if clean else find_duplicates(ep)["pairs"]     # bos deyilse check_bgs merhelesi kecmir
     with open(os.path.join(ep, REPORT), "w", encoding="utf-8") as f:
-        json.dump({"passed": True, "scenes": report}, f, indent=2, ensure_ascii=False)
+        json.dump({"passed": not duplicates, "scenes": report, "duplicates": duplicates}, f, indent=2,
+                  ensure_ascii=False)
     redone = sorted(int(n) for n, r in report.items() if r["attempts"])
     print(f"[qa] bitdi: {len(redone)} fon yeniden cekildi {redone or ''}")
 

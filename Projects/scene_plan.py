@@ -23,8 +23,8 @@ PLAN_CHUNK = 24                    # LLM-e bir defede verilen sehne sayi (uzun J
 RETRY_ROUNDS, RETRY_CHUNK = 3, 12   # tekrarlar kicik hisselerle yeniden istenir
 REPEAT_WINDOW = 8                  # eyni esas obyekt bu qeder sehne erzinde tekrar olunmur
 MIN_PROMPT_WORDS = 5               # "a smartphone" - temizlemeden sonra cilpaq qalan prompt -> yeniden
-NEAR_WINDOW = 2                    # bundan yaxin tekrar olunan subyekt ehtiyat fonla evez olunur
-MAX_SAME_HERO = 2                  # eyni esas isim butun epizodda en cox bu qeder (ep4: 7 sikke bankasi)
+# Istifadeci (2026-09-28): tekrar kadrlar QETI olmasin - eyni esas obyekt epizodda yalniz 1 defe
+MAX_SAME_HERO = 1
 # Busт sprite-lerin bir yani kesikdir - kenara yapisdirilmali olur ve tam beden pozlarla
 # olcu/yer uygunsuzlugu yaradir ("sekilsiz yerlesdirilib"). Videoda yalniz tam beden.
 VIDEO_POSES = ("front", "three_q", "side", "box", "chart")
@@ -33,24 +33,29 @@ POSITIONS = ("left", "right", "center")
 OWL_SIDE = "right"             # personaj butun epizodda eyni yerde (istifadeci 2026-09-27)
 FALLBACK_POSE = "three_q"
 
-SYSTEM = """You are the art director of an animated explainer video for kids and beginners.
+SYSTEM = """You are the art director of a business explainer video for ADULT viewers (25-45: professionals,
+freelancers, small business owners). It must look like a premium documentary, never like a children's video.
 The host is a cartoon owl rendered separately in a lower corner - you never describe the owl.
 For every scene you choose one background picture and one owl pose.
 
 Picture rules:
 - ONE clear hero subject that literally shows what the narration is talking about right now
   (the object, machine, place or result in the sentence), doing its action if it has one.
-  Example: "a shiny robot arm stirring a pot of tomato soup on a stove".
+  Example: "an espresso machine pouring a shot in a busy modern cafe".
+- Real adult world only: offices, shops, cafes, warehouses, factories, banks, streets, homes, tools,
+  products and vehicles. NEVER toys, candy, cookies piles, carnival games, playgrounds, school things,
+  balloons, cartoon objects or anything that belongs in a children's show.
 - At most one or two supporting props and a simple setting. Never a list of many objects.
 - Everything must make physical sense: objects at normal size, in their normal place, not merged.
 - Describe CONTENT ONLY - never style words (vector, illustration, flat, 3D, render, colors).
-- NO people, NO hands, NO animals, NO characters. Robots and machines are fine.
+- NO people, NO hands, NO animals, NO characters. Machines are fine.
 - NO written words, letters, numbers, screens, signs, labels, charts, documents, books,
   calendars, receipts, money bills. Show physical objects instead.
-- Every scene must look DIFFERENT from the previous scenes: a new hero subject, a new place
-  or a clearly different close-up. Never reuse a subject from the recent list.
-- When the narration stays on the same thing for several scenes, change the view each time:
-  wide view of the place -> close-up of one detail -> the finished result -> a top-down view.
+- STRICT: every scene shows a DIFFERENT hero object than ALL other scenes of the video. The same object
+  (even as a close-up, another angle, a stack or a plate of it) never appears twice. Never reuse anything
+  from the "already used" list.
+- When the narration stays on the same idea for several scenes, show a different related real object or
+  place each time (its cause, its setting, its result, the tool behind it) - never the same object again.
 - 8-20 words, English, comma separated: hero subject first, then props, then setting.
 - "subject": the hero subject in 1-3 words (used to detect repeats)."""
 
@@ -119,30 +124,59 @@ PIZZA_BOX = re.compile(r"\bpizza box(es)?\b", re.I)
 NOUN_START = re.compile(r"^(with|and)\s+", re.I)
 NOUN_PHRASE = re.compile(r"^(a|an|the|some|several|piles?|stacks?|rows?)\s", re.I)
 MAX_PARTS = 3      # SDXL cox obyekti bir-birine qarisdirir ("esyalar qarisib")
-FALLBACK_BG = "a cozy tidy desk with a potted plant, a coffee mug and a warm lamp"
-# Temizlenmis prompt bos qalanda - her biri bir defe istifade olunur (8 eyni fon olmusdu)
-FALLBACK_POOL = (    # biznes/avtomatlasdirma metaforalari - movzudan kenar tesadufi sekil olmasin
-    "a shiny brass gear mechanism turning, soft workshop light",
-    "a small conveyor belt carrying wooden toy blocks on a workbench",
-    "a friendly robot arm stacking colorful cubes on a workbench",
-    "a glowing light bulb on a wooden desk beside a potted plant",
-    "a row of dominoes falling in a neat line on a wooden table",
-    "a small wind-up robot walking across a tidy wooden desk",
-    "a glass jar slowly filling with golden coins on a wooden table",
-    "a silver stopwatch lying on a wooden desk next to a coffee cup",
-    "a tidy workbench with neatly arranged tools hanging on a wall",
-    "a toy factory with tiny gears and a little conveyor belt",
-    "a brass pulley lifting a small wooden crate in a workshop",
-    "a red toy rocket lifting off from a wooden desk, soft smoke",
-    "a mechanical music box with turning golden gears",
-    "a potted sprout growing on a sunny windowsill, a watering can beside it",
-    "a golden key turning in a padlock on a wooden chest",
-    "a paper airplane gliding over a tidy wooden desk",
-    "a stack of wooden building blocks forming a tall tower",
-    "a small delivery drone carrying a wooden crate over a green park",
-    "a toy train crossing a little bridge on a tabletop",
-    "a compass lying on a wooden table, warm light",
+FALLBACK_BG = "a tidy modern office desk by a large window, soft daylight"
+# Istifadeci (2026-09-28): usaq videosu kimi gorunmesin (oyuncaq/karusel/konfet yox) ve tekrar kadr olmasin:
+# her ehtiyat fon real dunyadan AYRI obyektdir (hero tekrarsiz), epizodda bir defe istifade olunur
+FALLBACK_POOL = (
+    "a brass gear mechanism turning in a softly lit workshop",
+    "an espresso machine pouring a shot in a modern cafe",
+    "a glass jar filling with coins on a kitchen counter",
+    "a silver stopwatch on a dark wooden desk",
+    "a leather briefcase standing beside an office chair",
+    "a row of shipping containers stacked at a port at sunset",
+    "a delivery van parked on a quiet city street",
+    "an empty modern conference room with a long wooden table",
+    "a warehouse aisle with tall shelves of cardboard boxes",
+    "a conveyor belt moving parcels in a bright factory",
+    "a golden key in a brass padlock on a wooden door",
+    "a compass on a dark leather surface in warm light",
+    "a potted sprout on a sunny office windowsill",
+    "a steel bank vault door slightly open",
+    "a stack of gold bars in a dim vault",
+    "a wooden chess king piece on a dark table",
+    "a single light bulb glowing in a dark loft office",
+    "a row of dominoes falling on a dark table",
+    "an hourglass with sand running on a desk",
+    "a ceramic coffee mug steaming on an office desk",
+    "a fountain pen resting on a leather desk pad",
+    "a modern glass skyscraper reflecting the sky",
+    "a city skyline at dusk seen from a high window",
+    "a cargo ship leaving a harbor at sunrise",
+    "a freight train crossing a steel bridge at dusk",
+    "a small bakery shop window with fresh bread loaves",
+    "a market stall with crates of fresh vegetables",
+    "a wooden crate lifted by a warehouse forklift",
+    "an empty grocery cart in a supermarket aisle",
+    "a set of brass balance scales with small weights",
+    "a steel safe with a round dial in an office corner",
+    "a mountain road winding up to a summit at sunrise",
+    "a lighthouse shining over a dark sea",
+    "a sailboat on calm water at golden hour",
+    "a tall stack of cardboard boxes by a loading dock",
+    "a leather messenger bag on a wooden bench",
+    "a gold wristwatch on a marble table",
+    "a bonsai tree on a minimalist desk",
+    "a steel cable bridge over a river at dusk",
+    "a black umbrella in the rain on a city street",
+    "an open metal toolbox on a workshop bench",
+    "a greenhouse full of young plants in morning light",
+    "a pair of running shoes on a gym floor",
+    "rows of solar panels on a rooftop in bright sun",
 )
+# Usaq movzulari fonu usaq videosuna cevirir (pricing E2E: karusel, oyuncaq fabrik, peceniye yigini)
+CHILDISH = re.compile(
+    r"(?<![a-z])(?:toys?|kids?|child(?:ren)?|cand(?:y|ies)|lollipops?|carnival|ring toss|playground|"
+    r"cartoons?|teddy|crayons?|lemonade stand|balloons?|wind-up|building blocks?)(?![a-z])", re.I)
 
 
 def clean_bg_prompt(prompt: str) -> str:
@@ -154,7 +188,8 @@ def clean_bg_prompt(prompt: str) -> str:
              for p in parts]
     parts = [PIZZA_BOX.sub(lambda m: "pizza tray" + ("s" if m.group(1) else ""), p) for p in parts]
     kept = [p for p in parts
-            if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p) and not HUMAN.search(p)]
+            if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p) and not HUMAN.search(p)
+            and not CHILDISH.search(p)]
     return ", ".join(kept[:MAX_PARTS]) or FALLBACK_BG
 
 
@@ -163,11 +198,11 @@ def fallback_bg(k: int) -> str:
 
 
 def pick_fallbacks(n: int, used_heroes: set[str]) -> list[str]:
-    """n ehtiyat fon: evvelce epizodda olmayan esas isimliler, catmasa qalanlar (tekrarsiz)."""
+    """n ehtiyat fon - yalniz epizodda olmayan obyektler; catmasa xeta (tekrar kadr QETI olmaz)."""
     fresh = [p for p in FALLBACK_POOL if hero(p) not in used_heroes]
-    rest = [p for p in FALLBACK_POOL if p not in fresh]
-    pool = fresh + rest
-    return [pool[k % len(pool)] for k in range(n)]
+    if n > len(fresh):
+        raise ValueError(f"ehtiyat fon catmir: {n} lazim, {len(fresh)} tekrarsiz var")
+    return fresh[:n]
 
 
 def _norm(subject: str) -> str:
@@ -179,12 +214,18 @@ _HERO_STOP = {"with", "of", "on", "in", "at", "next", "beside", "near", "under",
               "filled", "full", "and", "that", "which", "while", "into", "onto", "by", "against", "behind"}
 
 
+_QUANTITY = {"stack", "pile", "row", "pair", "set", "bunch", "handful", "heap", "couple", "group", "collection"}
+
+
 def hero(prompt: str) -> str:
     """Promptun esas ismi: ilk isim birlesmesinin son sozu ("a glass jar slowly filling ..." -> "jar").
     LLM subyekti mucerred adlandirir ("positive cash flow"), sekil ise eyni sikke bankasi olur."""
     chunk: list[str] = []
     for w in re.findall(r"[a-z]+", prompt.split(",")[0].lower()):
         if not chunk and w in _ARTICLES:
+            continue
+        if w == "of" and chunk and chunk[-1].rstrip("s") in _QUANTITY:
+            chunk = []                      # "a stack of cookies" -> cookie (6 peceniye tutulmurdu)
             continue
         if w in _HERO_STOP or (chunk and (w.endswith("ing") or w.endswith("ly") or
                                           (w.endswith("ed") and len(w) > 4))):
@@ -364,9 +405,8 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
                 if it:
                     prompts[i], subjects[i], _, act = _fields(it)
                     actions[i] = act or actions[i]
-    # Movzuya aid, amma bir az evvel olmus subyekt tesadufi fondan yaxsidir: son addimda yalniz bos
-    # promptlar ve yan-yana (NEAR_WINDOW) tekrarlar evez olunur
-    final = repeats(prompts, subjects, NEAR_WINDOW)
+    # Istifadeci (2026-09-28): tekrar kadr QETI olmasin - qalan butun tekrarlar ehtiyat fonla evez olunur
+    final = repeats(prompts, subjects)
     print(f"  ehtiyat fon: {len(final)} (bos: {sum(prompts[i] == FALLBACK_BG for i in final)})")
     kept = {hero(p) for j, p in enumerate(prompts) if j not in final}
     for k, (i, fb) in enumerate(zip(final, pick_fallbacks(len(final), kept))):

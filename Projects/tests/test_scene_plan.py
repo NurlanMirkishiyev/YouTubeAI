@@ -44,8 +44,8 @@ def test_clean_bg_prompt_strips_abstract_participle_tails():
 
 
 def test_clean_bg_prompt_drops_card_readers_instead_of_mangling_them():
-    out = scene_plan.clean_bg_prompt("a counter with a credit card reader, a toy on the counter")
-    assert out == "a toy on the counter"
+    out = scene_plan.clean_bg_prompt("a counter with a credit card reader, a vase on the counter")
+    assert out == "a vase on the counter"
 
 
 # E2E what-is-business-automation sc35: "a basketball player" negativ promptdaki "person, boy"-a
@@ -159,15 +159,6 @@ def test_hero_noun_is_the_head_of_the_first_noun_phrase():
     assert scene_plan.hero("A flowing river with stepping stones") == "river"
     assert scene_plan.hero("a cracked piggy bank with coins spilling out") == "bank"
     assert scene_plan.hero("a tray of freshly baked cookies cooling on a rack") == "tray"
-
-
-def test_repeats_limits_the_same_hero_across_the_whole_episode():
-    prompts = [f"a shiny {n} on a wooden table" for n in
-               "kettle lamp vase clock globe drum kite boat bell tent sled cup rope fan map key bus toy hat van".split()]
-    for k in (0, 9, 18):
-        prompts[k] = f"a glass jar filled with coins, picture {k}"
-    subjects = [f"s{k}" for k in range(20)]
-    assert scene_plan.repeats(prompts, subjects, window=3) == [18]    # 3-cu jar (MAX_SAME_HERO=2)
 
 
 def test_avoid_list_names_the_real_objects_not_only_abstract_subjects():

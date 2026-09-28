@@ -35,9 +35,11 @@ STYLES = (
     "110 BPM, instrumental, no vocals",
     "Calm lo-fi explainer background, mellow electric piano, soft bass, light brushed drums, curious and "
     "friendly, 90 BPM, instrumental",
-    "Playful pizzicato strings and marimba, light percussion, cheerful kids educational background, "
+    # istifadeci (2026-09-28): usaq videosu kimi gorunmesin - usaq/oyun musiqisi stilleri cixarildi
+    "Modern minimal documentary background, soft piano, warm cello, subtle pulse, confident and focused, "
     "100 BPM, instrumental",
-    "Soft ukulele and glockenspiel, whistling-free, sunny and optimistic background, 105 BPM, instrumental",
+    "Sleek corporate ambient, deep synth bass, soft electric piano chords, steady light beat, professional, "
+    "105 BPM, instrumental",
     "Gentle ambient pads with plucked synth arpeggio, focused and thoughtful tech explainer background, "
     "95 BPM, instrumental",
     "Warm jazzy piano trio, soft upright bass, brushed snare, relaxed cafe background, 92 BPM, instrumental",

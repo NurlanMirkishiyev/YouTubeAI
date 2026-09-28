@@ -77,6 +77,16 @@ def size_problems(paths: list[str], minimum: tuple[int, int]) -> list[str]:
     return bad
 
 
+def qa_problems(ctx: Ctx) -> list[str]:
+    """check_bgs hesabati: tekrar kadr qalibsa merhele kecmir (istifadeci 2026-09-28: QETI olmasin)."""
+    path = ctx.p("bg_qa.json")
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        pairs = json.load(f).get("duplicates") or []
+    return [f"tekrar kadrlar qalib: {pairs}"] if pairs else []
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as f:
         return f.read()
@@ -151,7 +161,8 @@ STAGES: tuple[Stage, ...] = (
           lambda c: all_exist(numbered(c, "bg")), lambda c: size_problems(numbered(c, "bg"), BG_MIN)),
     # vision hakimi: yazi/insan/menasiz fonlari yeniden cekir (evvel el ile yoxlanirdi)
     Stage("check_bgs", lambda c, f: _proj("check_bgs.py", c.ep_dir, "--provider", c.provider, force=f),
-          lambda c: os.path.isfile(c.p("bg_qa.json")), lambda c: size_problems(numbered(c, "bg"), BG_MIN)),
+          lambda c: os.path.isfile(c.p("bg_qa.json")),
+          lambda c: size_problems(numbered(c, "bg"), BG_MIN) + qa_problems(c)),
     # sehneye uygun bayqus (ChatGPT, referans sprite); pis/cekilmeyen sehnede kohne poz qalir
     Stage("render_owls", lambda c, f: _proj("render_owls.py", c.ep_dir, "--provider", c.provider, force=f),
           lambda c: os.path.isfile(c.p("owl_qa.json")), lambda c: []),
