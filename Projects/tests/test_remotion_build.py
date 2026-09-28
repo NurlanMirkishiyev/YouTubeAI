@@ -54,3 +54,11 @@ def test_scene_owls_replace_the_pose_where_they_exist():
     assert [s["pose"] for s in p["scenes"]] == ["three_q", "sc02", "three_q"]
     assert p["poses"]["sc02"] == {"name": "sc02", "w": 700, "h": 1100, "height": rb.DEFAULT_HEIGHT,
                                   "flippable": False}
+
+
+def test_subword_tokens_are_merged_into_previous_word():
+    # Whisper "$39.99" -> " $39" + ".99" (no leading space) -> altyazida "$39 .99" gorunurdu
+    words = [{"word": " a", "start": 0.0, "end": 0.2}, {"word": " $39", "start": 0.2, "end": 0.7},
+             {"word": ".99", "start": 0.7, "end": 1.4}, {"word": " game.", "start": 1.4, "end": 1.9}]
+    assert rb.compact_words(words) == [{"w": "a", "s": 0.0, "e": 0.2}, {"w": "$39.99", "s": 0.2, "e": 1.4},
+                                       {"w": "game.", "s": 1.4, "e": 1.9}]

@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-27
+**Son yenilənmə:** 2026-09-28
 
 ---
 
@@ -77,6 +77,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 24 | Video musiqisiz çıxırdı | `Music\` boş, bat yalnız `--music` ilə ötürürdü | 4 CC BY trek + `pipeline.default_music` + `publish_pack.music_credit` |
 | 25 | Personaj tərpənirdi, bölmə dəyişəndə sağ↔sol tullanırdı; istifadəçi: **"sabit dayansın, tərpənməsin, şəkli səhnəyə uyğunlaşsın"** | `Owl.tsx` nəfəs/yellənmə/danışıq/spring + `assign_positions` növbəsi; `vary_poses` pozu zorla dəyişirdi | `Owl.tsx` hərəkətsiz, poz fon keçidinin ortasında ani dəyişir; bayquş həmişə sağda; `fit_poses` LLM seçimini saxlayır; sol-kompozisiyalı köhnə fonlar güzgülənir (`flip`) |
 | 26 | AI musiqi: kliplər sonda sükut, 7 dB səviyyə fərqi (proba); dövr nöqtəsində videoda 1.25 s sükut (ep5 228 s) | model klipi 0.8–2.4 s sükut / ~4 s reverb quyruğu (−21→−50 dB) ilə bitirir | hər klip: baş −50 dB, son **−35 dB** ilə kəsilir, −18 LUFS; yekun trek 0.4 s fade-out (`58b0db5` + bu commit) |
+| 27 | Altyazıda qiymət bölünürdü: `$39 .99`, `$9 .99` (ep6), köhnələrdə `t -shirt`, `0 .67` | Whisper `" $39"` + `".99"` verir, `compact_words` hər tokeni ayrı söz sayırdı | boşluqsuz başlayan token əvvəlki sözə birləşir (`test_subword_tokens_are_merged_into_previous_word`) |
 
 **Açıq qalan:** yoxdur.
 
@@ -284,6 +285,11 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-28 — E2E: `why-9-99-feels-cheaper-than-10-the-psychology-of-pricing` HAZIRDIR
+- **9.03 dəq** (542 s), −14.3 LUFS, `final_video_problems=[]`, musiqidə sükut yox; 55 səhnə, `owl_qa` 55/55 ilk cəhddə ok
+- Vizual: 4 kadr + thumbnail — eyni bayquş, sağda; tapılan problem #27 (altyazıda `$39 .99`) → test + düzəliş, `--from build_episode` ilə yenidən montaj
+- Qeyd: 11/55 fon `check_bgs`-dən 3 cəhddə keçmədi (mismatch) → ehtiyat fon; səhnə 8 fonunda gpt-image öz-özünə robot çəkib (thumbnail-a düşüb)
 
 ### 2026-09-27 — FAZA I E2E: `what-is-profit-margin` HAZIRDIR (səhnə bayquşu + AI musiqi ilk dəfə)
 - **8.92 dəq** (535 s), 1920×1080 H.264 + AAC, −14.2 LUFS, `final_video_problems=[]`, 65 dəq (18:47→19:52 UTC), xəta yox

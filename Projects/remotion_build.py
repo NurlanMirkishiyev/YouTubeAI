@@ -50,8 +50,19 @@ def cumulative_frames(durations: list[float], fps: int = FPS, offset_s: float = 
 
 
 def compact_words(words: list[dict]) -> list[dict]:
-    return [{"w": w["word"].strip(), "s": round(float(w["start"]), 3), "e": round(float(w["end"]), 3)}
-            for w in words if w["word"].strip()]
+    """Whisper tokens without a leading space (".99" after " $39") continue the previous word."""
+    out: list[dict] = []
+    for w in words:
+        text = w["word"]
+        if not text.strip():
+            continue
+        start, end = round(float(w["start"]), 3), round(float(w["end"]), 3)
+        if out and not text[0].isspace():
+            prev = out[-1]
+            out[-1] = {"w": prev["w"] + text.strip(), "s": prev["s"], "e": end}
+        else:
+            out.append({"w": text.strip(), "s": start, "e": end})
+    return out
 
 
 def pose_table(sizes: dict[str, tuple[int, int]]) -> dict[str, dict]:
