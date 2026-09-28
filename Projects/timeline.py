@@ -11,6 +11,16 @@ def display_title(section: str) -> str:
     return re.sub(r"^Section\s+\d+\s*:\s*", "", section).strip()
 
 
+def spoken_titles(scenes: list[dict]) -> list[str | None]:
+    """Bolmenin ilk sehnesi ucun seslendirilecek (ve lower-third) basliq; Hook basliqsiz baslayir."""
+    out: list[str | None] = []
+    for i, s in enumerate(scenes):
+        first = i == 0 or scenes[i - 1]["section"] != s["section"]
+        hook = re.match(r"hook\b", s["section"], re.I)
+        out.append(display_title(s["section"]) if first and not hook else None)
+    return out
+
+
 def section_starts(scenes: list[dict], offset_s: float = 0.0) -> list[tuple[str, float]]:
     out: list[tuple[str, float]] = []
     t = offset_s

@@ -21,6 +21,8 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 
 ## Dəyişməz istifadəçi qərarları
 - Video **8–10 dəq**, heç vaxt 10 dəqiqədən uzun deyil.
+- İlk saniyələrdə **"Hook" yazısı/sözü olmur** (nə ekranda, nə səsdə); giriş kartındakı mövzu başlığı və
+  bölmə başlıqları (lower-third) qalır (2026-09-28). Test: `Projects/tests/test_spoken_titles.py`.
 - Bayquş sabit (animasiya yox), həmişə sağda; hər səhnədə mətnə uyğun ChatGPT bayquşu, görünüşü
   (dəyirmi eynək, göy kostyum, sarı qalstuk) dəyişməz.
 - Musiqi: AI, lokal (Stable Audio Open), pulsuz, istinadsız. Stability Community License aktivdir (2026-09-28).

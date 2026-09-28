@@ -18,7 +18,7 @@ import numpy as np
 import soundfile as sf
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from timeline import display_title  # noqa: E402
+from timeline import spoken_titles  # noqa: E402
 
 CONFIG = r"C:\YouTubeAI\TTS\config\narrator.json"
 GAP_S = 0.25          # sehneler arasi qisa nefes
@@ -42,16 +42,6 @@ def synth(pipeline, text: str, voice: str, speed: float) -> np.ndarray:
     if not chunks:
         raise RuntimeError("kokoro bos audio qaytardi")
     return np.concatenate(chunks)
-
-
-def spoken_titles(scenes: list[dict]) -> list[str | None]:
-    """Bolmenin ilk sehnesi ucun seslendirilecek basliq (Hook basliqsiz baslayir)."""
-    out: list[str | None] = []
-    for i, s in enumerate(scenes):
-        first = i == 0 or scenes[i - 1]["section"] != s["section"]
-        hook = re.match(r"hook", s["section"], re.I)
-        out.append(display_title(s["section"]) if first and not hook else None)
-    return out
 
 
 def card_audio(wav: np.ndarray, sr: int, minimum: float) -> np.ndarray:
