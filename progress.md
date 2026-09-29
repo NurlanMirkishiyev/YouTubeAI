@@ -93,8 +93,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 **Növbəti:** pipeline tam hazırdır (2026-09-29: video bitəndə təsdiq → `forget_episode.py`) — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
 
-**AÇIQ YOXLAMA:** #29–#32 kodda (185 test), real run-da hissə-hissə sınanıb (pricing check_bgs mərhələsinə qədər; #32 düzəlişi 10 real səhnədə ölçülüb), **tam E2E hələ yoxdur**. Növbəti mövzu = tam E2E sınaq. Bitəndə əlavə yoxla: `check_bgs.log`-da neçə səhnə ehtiyat hovuza düşdü (hədəf ≈ 0–3), `[qa] CLIP … hakim … təsdiqlədi` sətri, `bg_qa.json` `"duplicates": []`, fonlar realist foto, ssenari yetkin ton.
-**2026-09-29 gecə:** pricing run dayandırıldı, bütün köhnə epizodlar silindi (`Episodes\` boş). Növbəti sessiyada istifadəçi yeni mövzu verəcək → CLAUDE.md addım 1–6 (sonda təsdiq → `forget_episode.py`).
+**2026-09-30:** tam E2E keçdi (payment-fees, jurnala bax) — açıq yoxlama bağlandı. ~~**AÇIQ YOXLAMA:** #29–#32 kodda (185 test), real run-da hissə-hissə sınanıb (pricing check_bgs mərhələsinə qədər; #32 düzəlişi 10 real səhnədə ölçülüb), **tam E2E hələ yoxdur**. Növbəti mövzu = tam E2E sınaq. Bitəndə əlavə yoxla: `check_bgs.log`-da neçə səhnə ehtiyat hovuza düşdü (hədəf ≈ 0–3), `[qa] CLIP … hakim … təsdiqlədi` sətri, `bg_qa.json` `"duplicates": []`, fonlar realist foto, ssenari yetkin ton.
+**2026-09-29 gecə:** pricing run dayandırıldı, bütün köhnə epizodlar silindi (`Episodes\` boş). Növbəti sessiyada istifadəçi yeni mövzu verəcək → CLAUDE.md addım 1–6 (sonda təsdiq → `forget_episode.py`).~~
 
 ### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27) — TAMAM
 İstifadəçi tələbi: (1) musiqi **lisenziyasız/istinadsız və ödənişsiz**; (2) bayquş hər səhnədə mətnə uyğun
@@ -294,6 +294,12 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-30 — E2E `how-small-businesses-quietly-lose-money-through-payment-proc` HAZIRDIR
+- 1355 söz, 53 səhnə, narration 531 s, **8.85 dəq**, run 19:20→20:37 UTC (~77 dəq), xətasız, heç bir retry/resume yox.
+- check_bgs: `duplicates: []`, CLIP+hakim 13 təkrarı yenidən çəkdirdi, ehtiyat hovuza **0** səhnə (#29–#33 tam E2E-də təsdiqləndi).
+- owl_qa 53/53 ok; `final_video_problems=[]`; −14.3 LUFS; music.wav-da sükut yoxdur; kadrlar 5/60/150/380/500 s + thumbnail vizual ok.
+- `Hazir_Videolar\how-small-businesses-quietly-lose-money-through-payment-proc\` hazırdır; istifadəçi təsdiqi gözlənilir.
 
 ### 2026-09-29 gecə — təsdiq + yaddaş silmə mərhələsi
 - Köhnə pricing run-u (`--resume why-9-99-…`, check_bgs/render_bgs prosesləri) istifadəçi istəyi ilə dayandırıldı
