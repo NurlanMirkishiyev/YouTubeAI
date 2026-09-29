@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-29
+**Son yenilənmə:** 2026-09-29 gecə
 
 ---
 
@@ -300,6 +300,7 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 - Yeni: video hazır olandan sonra Claude AskUserQuestion ilə təsdiq istəyir; təsdiqdə `Projectsorget_episode.py <slug>` → `Episodes\<slug>\` + həmin epizodun `_run_*.log/.err` silinir (`Hazir_Videolar` qalır), progress.md-dən o videonun sətirləri çıxarılır (CLAUDE.md addım 6)
 - Kod başqa epizodların məlumatını oxumur (yoxlanıb) — silmədən sonra pipeline köhnə videonu "xatırlamır"
 - 196 test keçir (`test_forget_episode.py`)
+- İstifadəçi təsdiqi ilə 5 köhnə epizodun (cash-flow, profit-margin, same-business-after-ai, will-ai-replace, yarımçıq pricing) yaddaşı + `Temp\cashflow_*` silindi → `Episodes\` boşdur, pipeline təmiz başlayır
 
 ### 2026-09-29 axşam — pricing yenidən (yeni qaydalar) + check_bgs düzəlişləri (#31, #32)
 - İstifadəçi: köhnə pricing qeydlərini sil, yeni qaydalarla yarat → `Episodes\_archive` (1.8 GB) + köhnə `_run_pricing*` loqları silindi, yeni run başladı
