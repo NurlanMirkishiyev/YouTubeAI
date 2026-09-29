@@ -112,6 +112,12 @@ def test_pool_fallback_is_not_redrawn_only_for_being_off_topic():
     assert cb.needs_redo(mism, "a shopping cart in a store", tries=1)
 
 
+def test_pool_background_gets_one_chance_to_be_replaced_by_a_relevant_one():
+    # pricing E2E-3: evvelki run-dan qalan 22 hovuz fonu (tries=0) hec yoxlanmadan keciridi
+    mism = cb.Verdict(ok=False, problems=("mismatch",), fix_prompt="x")
+    assert cb.needs_redo(mism, scene_plan.FALLBACK_POOL[0], tries=0)
+
+
 def test_pool_fallback_with_a_real_defect_is_still_redrawn():
     bad = cb.Verdict(ok=False, problems=("text", "mismatch"), fix_prompt="x")
     assert cb.needs_redo(bad, scene_plan.FALLBACK_POOL[0], tries=1)

@@ -201,7 +201,9 @@ def needs_redo(v: Verdict, prompt: str, tries: int) -> bool:
     (pricing E2E-2: 22 sehne 3 raund boyu hovuzdan hovuza kecib yene "mismatch" qalmisdi)."""
     if v.ok or tries >= MAX_ATTEMPTS:
         return False
-    return not (prompt in FALLBACK_POOL and set(v.problems) <= {"mismatch"})
+    # hovuz fonu QA-da artiq secilibse (tries >= 1) yalniz "mismatch" ucun yeniden cekilmir; ilk defe
+    # (plan / evvelki run-dan qalib) - choose_prompt ile movzuya uygun fona bir sans verilir
+    return not (tries >= 1 and prompt in FALLBACK_POOL and set(v.problems) <= {"mismatch"})
 
 
 def load_tries(ep: str, scenes: list[dict]) -> dict[int, int]:
