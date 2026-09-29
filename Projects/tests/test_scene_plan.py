@@ -196,3 +196,15 @@ def test_owl_action_drops_people_and_writing():
     out = scene_plan.clean_owl_action("holding a book and waving to a customer, a sign that says HELLO")
     assert "book" not in out and "customer" not in out and "sign" not in out
     assert scene_plan.clean_owl_action("") == ""
+
+
+# --- reyestr #32: yazi dasiyan elave ("with a price label") butun obyekti atmir, yalniz elave kesilir ---
+
+def test_text_bearing_with_clause_is_cut_and_the_object_kept():
+    assert scene_plan.clean_bg_prompt("A close-up of a burger with a price label in a diner") == "A close-up of a burger"
+    assert scene_plan.clean_bg_prompt("a wine bottle showing a price tag on a shelf") == "a wine bottle"
+
+
+def test_object_that_itself_carries_writing_is_still_dropped():
+    assert scene_plan.clean_bg_prompt("A menu board displaying burger prices in a cafe") == scene_plan.FALLBACK_BG
+    assert scene_plan.clean_bg_prompt("a discount tag on a clothing rack") == scene_plan.FALLBACK_BG

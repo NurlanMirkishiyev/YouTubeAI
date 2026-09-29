@@ -82,6 +82,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 29 | **Təkrar kadrlar** (pricing: 55 səhnədən 10-u eyni ehtiyat fon, 6 peçenye, 3 donuz qumbarası, 2 eyni sikkə); istifadəçi: **"təkrar kadrlar olmasın, qəti"** | ehtiyat hovuz bitəndə hər dəfə `FALLBACK_BG`; eyni obyekt 2 dəfə icazəli idi; son addım yalnız yan-yana təkrarı əvəz edirdi; söz yoxlaması "stack of cookies"/"single cookie" fərqini tutmurdu | `MAX_SAME_HERO=1`, bütün təkrarlar əvəz olunur, hovuz 44 ayrı obyekt və təkrarsız (bitərsə xəta), `next_prompt` epizoddakı obyekti təkrarlamır, **CLIP şəkil yoxlaması** (`bg_dedupe.py`, 0.88) sonrakı təkrarı yenidən çəkir, qalarsa `check_bgs` keçmir (`test_no_repeats.py`) |
 | 30 | **Video uşaq videosu kimi görünürdü** (karusel, oyuncaq fabrik/qatar, peçenye, "Pixar" fon, "kids educational" musiqi, "10 yaşlı uşaq" ssenari) | promptlar uşaq auditoriyası üçün yazılmışdı | seçim A: realist foto fon, yetkin (25–45) ssenari və səhnə direktoru, `CHILDISH` söz filtri, hakimdə `childish` yoxlaması, uşaq musiqi stilləri çıxarıldı (`test_adult_look.py`) |
 | 31 | check_bgs yanlış "təkrar kadr" ilə 2 dəfə düşdü: saniyəölçən / kompas / qum saatı (pricing E2E-2, 2026-09-29); eyni vaxtda iki qol saatı (0.878) tutulmadı | CLIP realist fotoda mövzu/kompozisiya oxşarlığını ölçür: fərqli obyektlər 0.897–0.918, eyni sikkə 0.884 — tək hədd ayırmır | CLIP yalnız namizəd (`DUP_SIM` 0.85), hər cütü gpt-4o iki şəklə baxıb təsdiqləyir (`confirm_duplicates`, `same_scene`); cavab yoxdursa təkrar sayılır (`test_no_repeats.py`) |
+| 32 | 56 fondan 22-si mövzudan kənar ehtiyat fonla bitdi (mayak, yelkənli), hər biri 3 dəfə boşuna çəkildi; resume/retry qəbul olunmuş fonları yenidən çəkirdi (pricing E2E-2) | hakim dar mövzuda yazılı/təkrar obyekt təklif edirdi (qiymət etiketi, menyu, kassa) → rədd → dərhal hovuz → hovuz fonu yenə "mismatch"; `tries` hər run-da sıfırlanırdı | hakim 3 variant verir + istifadə olunmuş obyektlər siyahısı; hamısı rədd olunsa **səbəblə** ikinci təklif (`choose_prompt`, `suggest_again`); "X with a price label" → yalnız əlavə kəsilir (`cut_text_clause`); hovuz fonu yalnız "mismatch" üçün yenidən çəkilmir (`needs_redo`); cəhd sayı `bg_qa.json`-dan bərpa (`load_tries`). Ölçü: 10 pis səhnədən hovuza 9 → 0 |
 
 **Açıq qalan:** yoxdur.
 
@@ -91,7 +92,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 **Növbəti:** pipeline tam hazırdır — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
 
-**AÇIQ YOXLAMA (2026-09-29, istifadəçi: "sonra yoxlayarıq"):** #29 (təkrar kadr qəti yox, CLIP) və #30 (yetkin görünüş, realist foto) kodda, 168 test keçir, amma **real videoda sınanmayıb**. Növbəti mövzu = ilk E2E sınaq. Bitəndə əlavə yoxla: fonlar realist foto (oyuncaq/3D yox), ssenari yetkin ton, `bg_qa.json` `"duplicates": []` + kadrlarda gözlə təkrar yox, CLIP dövrəsi neçə raund çəkdi; 0.88 həddi realist fotoda uyğun deyilsə `bg_dedupe.DUP_SIM`-i yenidən kalibrlə.
+**AÇIQ YOXLAMA:** #29–#32 kodda (185 test), real run-da hissə-hissə sınanıb (pricing check_bgs mərhələsinə qədər; #32 düzəlişi 10 real səhnədə ölçülüb), **tam E2E hələ yoxdur**. Növbəti mövzu = tam E2E sınaq. Bitəndə əlavə yoxla: `check_bgs.log`-da neçə səhnə ehtiyat hovuza düşdü (hədəf ≈ 0–3), `[qa] CLIP … hakim … təsdiqlədi` sətri, `bg_qa.json` `"duplicates": []`, fonlar realist foto, ssenari yetkin ton.
 **2026-09-29:** istifadəçi köhnə pricing qeydlərinin silinməsini və yeni qaydalarla yenidən çəkilməsini istədi — `_archive` (1.8 GB) + köhnə `_run_pricing*` loqları silindi; yeni run 22:12-də başladı (bu = #29/#30 üçün ilk E2E sınaq).
 
 ### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27) — TAMAM
@@ -292,6 +293,12 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-29 axşam — pricing yenidən (yeni qaydalar) + check_bgs düzəlişləri (#31, #32)
+- İstifadəçi: köhnə pricing qeydlərini sil, yeni qaydalarla yarat → `Episodes\_archive` (1.8 GB) + köhnə `_run_pricing*` loqları silindi, yeni run başladı
+- Run 1–3 mərhələ keçdi (skript 1319 söz ~8.8 dəq, yetkin ton), `check_bgs` 2 dəfə yanlış təkrarla düşdü → #31 (CLIP + gpt-4o təsdiqi); ikinci run-da hovuz dövrəsi göründü → #32
+- İstifadəçi qərarı: pipeline düzəlişləri bitsin, sessiya bağlanır, növbəti sessiyada **başqa mövzu** veriləcək. Pricing epizodu `Episodes\why-9-99-…` 4/11-də dayandırılıb (`run.py --resume` ilə davam edə bilər və ya silinə bilər)
+- 185 test keçir
 
 ### 2026-09-29 — Qaydalar: təkrar kadr qəti yox (#29) + yetkin görünüş, realist foto (#30)
 - Kod + TDD: 168 test keçdi; CLIP modeli (`openai/clip-vit-base-patch32`) MusicGen venv-də, bir epizod ~17 s

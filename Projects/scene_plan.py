@@ -97,7 +97,7 @@ TEXT_BEARING = re.compile(
     r"menus?|icons?|planners?|apps?|display of|homework|assignments?|grades|"
     # obyektin ozu cap dasiyir - SDXL uzerinde mutleq psevdo-yazi cekir (E2E sc12/20/24/28)
     r"calendars?|calculators?|bills?|banknotes?|books?|notebooks?|newspapers?|magazines?|"
-    r"documents?|papers?|invoices?|tickets?|coupons?|price tags?|plans?|"
+    r"documents?|papers?|invoices?|tickets?|coupons?|tags?|plans?|"
     r"card readers?|terminals?|"
     # ekranli cihazlar reqem/yazi cekir (ep3 sc23 "smart kitchen scale" 3 raund); "smart robot" qalir
     r"digital \w+|smart (?:kitchen )?(?:scales?|ovens?|devices?|watch(?:es)?|thermostats?|speakers?|"
@@ -179,6 +179,22 @@ CHILDISH = re.compile(
     r"cartoons?|teddy|crayons?|lemonade stand|balloons?|wind-up|building blocks?)(?![a-z])", re.I)
 
 
+# Reyestr #32: hakim "a burger with a price label" yazirdi - butun hisse atilirdi, obyektin ozu yazisizdir
+TEXT_CLAUSE = re.compile(r"\s+(?:with|showing|displaying|featuring|bearing)\b", re.I)
+# Yalniz obyekte yapisdirilmis yazi kesilir; ekran / kart oxuyucu / oyun magazasi kimi yazili yer ve cihaz
+# elavesinde hisse evvelki kimi butov atilir (bas hisse "a counter", "a game store" menasiz qalir)
+ATTACHED_TEXT = re.compile(r"\b(?:price|labels?|labell?ed|tags?|stickers?)\b", re.I)
+
+
+def cut_text_clause(part: str) -> str:
+    """Yazi dasiyan soz obyektden sonraki elavededirse ("X with a price label ...") elave kesilir."""
+    m = TEXT_BEARING.search(part)
+    if not m or not ATTACHED_TEXT.search(part[m.start():]):
+        return part
+    cuts = [c.start() for c in TEXT_CLAUSE.finditer(part) if c.start() < m.start()]
+    return part[:cuts[0]] if cuts else part
+
+
 def clean_bg_prompt(prompt: str) -> str:
     """Vergul / 'and' ile bolunen hisselerden yazi teleb edenleri atir; hec ne qalmasa FALLBACK_BG."""
     parts = [p.strip() for p in re.split(r",|\band\b", prompt) if p.strip()]
@@ -187,6 +203,7 @@ def clean_bg_prompt(prompt: str) -> str:
     parts = [PAYMENT_CARD.sub(lambda m: BLANK_CARD.replace("card", "card" + m.group(1), 1), p)
              for p in parts]
     parts = [PIZZA_BOX.sub(lambda m: "pizza tray" + ("s" if m.group(1) else ""), p) for p in parts]
+    parts = [cut_text_clause(p) for p in parts]
     kept = [p for p in parts
             if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p) and not HUMAN.search(p)
             and not CHILDISH.search(p)]

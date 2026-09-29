@@ -59,11 +59,14 @@ talks to the viewer ("you") - never infer people or writing from it.
   alcohol or medicine.
 - "childish": it looks like a children's video - toys, candy, carnival or playground things, cartoonish
   plastic toy-like objects, or a cute kids-show look. The video is for adult professionals.
-Also give "fix_prompt": if any check is true, a new image prompt of 8-20 words - ONE clear real-world adult
-object or place (office, shop, cafe, warehouse, tool, product) that illustrates the narration, with no
-people, hands, toys, screens, papers, books, signs, cards or brand names; otherwise "".
+Also give "fix_prompts": if any check is true, a list of 3 DIFFERENT new image prompts of 8-20 words each -
+ONE clear real-world adult object or place (office, shop, cafe, warehouse, tool, product) that illustrates
+the narration as a photo. Each main object must differ from every object already used in other scenes.
+Nothing that carries writing: no price tags, menus, receipts, labels, packaging brands, signs, screens,
+papers, books or cards - show the idea through the physical thing itself. No people, hands or toys.
+Otherwise [].
 Answer ONLY JSON with keys: description, people, writing, collage, no_subject, deformed, off_topic, childish,
-fix_prompt."""
+fix_prompts."""
 
 
 @dataclass(frozen=True)
@@ -71,33 +74,80 @@ class Verdict:
     ok: bool
     problems: tuple[str, ...]
     fix_prompt: str
+    fix_options: tuple[str, ...] = ()
 
 
 def parse_verdict(d: dict) -> Verdict:
-    """Yalniz acıq True cavab problemdir; eksik acar / "yes" kimi yanlis tip problem sayilmir."""
+    """Yalniz acıq True cavab problemdir; eksik acar / "yes" kimi yanlis tip problem sayilmir.
+    Reyestr #32: hakim bir nece teklif verir (fix_prompts) - biri redd olunsa novbeti yoxlanir."""
     problems = tuple(code for key, code in CHECKS if d.get(key) is True)
-    fix = d.get("fix_prompt")
-    return Verdict(ok=not problems, problems=problems, fix_prompt=fix.strip() if isinstance(fix, str) else "")
+    raw = d.get("fix_prompts") if isinstance(d.get("fix_prompts"), list) else []
+    raw = [*raw, d.get("fix_prompt")]
+    options = tuple(dict.fromkeys(f.strip() for f in raw if isinstance(f, str) and f.strip()))
+    return Verdict(ok=not problems, problems=problems, fix_prompt=options[0] if options else "",
+                   fix_options=options)
 
 
-def next_prompt(fix: str, attempt: int, used: set[str]) -> str:
-    """Hakimin teklifi soz filtrlerinden kecir; son cehdde ve ya teklif yararsizdirsa istifade olunmamis
-    FALLBACK_POOL fonu. Istifadeci (2026-09-28): tekrar kadr QETI olmasin - epizodda olan obyekt
-    (hero) ne teklifde, ne ehtiyat fonda tekrarlanmir (pricing E2E: eyni ehtiyat fon 10 sehnede)."""
+def next_prompt(fix: str | tuple[str, ...], attempt: int, used: set[str]) -> str:
+    """Hakimin teklifleri (sira ile) soz filtrlerinden kecir; ilk yararlisi goturulur. Son cehdde ve ya hec
+    biri yararsizdirsa istifade olunmamis FALLBACK_POOL fonu. Istifadeci (2026-09-28): tekrar kadr QETI
+    olmasin - epizodda olan obyekt (hero) ne teklifde, ne ehtiyat fonda tekrarlanmir."""
     used_heroes = {hero(u) for u in used}
-    fixed = clean_bg_prompt(fix) if fix.strip() else FALLBACK_BG
+    options = (fix,) if isinstance(fix, str) else tuple(fix)
+    cleaned = [clean_bg_prompt(f) for f in options if f.strip()] or [FALLBACK_BG]
 
     def fresh(p: str) -> bool:
         return p != FALLBACK_BG and p not in used and hero(p) not in used_heroes
 
-    if attempt < MAX_ATTEMPTS and fresh(fixed):
-        return fixed
-    pick = next((p for p in FALLBACK_POOL if fresh(p)), None)
-    if pick is None and fresh(fixed):
-        return fixed
+    good = next((p for p in cleaned if fresh(p)), None)
+    if attempt < MAX_ATTEMPTS and good:
+        return good
+    pick = next((p for p in FALLBACK_POOL if fresh(p)), None) or good
     if pick is None:
         raise RuntimeError("tekrarsiz ehtiyat fon qalmadi")
     return pick
+
+
+def rejection_reason(option: str, used: set[str]) -> str | None:
+    """Teklif niye redd olunur (hakime geri bildirim ucun); yararlidirsa None."""
+    cleaned = clean_bg_prompt(option)
+    if cleaned == FALLBACK_BG:
+        return "carries writing (price tags, menus, labels, screens, signs, papers)"
+    h = hero(cleaned)
+    if cleaned in used or h in {hero(u) for u in used}:
+        return f"main object '{h}' is already used in another scene"
+    return None
+
+
+SUGGEST_SYSTEM = """You write background image prompts for one scene of an explainer video for adults.
+Your earlier suggestions were rejected for the reasons given. Give 5 NEW prompts of 8-20 words: ONE clear
+real-world object or place shown as a realistic photo that fits the narration. Every main object must be
+different from the objects already used. Nothing that carries writing or numbers: no price tags, menus,
+receipts, labels, signs, screens, registers' displays, papers, books or cards. No people, hands or toys.
+Answer ONLY JSON: {"fix_prompts": [...]}"""
+
+
+def suggest_again(scene: dict, feedback: str, used: set[str], provider: str) -> tuple[str, ...]:
+    """Butun teklifler redd olunanda sebebleri bildirib yeni teklifler (yalniz metn, sekil yoxdur)."""
+    text = (f"Narration: {scene.get('narration', '')}\nRejected: {feedback}\n"
+            f"Objects already used: {'; '.join(sorted(used))}")
+    try:
+        return parse_verdict(chat_json(SUGGEST_SYSTEM, text, provider=provider,
+                                       model=JUDGE_MODEL if provider == "openai" else None,
+                                       temperature=0.7, max_tokens=400)).fix_options
+    except LLMError as e:
+        print(f"  teklif xetasi: {str(e)[:120]}")
+        return ()
+
+
+def choose_prompt(v: Verdict, attempt: int, used: set[str], suggest) -> str:
+    """Reyestr #32: hakimin teklifleri redd olunanda derhal movzudan kenar ehtiyat fona kecilmir -
+    sebebler bildirilib bir defe yeni teklif alinir (suggest(feedback) -> teklifler)."""
+    p = next_prompt(v.fix_options, attempt, used)
+    if attempt >= MAX_ATTEMPTS or p not in FALLBACK_POOL:
+        return p
+    feedback = "; ".join(f"{o} -> {rejection_reason(o, used)}" for o in v.fix_options) or "no usable suggestion"
+    return next_prompt(suggest(feedback), attempt, used)
 
 
 def apply_changes(scenes_path: str, changes: dict[int, str]) -> None:
@@ -140,12 +190,40 @@ def judge_all(nums: list[int], judge_fn, workers: int = WORKERS, sleep=time.slee
     return res
 
 
-def judge(path: str, scene: dict, provider: str) -> Verdict:
-    text = f"Narration: {scene.get('narration', '')}\nImage prompt used: {scene.get('bg_prompt', '')}"
+def judge_text(scene: dict, used: set[str]) -> str:
+    """Reyestr #32: hakim epizodda artiq olan obyekti teklif edirdi -> teklif redd olunurdu -> movzudan
+    kenar ehtiyat fon -> yene "mismatch". Indi istifade olunmus obyektler hakime verilir."""
+    others = sorted(set(used) - {scene.get("bg_prompt", "")})
+    return (f"Narration: {scene.get('narration', '')}\nImage prompt used: {scene.get('bg_prompt', '')}\n"
+            f"Objects already used in other scenes (do not suggest these in fix_prompts): {'; '.join(others)}")
+
+
+def needs_redo(v: Verdict, prompt: str, tries: int) -> bool:
+    """Ehtiyat hovuz fonu terife gore movzudan kenardir - yalniz "mismatch" ucun yeniden cekilmir
+    (pricing E2E-2: 22 sehne 3 raund boyu hovuzdan hovuza kecib yene "mismatch" qalmisdi)."""
+    if v.ok or tries >= MAX_ATTEMPTS:
+        return False
+    return not (prompt in FALLBACK_POOL and set(v.problems) <= {"mismatch"})
+
+
+def load_tries(ep: str, scenes: list[dict]) -> dict[int, int]:
+    """Resume/retry: evvelki bg_qa.json-dan cehd sayi, prompt deyismeyibse (qebul olunmus fon yeniden cekilmir)."""
+    try:
+        with open(os.path.join(ep, REPORT), encoding="utf-8") as f:
+            old = json.load(f).get("scenes", {})
+    except (OSError, ValueError):
+        return {}
+    return {int(n): r["attempts"] for n, r in old.items()
+            if r.get("attempts") and 0 < int(n) <= len(scenes)
+            and scenes[int(n) - 1].get("bg_prompt") == r.get("prompt")}
+
+
+def judge(path: str, scene: dict, provider: str, used: set[str] = frozenset()) -> Verdict:
+    text = judge_text(scene, used)
     try:
         return parse_verdict(chat_json(SYSTEM, [{"type": "text", "text": text}, _image_part(path)],
                                        provider=provider, model=JUDGE_MODEL if provider == "openai" else None,
-                                       temperature=0.0, max_tokens=300))
+                                       temperature=0.0, max_tokens=450))
     except LLMError as e:          # hakim elcatmazdirsa pipeline dayanmir - fon oldugu kimi qalir
         print(f"  hakim xetasi ({os.path.basename(path)}): {str(e)[:120]}")
         return JUDGE_ERROR
@@ -219,16 +297,18 @@ def main() -> None:
 
     report: dict[str, dict] = {}
     with open(scenes_path, encoding="utf-8") as f:
-        pending = list(range(1, len(json.load(f)["scenes"]) + 1))
-    tries: dict[int, int] = {}
+        first = json.load(f)["scenes"]
+    pending = list(range(1, len(first) + 1))
+    tries: dict[int, int] = load_tries(ep, first)
     clean = False               # hakim + tekrar yoxlamasi temiz bitdi
     for rnd in range(1, MAX_ATTEMPTS + DEDUPE_ROUNDS + 1):
         with open(scenes_path, encoding="utf-8") as f:
             scenes = json.load(f)["scenes"]
         paths = {n: os.path.join(ep, "bg", f"sc{n:02d}.png") for n in pending}
-        verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider))
+        used_now = {s["bg_prompt"] for s in scenes}
+        verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider, used_now))
         # MAX_ATTEMPTS defe yeniden cekilib hele pisdirse sonuncu (ehtiyat) fon qalir - pipeline ilismir
-        bad = [n for n in pending if not verdicts[n].ok and tries.get(n, 0) < MAX_ATTEMPTS]
+        bad = [n for n in pending if needs_redo(verdicts[n], scenes[n - 1]["bg_prompt"], tries.get(n, 0))]
         for n in pending:
             v = verdicts[n]
             report[str(n)] = {"ok": v.ok, "problems": list(v.problems), "attempts": tries.get(n, 0)
@@ -248,7 +328,9 @@ def main() -> None:
         for n in redo:
             tries[n] = tries.get(n, 0) + 1
             if n in bad:        # oz pis promptunun obyekti basqa sehnede yoxdursa, teklifde qala biler
-                p = next_prompt(verdicts[n].fix_prompt, tries[n], used - {scenes[n - 1]["bg_prompt"]})
+                others = used - {scenes[n - 1]["bg_prompt"]}
+                p = choose_prompt(verdicts[n], tries[n], others,
+                                  lambda fb, s=scenes[n - 1], o=others: suggest_again(s, fb, o, a.provider))
             else:               # tekrar kadr: epizodda olmayan ehtiyat obyekt
                 p = next_prompt("", MAX_ATTEMPTS, used)
             used.add(p)
