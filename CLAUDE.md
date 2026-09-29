@@ -17,6 +17,11 @@
    - `bg_qa.json` → `"duplicates": []`; kadrlarda uşaqsayağı görüntü (oyuncaq/cizgi fon) yoxdur;
    - musiqi dövr nöqtəsində sükut yoxdur (`silencedetect=n=-40dB:d=0.4`; ~0.4 s danışıq fasiləsi normaldır).
 5. `Hazir_Videolar\<slug>\` hazır olduğunu qısa bildir, `progress.md` jurnalına sətir yaz, commit et.
+6. **Təsdiq + yaddaşı silmə** (istifadəçi 2026-09-29): AskUserQuestion ilə soruş — "Video təsdiqlənsin və
+   pipeline-dakı yaddaşı silinsin?". Təsdiqdə: `Projects\.venv\Scripts\python Projects\forget_episode.py <slug>`
+   (`Episodes\<slug>\` + həmin epizodun `_run_*.log/.err` silinir; `Hazir_Videolar\<slug>\` QALIR), sonra
+   `progress.md`-dən həmin videonun jurnal/vəziyyət sətirlərini sil (reyestrdəki ümumi kod düzəlişləri qalır), commit.
+   Rədd edilsə — heç nə silinmir, istifadəçinin iradını düzəlt. Test: `Projects/tests/test_forget_episode.py`.
 Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). Yalnız həqiqi blokerdə soruş
 (OpenAI balansı bitib, model yüklənmir, sirr lazımdır).
 

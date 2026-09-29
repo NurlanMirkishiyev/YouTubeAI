@@ -91,7 +91,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti:** pipeline tam hazırdır — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
+**Növbəti:** pipeline tam hazırdır (2026-09-29: video bitəndə təsdiq → `forget_episode.py`) — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
 
 **AÇIQ YOXLAMA:** #29–#32 kodda (185 test), real run-da hissə-hissə sınanıb (pricing check_bgs mərhələsinə qədər; #32 düzəlişi 10 real səhnədə ölçülüb), **tam E2E hələ yoxdur**. Növbəti mövzu = tam E2E sınaq. Bitəndə əlavə yoxla: `check_bgs.log`-da neçə səhnə ehtiyat hovuza düşdü (hədəf ≈ 0–3), `[qa] CLIP … hakim … təsdiqlədi` sətri, `bg_qa.json` `"duplicates": []`, fonlar realist foto, ssenari yetkin ton.
 **2026-09-29:** istifadəçi köhnə pricing qeydlərinin silinməsini və yeni qaydalarla yenidən çəkilməsini istədi — `_archive` (1.8 GB) + köhnə `_run_pricing*` loqları silindi; yeni run 22:12-də başladı (bu = #29/#30 üçün ilk E2E sınaq).
@@ -294,6 +294,12 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-29 gecə — təsdiq + yaddaş silmə mərhələsi
+- Köhnə pricing run-u (`--resume why-9-99-…`, check_bgs/render_bgs prosesləri) istifadəçi istəyi ilə dayandırıldı
+- Yeni: video hazır olandan sonra Claude AskUserQuestion ilə təsdiq istəyir; təsdiqdə `Projectsorget_episode.py <slug>` → `Episodes\<slug>\` + həmin epizodun `_run_*.log/.err` silinir (`Hazir_Videolar` qalır), progress.md-dən o videonun sətirləri çıxarılır (CLAUDE.md addım 6)
+- Kod başqa epizodların məlumatını oxumur (yoxlanıb) — silmədən sonra pipeline köhnə videonu "xatırlamır"
+- 196 test keçir (`test_forget_episode.py`)
 
 ### 2026-09-29 axşam — pricing yenidən (yeni qaydalar) + check_bgs düzəlişləri (#31, #32)
 - İstifadəçi: köhnə pricing qeydlərini sil, yeni qaydalarla yarat → `Episodes\_archive` (1.8 GB) + köhnə `_run_pricing*` loqları silindi, yeni run başladı
