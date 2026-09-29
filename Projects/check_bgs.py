@@ -160,11 +160,52 @@ def rerender(ep: str, nums: list[int]) -> None:
     subprocess.run(cmd, check=True)
 
 
-def find_duplicates(ep: str) -> dict:
-    """CLIP ile eyni gorunen fonlar: {"pairs": [[a, b], ...], "redo": [b, ...]} (bg_dedupe.py, MusicGen venv)."""
+SAME_SYSTEM = """You compare two background images of one explainer video. The rule is: the same object or
+the same scene must never appear twice. Answer "same": true if both images show the same kind of main
+object (e.g. two piggy banks, two coin stacks, two stopwatches) or the same place/scene, even from another
+angle or in another colour. Different objects that merely share a theme, surface, lighting or mood
+(a stopwatch vs an hourglass vs a compass on a table) are NOT the same. First write "a" and "b": the main
+object of each image in 2-5 words. Answer ONLY JSON with keys: a, b, same."""
+
+
+def parse_same(d: dict) -> bool | None:
+    """True/False yalniz aciq bool cavabdan; qalan hal (xeta, "yes") None - tekrar sayilir."""
+    v = d.get("same")
+    return v if isinstance(v, bool) else None
+
+
+def same_scene(ep: str, a: int, b: int, provider: str) -> bool | None:
+    parts = [_image_part(os.path.join(ep, "bg", f"sc{n:02d}.png")) for n in (a, b)]
+    try:
+        return parse_same(chat_json(SAME_SYSTEM, [{"type": "text", "text": "Image A, then image B."}, *parts],
+                                    provider=provider, model=JUDGE_MODEL if provider == "openai" else None,
+                                    temperature=0.0, max_tokens=80))
+    except LLMError as e:
+        print(f"  hakim xetasi (sc{a:02d}/sc{b:02d}): {str(e)[:120]}")
+        return None
+
+
+def confirm_duplicates(pairs: list[list[int]], same_fn) -> dict:
+    """CLIP namized cutlerinden hakimin "eyni" dediklerini (ve ya cavab vermediklerini) saxlayir.
+    Reyestr #31: realist fotoda ferqli obyektler (saniyeolcen/kompas) CLIP-de eyni sikkeden yuksek cixdi."""
+    confirmed = [[a, b] for a, b in pairs if same_fn(a, b) is not False]
+    redo: set[int] = set()
+    for a, b in confirmed:
+        if a not in redo:
+            redo.add(b)
+    return {"pairs": confirmed, "redo": sorted(redo)}
+
+
+def find_duplicates(ep: str, provider: str = DEFAULT_PROVIDER) -> dict:
+    """Eyni obyekt/sehne: CLIP namizedleri (bg_dedupe.py, MusicGen venv) + vision hakimi tesdiqi.
+    Qaytarir {"pairs": [[a, b], ...], "redo": [b, ...]}."""
     out = subprocess.run([MUSIC_PY, os.path.join(HERE, "bg_dedupe.py"), ep], check=True,
                          capture_output=True, text=True).stdout
-    return json.loads(out.strip().splitlines()[-1])
+    pairs = json.loads(out.strip().splitlines()[-1])["pairs"]
+    res = confirm_duplicates(pairs, lambda a, b: same_scene(ep, a, b, provider))
+    if len(res["pairs"]) < len(pairs):
+        print(f"[qa] CLIP {len(pairs)} cut, hakim {len(res['pairs'])} tesdiqledi: {res['pairs']}", flush=True)
+    return res
 
 
 def main() -> None:
@@ -195,7 +236,7 @@ def main() -> None:
         print(f"[qa] raund {rnd}: {len(pending)} yoxlandi, {len(bad)} pis: "
               + ", ".join(f"sc{n:02d}({'/'.join(verdicts[n].problems)})" for n in bad), flush=True)
         # hakim temiz olanda tekrar kadr yoxlamasi: eyni gorunen fonlarin sonrakilari yeniden cekilir
-        dups = [] if bad else find_duplicates(ep)["redo"]
+        dups = [] if bad else find_duplicates(ep, a.provider)["redo"]
         if dups:
             print(f"[qa] tekrar kadr: {len(dups)} sehne yeniden cekilir {dups}", flush=True)
         redo = bad or dups
@@ -217,7 +258,7 @@ def main() -> None:
         rerender(ep, redo)
         pending = redo
 
-    duplicates = [] if clean else find_duplicates(ep)["pairs"]     # bos deyilse check_bgs merhelesi kecmir
+    duplicates = [] if clean else find_duplicates(ep, a.provider)["pairs"]     # bos deyilse check_bgs merhelesi kecmir
     with open(os.path.join(ep, REPORT), "w", encoding="utf-8") as f:
         json.dump({"passed": not duplicates, "scenes": report, "duplicates": duplicates}, f, indent=2,
                   ensure_ascii=False)

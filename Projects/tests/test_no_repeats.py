@@ -77,9 +77,10 @@ def test_duplicates_keep_the_first_scene_and_redo_the_later_ones():
     assert pairs == [(1, 2), (1, 4)] and redo == [2, 4]
 
 
-def test_threshold_matches_the_calibration():
-    # pricing E2E: eyni sikke 0.884, ferqli obyektler (kompas/terezi) 0.873
-    assert bg_dedupe.DUP_SIM == 0.88
+def test_clip_threshold_is_a_candidate_filter_below_real_repeats():
+    # CLIP yalniz namized secir, son qerar hakimdedir (#31). pricing E2E-2: iki qol saati 0.878 idi
+    # ve 0.88 hedde tutulmamisdi; eyni sikke 0.884 - namized hedd her ikisinden asagi olmalidir
+    assert bg_dedupe.DUP_SIM <= 0.85
 
 
 def test_check_bgs_stage_fails_while_duplicates_remain(tmp_path):
@@ -89,3 +90,30 @@ def test_check_bgs_stage_fails_while_duplicates_remain(tmp_path):
     assert any("tekrar" in p for p in st.qa_problems(ctx))
     (tmp_path / "bg_qa.json").write_text(json.dumps({"passed": True, "scenes": {}, "duplicates": []}))
     assert st.qa_problems(ctx) == []
+
+
+# --- CLIP namized cutlerini vision hakimi tesdiqleyir (reyestr #31) ------------------------------
+# pricing E2E-2: saniyeolcen/kompas/qum saati (hamisi taxta ustunde "vaxt" esyasi) CLIP-de 0.897-0.918
+# cixdi, eyni sikke ise 0.884 idi - tek hedd ile ayrilmir, ona gore iki sekli gpt-4o muqayise edir.
+
+def test_clip_pairs_that_the_judge_calls_different_are_not_duplicates():
+    same = {(5, 49): False, (5, 51): False, (3, 7): True}
+    out = cb.confirm_duplicates([[5, 49], [5, 51], [3, 7]], lambda a, b: same[(a, b)])
+    assert out == {"pairs": [[3, 7]], "redo": [7]}
+
+
+def test_confirmed_duplicates_keep_the_first_scene_of_each_group():
+    out = cb.confirm_duplicates([[2, 5], [2, 9], [5, 9]], lambda a, b: True)
+    assert out == {"pairs": [[2, 5], [2, 9], [5, 9]], "redo": [5, 9]}
+
+
+def test_judge_error_on_a_pair_counts_as_duplicate():
+    # hakim elcatmazdirsa ehtiyatli ol: tekrar sayilir (qeti qayda), sonraki sehne yeniden cekilir
+    out = cb.confirm_duplicates([[1, 4]], lambda a, b: None)
+    assert out == {"pairs": [[1, 4]], "redo": [4]}
+
+
+def test_parse_same_verdict_only_true_is_same():
+    assert cb.parse_same({"same": True}) is True
+    assert cb.parse_same({"same": False}) is False
+    assert cb.parse_same({"same": "yes"}) is None and cb.parse_same({}) is None

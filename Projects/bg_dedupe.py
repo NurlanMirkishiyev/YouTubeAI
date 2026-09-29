@@ -13,8 +13,9 @@ import os
 import sys
 
 MODEL = "openai/clip-vit-base-patch32"
-# Kalibrasiya (pricing, 55 fon): eyni sikke 0.884, eyni prompt min 0.907; ferqli obyektler <= 0.873
-DUP_SIM = 0.88
+# Namized hedd - son qerar check_bgs.confirm_duplicates (gpt-4o) verir (reyestr #31).
+# Kalibrasiya: eyni sikke 0.884, iki qol saati 0.878 (tutulmali); ferqli obyektler 0.87-0.92-ye qeder cixir
+DUP_SIM = 0.85
 
 
 def find_duplicates(sim: list[list[float]], threshold: float = DUP_SIM) -> tuple[list[tuple[int, int]], list[int]]:
