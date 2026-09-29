@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-29 gecə
+**Son yenilənmə:** 2026-09-30
 
 ---
 
@@ -91,10 +91,9 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti:** pipeline tam hazırdır (2026-09-29: video bitəndə təsdiq → `forget_episode.py`) — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
+**Növbəti:** açıq iş YOXDUR, `Episodes\` boşdur. İstifadəçi yeni mövzu verəcək ("Video: <Mövzu>") → CLAUDE.md addım 1–6 (tam avtonom; sonda təsdiq → `forget_episode.py`).
 
-**2026-09-30:** tam E2E keçdi (53 səhnə, hovuza 0, duplicates [], 8.85 dəq) — açıq yoxlama bağlandı. ~~**AÇIQ YOXLAMA:** #29–#32 kodda (185 test), real run-da hissə-hissə sınanıb (pricing check_bgs mərhələsinə qədər; #32 düzəlişi 10 real səhnədə ölçülüb), **tam E2E hələ yoxdur**. Növbəti mövzu = tam E2E sınaq. Bitəndə əlavə yoxla: `check_bgs.log`-da neçə səhnə ehtiyat hovuza düşdü (hədəf ≈ 0–3), `[qa] CLIP … hakim … təsdiqlədi` sətri, `bg_qa.json` `"duplicates": []`, fonlar realist foto, ssenari yetkin ton.
-**2026-09-29 gecə:** pricing run dayandırıldı, bütün köhnə epizodlar silindi (`Episodes\` boş). Növbəti sessiyada istifadəçi yeni mövzu verəcək → CLAUDE.md addım 1–6 (sonda təsdiq → `forget_episode.py`).~~
+**2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
 ### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27) — TAMAM
 İstifadəçi tələbi: (1) musiqi **lisenziyasız/istinadsız və ödənişsiz**; (2) bayquş hər səhnədə mətnə uyğun
