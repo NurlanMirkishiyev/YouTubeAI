@@ -94,7 +94,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 **Növbəti:** pipeline tam hazırdır (2026-09-29: video bitəndə təsdiq → `forget_episode.py`) — istifadəçi "Video: <Mövzu>" yazınca `run.py` `Start-Process` ilə müstəqil açılır.
 
 **AÇIQ YOXLAMA:** #29–#32 kodda (185 test), real run-da hissə-hissə sınanıb (pricing check_bgs mərhələsinə qədər; #32 düzəlişi 10 real səhnədə ölçülüb), **tam E2E hələ yoxdur**. Növbəti mövzu = tam E2E sınaq. Bitəndə əlavə yoxla: `check_bgs.log`-da neçə səhnə ehtiyat hovuza düşdü (hədəf ≈ 0–3), `[qa] CLIP … hakim … təsdiqlədi` sətri, `bg_qa.json` `"duplicates": []`, fonlar realist foto, ssenari yetkin ton.
-**2026-09-29:** istifadəçi köhnə pricing qeydlərinin silinməsini və yeni qaydalarla yenidən çəkilməsini istədi — `_archive` (1.8 GB) + köhnə `_run_pricing*` loqları silindi; yeni run 22:12-də başladı (bu = #29/#30 üçün ilk E2E sınaq).
+**2026-09-29 gecə:** pricing run dayandırıldı, bütün köhnə epizodlar silindi (`Episodes\` boş). Növbəti sessiyada istifadəçi yeni mövzu verəcək → CLAUDE.md addım 1–6 (sonda təsdiq → `forget_episode.py`).
 
 ### FAZA I — səhnə bayquşu + AI musiqi (2026-09-27) — TAMAM
 İstifadəçi tələbi: (1) musiqi **lisenziyasız/istinadsız və ödənişsiz**; (2) bayquş hər səhnədə mətnə uyğun
