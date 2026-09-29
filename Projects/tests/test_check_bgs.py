@@ -97,10 +97,12 @@ def test_judge_all_gives_up_after_retries_without_blocking():
 
 # --- reyestr #32: hakim teklifi rədd olunur -> movzudan kenar ehtiyat fon -> yene "mismatch" dovresi ----
 
-def test_judge_text_lists_objects_already_used_in_the_episode():
+def test_judge_text_stays_small_without_the_used_object_list():
+    # pricing E2E-3: siyahi her sorguya ~1400 token elave etdi, 56 paralel sorgu gpt-4o TPM (30k) limitini
+    # asdi, 429 alan fonlar YOXLANMADAN kecdi. Siyahi yalniz suggest_again-e (redd olunanlar, ardicil) gedir.
     scene = {"narration": "Prices ending in 99 feel lower.", "bg_prompt": "a price tag on a shirt"}
-    text = cb.judge_text(scene, {"a shopping cart in a store", "a price tag on a shirt"})
-    assert "shopping cart" in text and "do not suggest" in text.lower()
+    text = cb.judge_text(scene)
+    assert "Prices ending in 99" in text and len(text) < 400
 
 
 def test_pool_fallback_is_not_redrawn_only_for_being_off_topic():

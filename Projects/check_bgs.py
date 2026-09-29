@@ -190,12 +190,10 @@ def judge_all(nums: list[int], judge_fn, workers: int = WORKERS, sleep=time.slee
     return res
 
 
-def judge_text(scene: dict, used: set[str]) -> str:
-    """Reyestr #32: hakim epizodda artiq olan obyekti teklif edirdi -> teklif redd olunurdu -> movzudan
-    kenar ehtiyat fon -> yene "mismatch". Indi istifade olunmus obyektler hakime verilir."""
-    others = sorted(set(used) - {scene.get("bg_prompt", "")})
-    return (f"Narration: {scene.get('narration', '')}\nImage prompt used: {scene.get('bg_prompt', '')}\n"
-            f"Objects already used in other scenes (do not suggest these in fix_prompts): {'; '.join(others)}")
+def judge_text(scene: dict) -> str:
+    """Kicik saxlanilir: istifade olunmus obyektler siyahisi burada DEYIL (56 paralel sorgu gpt-4o TPM
+    limitini asirdi, #32) - onu yalniz redd olunan sehneler ucun suggest_again alir."""
+    return f"Narration: {scene.get('narration', '')}\nImage prompt used: {scene.get('bg_prompt', '')}"
 
 
 def needs_redo(v: Verdict, prompt: str, tries: int) -> bool:
@@ -218,12 +216,12 @@ def load_tries(ep: str, scenes: list[dict]) -> dict[int, int]:
             and scenes[int(n) - 1].get("bg_prompt") == r.get("prompt")}
 
 
-def judge(path: str, scene: dict, provider: str, used: set[str] = frozenset()) -> Verdict:
-    text = judge_text(scene, used)
+def judge(path: str, scene: dict, provider: str) -> Verdict:
+    text = judge_text(scene)
     try:
         return parse_verdict(chat_json(SYSTEM, [{"type": "text", "text": text}, _image_part(path)],
                                        provider=provider, model=JUDGE_MODEL if provider == "openai" else None,
-                                       temperature=0.0, max_tokens=450))
+                                       temperature=0.0, max_tokens=300))
     except LLMError as e:          # hakim elcatmazdirsa pipeline dayanmir - fon oldugu kimi qalir
         print(f"  hakim xetasi ({os.path.basename(path)}): {str(e)[:120]}")
         return JUDGE_ERROR
@@ -305,8 +303,7 @@ def main() -> None:
         with open(scenes_path, encoding="utf-8") as f:
             scenes = json.load(f)["scenes"]
         paths = {n: os.path.join(ep, "bg", f"sc{n:02d}.png") for n in pending}
-        used_now = {s["bg_prompt"] for s in scenes}
-        verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider, used_now))
+        verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider))
         # MAX_ATTEMPTS defe yeniden cekilib hele pisdirse sonuncu (ehtiyat) fon qalir - pipeline ilismir
         bad = [n for n in pending if needs_redo(verdicts[n], scenes[n - 1]["bg_prompt"], tries.get(n, 0))]
         for n in pending:
