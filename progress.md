@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd 10–12 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-09-30
+**Son yenilənmə:** 2026-10-01
 
 ---
 
@@ -97,7 +97,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti:** açıq iş YOXDUR, `Episodes\` boşdur, 253 test keçir (2026-10-01). İstifadəçi yeni sessiyada birbaşa mövzu verəcək → CLAUDE.md addım 1–6 (tam avtonom; sonda təsdiq → `forget_episode.py`). **Diqqət — bu video #34–#37-nin ilk tam E2E-sidir:** yoxla (a) müddət 10–12 dəq və 1530 söz hədəfi həqiqətən ~11 dəq verirmi (vermirsə `DEFAULT_WORDS`-u ölçüyə görə düzəlt); (b) `math_check.json` `problems: []`; (c) `owl_qa.json` → `cards.intro/outro` ok, səhnə bayquşlarının ≥80%-i ok, kadrlarda magenta haşiyə yoxdur; (d) giriş/çıxış kartında bayquş tərpənmir və mövzuya uyğundur.
+**Növbəti:** `why-9-99-feels-cheaper-than-10` HAZIRDIR (2026-10-01), istifadəçi təsdiqi gözlənilir → təsdiqdə `forget_episode.py why-9-99-feels-cheaper-than-10` + bu videonun sətirlərini sil. 266 test keçir. #34–#37 ilk tam E2E-də təsdiqləndi: 11.56 dəq (1612 söz), `math_check` [], owl 65/65, kartlar ok.
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -299,6 +299,12 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-01 — E2E `why-9-99-feels-cheaper-than-10` HAZIRDIR (#38, #39)
+- 65 səhnə, 11.56 dəq, −14.2 LUFS, `final_video_problems=[]`, `math_check` [], `duplicates: []`, owl 65/65 + kartlar ok, sükut yoxdur
+- scene_plan 3 dəfə çökdü (#38) → filtr + `topic_pool` (28 mövzu + 9 generik ehtiyat fon); check_bgs [55,58] briefcase≈messenger bag → hovuzdan çıxarıldı; make_srt yalançı qapı (#39) → `spoken_words`
+- Kadrlar (giriş/çıxış kartı 6 kadr, 12 səhnə) + thumbnail vizual yoxlandı: bayquş sabit, sağda, mövzu əşyası (qiymət etiketi, yazısız); fonlarda yazı/insan/uşaqsayağı yox
+- Qeyd: 9 səhnə hələ generik ehtiyat fondadır (gəmi, mayak, lampa) — mövzu hovuzu 28/37 örtdü
 
 ### 2026-09-30 — video 10–12 dəq (#37); bayquş gpt-image-2 + magenta key (#36)
 - 253 test keçir; real: 'What Is Break-Even Point?' intro/outro + səhnə bayquşu gpt-image-2 ilə, fon silindi, hakimdən 1-ci cəhddə keçdi
