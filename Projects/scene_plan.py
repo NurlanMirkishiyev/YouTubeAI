@@ -51,6 +51,8 @@ Picture rules:
 - NO people, NO hands, NO animals, NO characters. Machines are fine.
 - NO written words, letters, numbers, screens, signs, labels, charts, documents, books,
   calendars, receipts, money bills. Show physical objects instead.
+- NO price tags, prices, currency signs or digits, even when the video is about prices: show the product
+  or the place itself (e.g. "two detergent bottles side by side on a supermarket shelf").
 - STRICT: every scene shows a DIFFERENT hero object than ALL other scenes of the video. The same object
   (even as a close-up, another angle, a stack or a plate of it) never appears twice. Never reuse anything
   from the "already used" list.
@@ -81,17 +83,32 @@ Scenes:
 {note}{scenes}"""
 # Yeniden istenen sehneler: evvelki sekil ya tekrar idi, ya da ekran/yazi/insan oldugu ucun silindi
 RETRY_NOTE = """These scenes are asked AGAIN: the first pictures repeated an earlier subject or needed
-screens, text, apps or people, which cannot be drawn. Show the idea with a PHYSICAL object or machine
+screens, text, apps, people, price tags, prices or digits, which cannot be drawn. Show the idea with a PHYSICAL object or machine
 metaphor instead (e.g. reminders -> a brass bell ringing on a desk; email -> paper envelopes flying
 out of a small mail robot; calendar app -> a wooden desk clock beside a potted plant).
 
 """
 
 
+TOPIC_POOL_SPARE = 15              # filtrden kecmeyenler ucun artiq istenir
+TOPIC_POOL = """The video is titled "{topic}". List {n} background pictures for it: each one a DIFFERENT
+real physical object, machine or place from the world of this topic (shops, products, tools, rooms, streets),
+following all picture rules above. No price tags, prices, digits, labels or screens.
+Each picture is ONE full phrase of 8-20 words that starts with "a" or "an", e.g.
+"a clothing rack with folded shirts in a quiet boutique in morning light".
+Never use these objects again: {used}
+
+Return JSON exactly: {{"pictures": ["...", "..."]}}"""
+
+
 # SDXL yazi cekende anlamsiz herfler cixir (FAZA F E2E, sehne 16: "game interface"). LLM
 # qadagaya tam emel etmir, ona gore yazi dasiyan hisseler deterministik atilir.
 TEXT_BEARING = re.compile(
-    r"['\"‘’“”]|\b(signs?|signage|label(?:ed|led)?|screens?|dashboards?|"
+    # Reyestr #38: "$9.99", "the other $10" - reqem/valyuta sekilde yazi olur
+    r"['\"‘’“”$]|\d|\b(signs?|signage|label(?:s|ed|led)?|screens?|dashboards?|"
+    # #38: cap olunmus sey - "quality seal sticker", "feedback form", "brand logo", "comment section"
+    r"stickers?|seals?|forms?|logos?|brands?|comments?|online|websites?|(?<!plastic )cards?|"
+    r"numbers?|digits?|pages?|summar(?:y|ies)|reviews?|reports?|badges?|pric(?:e|es|ed|ing)|visible|"
     r"interfaces?|scoreboards?|charts?|graphs?|statements?|receipts?|checklists?|lists?|"
     r"notes?|notepad|sheets?|written|writing|handwriting|report cards?|chalkboards?|blackboards?|whiteboards?|boards?|posters?|banners?|"
     r"menus?|icons?|planners?|apps?|display of|homework|assignments?|grades|"
@@ -118,11 +135,11 @@ HUMAN = re.compile(
     r"players?|chefs?|cooks?|customers?|clients?|workers?|employees?|staff|owners?|"
     r"shoppers?|cashiers?|teachers?|students?|farmers?|gardeners?|drivers?|family|friends?|"
     r"crowds?|team|someone|somebody|everyone|names?|athletes?|hands?|humans?|users?|learners?|"
-    r"parents?|visitors?|patients?|doctors?|nurses?)\b", re.I)
+    r"parents?|visitors?|patients?|doctors?|nurses?|consumers?|buyers?|freelancers?)\b", re.I)
 PIZZA_BOX = re.compile(r"\bpizza box(es)?\b", re.I)
 # "and" ile bolunende "limits", "no extra fees" kimi qirintilar qalir - yalniz isim birlesmesi saxlanir
 NOUN_START = re.compile(r"^(with|and)\s+", re.I)
-NOUN_PHRASE = re.compile(r"^(a|an|the|some|several|piles?|stacks?|rows?)\s", re.I)
+NOUN_PHRASE = re.compile(r"^(a|an|the|some|several|piles?|stacks?|rows?|two|three|four|five)\s", re.I)
 MAX_PARTS = 3      # SDXL cox obyekti bir-birine qarisdirir ("esyalar qarisib")
 FALLBACK_BG = "a tidy modern office desk by a large window, soft daylight"
 # Istifadeci (2026-09-28): usaq videosu kimi gorunmesin (oyuncaq/karusel/konfet yox) ve tekrar kadr olmasin:
@@ -183,7 +200,7 @@ CHILDISH = re.compile(
 TEXT_CLAUSE = re.compile(r"\s+(?:with|showing|displaying|featuring|bearing)\b", re.I)
 # Yalniz obyekte yapisdirilmis yazi kesilir; ekran / kart oxuyucu / oyun magazasi kimi yazili yer ve cihaz
 # elavesinde hisse evvelki kimi butov atilir (bas hisse "a counter", "a game store" menasiz qalir)
-ATTACHED_TEXT = re.compile(r"\b(?:price|labels?|labell?ed|tags?|stickers?)\b", re.I)
+ATTACHED_TEXT = re.compile(r"\b(?:price[sd]?|labels?|labell?ed|tag(?:s|ged)?|stickers?|marked)\b|[$\d]", re.I)
 
 
 def cut_text_clause(part: str) -> str:
@@ -195,6 +212,18 @@ def cut_text_clause(part: str) -> str:
     return part[:cuts[0]] if cuts else part
 
 
+# Reyestr #38: gpt-4o artikl yazmir ("shirt on a rack") - ilk hisse (esas obyekt) artikl alir;
+# "no extra fees" kimi qirinti ise yox
+NOT_A_NOUN = {"no", "not", "without", "only", "extra", "more", "less", "various", "very", "just", "each"}
+
+
+def with_article(part: str) -> str:
+    first = part.split(" ", 1)[0].lower()
+    if NOUN_PHRASE.match(part) or not first.isalpha() or first in NOT_A_NOUN:
+        return part
+    return ("an " if first[0] in "aeiou" else "a ") + part
+
+
 def clean_bg_prompt(prompt: str) -> str:
     """Vergul / 'and' ile bolunen hisselerden yazi teleb edenleri atir; hec ne qalmasa FALLBACK_BG."""
     parts = [p.strip() for p in re.split(r",|\band\b", prompt) if p.strip()]
@@ -204,6 +233,8 @@ def clean_bg_prompt(prompt: str) -> str:
              for p in parts]
     parts = [PIZZA_BOX.sub(lambda m: "pizza tray" + ("s" if m.group(1) else ""), p) for p in parts]
     parts = [cut_text_clause(p) for p in parts]
+    if parts:
+        parts[0] = with_article(parts[0])
     kept = [p for p in parts
             if NOUN_PHRASE.match(p) and not TEXT_BEARING.search(p) and not HUMAN.search(p)
             and not CHILDISH.search(p)]
@@ -238,10 +269,10 @@ def hero(prompt: str) -> str:
     """Promptun esas ismi: ilk isim birlesmesinin son sozu ("a glass jar slowly filling ..." -> "jar").
     LLM subyekti mucerred adlandirir ("positive cash flow"), sekil ise eyni sikke bankasi olur."""
     chunk: list[str] = []
-    for w in re.findall(r"[a-z]+", prompt.split(",")[0].lower()):
+    for w in re.findall(r"[a-z]+", prompt.split(",")[0].lower().replace("side by side", "")):
         if not chunk and w in _ARTICLES:
             continue
-        if w == "of" and chunk and chunk[-1].rstrip("s") in _QUANTITY:
+        if w == "of" and chunk and (chunk[-1].rstrip("s") in _QUANTITY or chunk[-2:] == ["close", "up"]):
             chunk = []                      # "a stack of cookies" -> cookie (6 peceniye tutulmurdu)
             continue
         if w in _HERO_STOP or (chunk and (w.endswith("ing") or w.endswith("ly") or
@@ -389,9 +420,26 @@ def _fields(it: dict) -> tuple[str, str, str, str]:
             clean_owl_action(" ".join(str(it.get("owl_action", "")).split())))
 
 
-def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
+def topic_pool(topic: str, used_heroes: set[str], n: int, **llm_kw) -> list[str]:
+    """Sehne metni verilmeden movzuya aid tekrarsiz fonlar (metnde "$9.99" olanda LLM her defe yene
+    qiymet etiketi cekirdi). Eyni filtrlerden kecir; esas ismi artiq islenenler atilir."""
+    data = chat_json(SYSTEM, TOPIC_POOL.format(n=n, topic=topic, used=", ".join(sorted(used_heroes)) or "none"),
+                     max_tokens=4000, **llm_kw)
+    out: list[str] = []
+    seen = set(used_heroes)
+    for raw in data.get("pictures") or []:
+        p = clean_bg_prompt(" ".join(str(raw).split()))
+        h = hero(p)
+        if p == FALLBACK_BG or len(p.split()) < MIN_PROMPT_WORDS or not h or h in seen:
+            continue
+        seen.add(h)
+        out.append(p)
+    return out
+
+
+def plan(scenes: list[dict], poses: list[str], topic: str = "", **llm_kw) -> list[dict]:
     """Hisse-hisse planlanir (son movzular LLM-e verilir), sonra tekrarlar bir defe yeniden istenir,
-    qalanlar tekrarsiz FALLBACK_POOL-dan alir. Pozlar tam beden, sehneye uygun."""
+    qalanlar evvelce movzu hovuzundan, sonra tekrarsiz FALLBACK_POOL-dan alir. Pozlar tam beden."""
     missing = [p for p in VIDEO_POSES if p not in poses]
     if missing:
         raise LLMError(f"sprites.json-da poz yoxdur: {missing}")
@@ -426,7 +474,11 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
     final = repeats(prompts, subjects)
     print(f"  ehtiyat fon: {len(final)} (bos: {sum(prompts[i] == FALLBACK_BG for i in final)})")
     kept = {hero(p) for j, p in enumerate(prompts) if j not in final}
-    for k, (i, fb) in enumerate(zip(final, pick_fallbacks(len(final), kept))):
+    # Reyestr #38: evvelce movzuya aid tekrarsiz obyektler, generik hovuz (mayak, yelkenli) yalniz sonda
+    pool = topic_pool(topic, kept, len(final) + TOPIC_POOL_SPARE, **llm_kw)[:len(final)] if topic and final else []
+    kept |= {hero(p) for p in pool}
+    print(f"  movzu hovuzu: {len(pool)}, generik hovuz: {len(final) - len(pool)}")
+    for k, (i, fb) in enumerate(zip(final, pool + pick_fallbacks(len(final) - len(pool), kept))):
         prompts[i], subjects[i] = fb, f"fallback {k}"
     out = []
     for sc, bg, sub, spr, pos, act in zip(scenes, prompts, subjects, fit_poses(sprites), assign_positions(scenes),
@@ -434,6 +486,14 @@ def plan(scenes: list[dict], poses: list[str], **llm_kw) -> list[dict]:
         out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos, "owl_action": act,
                     "sprite_token": f"{spr}@{pos}", "duration": duration_for(sc["narration"])})
     return out
+
+
+def episode_topic(episode_dir: str) -> str:
+    try:
+        with open(os.path.join(episode_dir, "meta.json"), encoding="utf-8") as f:
+            return str(json.load(f).get("topic", ""))
+    except (OSError, ValueError):
+        return ""
 
 
 def main() -> None:
@@ -457,7 +517,8 @@ def main() -> None:
     print(f"[23] {len(scenes)} sehne bolundu -> fon promptu + sprite secilir")
 
     try:
-        planned = plan(scenes, poses, provider=a.provider, model=a.model, temperature=a.temperature)
+        planned = plan(scenes, poses, topic=episode_topic(a.episode_dir),
+                       provider=a.provider, model=a.model, temperature=a.temperature)
     except LLMError as e:
         raise SystemExit("LLM xetasi: " + str(e)) from e
 
