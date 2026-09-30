@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from typing import Callable
 
@@ -140,10 +141,23 @@ def spoken_extra_words(ctx: Ctx) -> int:
     return len(cards.split()) + len(titles.split())
 
 
-def verify_srt(ctx: Ctx) -> list[str]:
+# Reyestr #39: whisper "$9.99" -> "9 dollars and 99 cents" (5 soz), "$10" -> "10 dollars" (2 soz)
+_CENTS_PRICE = re.compile(r"\$\d[\d,]*\.\d\d\b")
+_WHOLE_PRICE = re.compile(r"\$\d[\d,]*")
+
+
+def spoken_words(markdown: str) -> int:
+    """Skript sozleri (basliqsiz), qiymetler whisper-in yazdigi kimi sayilir."""
     from script_gen import word_count
+    body = "\n".join(ln for ln in markdown.splitlines() if not ln.lstrip().startswith("#"))
+    extra = 4 * len(_CENTS_PRICE.findall(body))
+    extra += len(_WHOLE_PRICE.findall(_CENTS_PRICE.sub("", body)))
+    return word_count(markdown) + extra
+
+
+def verify_srt(ctx: Ctx) -> list[str]:
     got = len(json.loads(_read(ctx.p("narration.words.json"))))
-    want = word_count(_read(ctx.p("script.md"))) + spoken_extra_words(ctx)
+    want = spoken_words(_read(ctx.p("script.md"))) + spoken_extra_words(ctx)
     if abs(got - want) > SRT_WORD_TOL * want:
         return [f"whisper {got} soz, skript {want} soz (>{SRT_WORD_TOL:.0%} ferq)"]
     return []

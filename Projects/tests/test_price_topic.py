@@ -85,3 +85,14 @@ def test_fallback_pool_has_no_look_alike_bags():
     # why-9-99 check_bgs: "leather briefcase" ve "leather messenger bag" CLIP+hakim ucun eyni kadr idi
     bags = [p for p in sp.FALLBACK_POOL if "briefcase" in p or " bag " in f"{p} "]
     assert len(bags) <= 1, bags
+
+
+def test_srt_gate_counts_prices_as_spoken():
+    # why-9-99 make_srt: whisper "$9.99" -> "9 dollars and 99 cents" (5 soz), "$10" -> "10 dollars";
+    # skript 1646, whisper 1776 - ses dogru idi, qapi yalan yere dusdu
+    import stages
+    assert stages.spoken_words("One is priced at $9.99, and the other at $10.") == \
+        len("One is priced at 9 dollars and 99 cents, and the other at 10 dollars.".split())
+    assert stages.spoken_words("a $49.99 rate or $1,500 a month") == \
+        len("a 49 dollars and 99 cents rate or 1,500 dollars a month".split())
+    assert stages.spoken_words("# Title\nplain words here") == 3
