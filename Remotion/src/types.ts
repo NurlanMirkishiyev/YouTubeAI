@@ -20,6 +20,8 @@ export type EpisodeProps = {
   audio: string;
   introFrames: number;
   outroFrames: number;
+  introOwl: string;        // poses acari: movzu bayqusu 'intro' ve ya sprite 'front'
+  outroOwl: string;        // 'outro' ve ya 'three_q'
   introBg: string;
   outroBg: string;
   transitionFrames: number;

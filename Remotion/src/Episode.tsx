@@ -33,14 +33,13 @@ export const Episode: React.FC<EpisodeProps> = (p) => {
     while (j > 0 && placed[j - 1].side === placed[k].side) j--;
     return {side: placed[k].side, prev: j > 0 ? placed[j - 1].side : placed[k].side, since: placed[j].start};
   };
-  const aspect = (name: string) => (p.poses[name] ? p.poses[name].w / p.poses[name].h : 0.7);
   const clips = [
     {key: 'intro', frames: p.introFrames, section: '__intro__',
-      node: <IntroCard title={p.topic} brand={p.brand} bg={p.introBg} owlAspect={aspect('front')} />},
+      node: <IntroCard title={p.topic} brand={p.brand} bg={p.introBg} owl={p.poses[p.introOwl]} />},
     ...p.scenes.map((s, i) => ({key: `sc${i}`, frames: s.frames, section: s.side + (s.title ?? i),
       node: <KenBurns src={s.bg} motion={s.motion} flip={s.flip} />})),
     {key: 'outro', frames: p.outroFrames, section: '__outro__',
-      node: <OutroCard brand={p.brand} bg={p.outroBg} owlAspect={aspect('three_q')} />},
+      node: <OutroCard brand={p.brand} bg={p.outroBg} owl={p.poses[p.outroOwl]} />},
   ];
   return (
     <AbsoluteFill style={{backgroundColor: '#000'}}>

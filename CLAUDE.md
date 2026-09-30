@@ -12,7 +12,7 @@
    `Start-Process "C:\YouTubeAI\Projects\.venv\Scripts\python.exe" -ArgumentList 'run.py','"<Mövzu>"' -WorkingDirectory C:\YouTubeAI -RedirectStandardOutput Episodes\_run_<slug>.log -RedirectStandardError Episodes\_run_<slug>.log.err`
 3. Loqu Monitor ilə izlə (`[N/11]` mərhələ sətirləri + error/traceback). Ölsə: `run.py --resume <slug>`.
 4. Bitəndə özün yoxla (istifadəçidən soruşma):
-   - `owl_qa.json` (hamısı ok), bir neçə kadr + `thumbnail.png` vizual — bayquş eyni personaj, sağda, yazı/insan yox;
+   - `owl_qa.json` (hamısı ok, `cards.intro/outro` ok), giriş/çıxış kartı kadrı — mövzuya uyğun bayquş, tərpənmir, bir neçə kadr + `thumbnail.png` vizual — bayquş eyni personaj, sağda, yazı/insan yox;
    - `checks.final_video_problems(mp4) == []`, müddət 8–10 dəq, −14 LUFS;
    - `math_check.json` → `"problems": []`;
    - `bg_qa.json` → `"duplicates": []`; kadrlarda uşaqsayağı görüntü (oyuncaq/cizgi fon) yoxdur;
@@ -39,7 +39,9 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 - **Hesab səhvi QƏTİ olmur** (2026-09-30): ssenaridəki hər rəqəmli cümlə `math_check.py` ilə yoxlanır
   (gpt-4o 3 baxış + Python hesabı); `math_check.json` olmadan `script_gen` mərhələsi keçmir. YouTube
   metadata-da rəqəm/hesab yoxdur. Test: `Projects/tests/test_number_accuracy.py`.
-- Bayquş sabit (animasiya yox), həmişə sağda; hər səhnədə mətnə uyğun ChatGPT bayquşu, görünüşü
+- Bayquş sabit (animasiya yox) — **giriş/çıxış kartında da** (2026-09-30): orada hər mövzuya ayrıca yaradılmış
+  `owl/intro.png` (açılış) və `owl/outro.png` (qapanış, sağollaşır), eyni mövzu əşyası ilə. Test: `test_card_owls.py`.
+- Bayquş həmişə sağda; hər səhnədə mətnə uyğun ChatGPT bayquşu, görünüşü
   (dəyirmi eynək, göy kostyum, sarı qalstuk) dəyişməz.
 - Musiqi: AI, lokal (Stable Audio Open), pulsuz, istinadsız. Stability Community License aktivdir (2026-09-28).
   Pullu musiqi/səs xidməti təklif etmə.

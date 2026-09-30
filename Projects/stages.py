@@ -87,6 +87,26 @@ def qa_problems(ctx: Ctx) -> list[str]:
     return [f"tekrar kadrlar qalib: {pairs}"] if pairs else []
 
 
+OWL_OK_MIN = 0.8    # sehne bayquslarinin bu qederi oz sekli ile olmalidir (qalan - hakimden kecmeyen sprite)
+
+
+def verify_owls(ctx: Ctx) -> list[str]:
+    """Bayquslar sessizce kohne sprite-a dusmesin (2026-09-30: model seffaf fonu redd edirdi)."""
+    path = ctx.p("owl_qa.json")
+    if not os.path.isfile(path):
+        return ["owl_qa.json yoxdur"]
+    with open(path, encoding="utf-8") as f:
+        rep = json.load(f)
+    problems = []
+    scenes = rep.get("scenes") or {}
+    ok = sum(1 for r in scenes.values() if r.get("ok"))
+    if scenes and ok < OWL_OK_MIN * len(scenes):
+        problems.append(f"sehne bayquslarinin yalniz {ok}/{len(scenes)}-i cekildi (min {OWL_OK_MIN:.0%})")
+    if set(rep.get("cards") or {}) != {"intro", "outro"}:
+        problems.append("giris/cixis kart bayqusu cekilmeyib (owl_qa.json-da 'cards' yoxdur)")
+    return problems
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as f:
         return f.read()
@@ -166,7 +186,7 @@ STAGES: tuple[Stage, ...] = (
           lambda c: size_problems(numbered(c, "bg"), BG_MIN) + qa_problems(c)),
     # sehneye uygun bayqus (ChatGPT, referans sprite); pis/cekilmeyen sehnede kohne poz qalir
     Stage("render_owls", lambda c, f: _proj("render_owls.py", c.ep_dir, "--provider", c.provider, force=f),
-          lambda c: os.path.isfile(c.p("owl_qa.json")), lambda c: []),
+          lambda c: os.path.isfile(c.p("owl_qa.json")), verify_owls),
     Stage("upscale_bgs", lambda c, f: _proj("upscale_bgs.py", c.ep_dir, force=f),
           lambda c: all_exist(numbered(c, "bg_hd")), lambda c: size_problems(numbered(c, "bg_hd"), HD_MIN),
           needs_comfy=True),

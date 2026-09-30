@@ -39,6 +39,8 @@ MOTIONS = ("zoom_in", "pan_lr", "zoom_out", "pan_rl")
 FALLBACK_POSE = "three_q"
 
 
+CARD_OWLS = ("intro", "outro")   # render_owls.run_cards - giris/cixis kartinin movzu bayqusu
+
 def cumulative_frames(durations: list[float], fps: int = FPS, offset_s: float = 0.0) -> list[int]:
     """Her klipin kadr sayi audio saatina gore: sərhədlər yuvarlaqlasdirilir, muddetler yox -
     300 sehnede de toplam surusme 1 kadrdan az qalir."""
@@ -71,9 +73,12 @@ def pose_table(sizes: dict[str, tuple[int, int]]) -> dict[str, dict]:
 
 
 def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tuple[int, int]],
-                  scene_owls: dict[int, tuple[int, int]] | None = None) -> dict:
-    """scene_owls: {sehne nomresi: (w, h)} - render_owls-in cekdiyi sehne bayqusu (owl/scNN.png)."""
+                  scene_owls: dict[int, tuple[int, int]] | None = None,
+                  card_owls: dict[str, tuple[int, int]] | None = None) -> dict:
+    """scene_owls: {sehne nomresi: (w, h)} - render_owls-in cekdiyi sehne bayqusu (owl/scNN.png).
+    card_owls: {"intro"|"outro": (w, h)} - movzuya uygun giris/cixis bayqusu; yoxdursa kohne sprite."""
     scene_owls = scene_owls or {}
+    card_owls = card_owls or {}
     scenes = data["scenes"]
     intro, outro = float(data["intro_seconds"]), float(data["outro_seconds"])
     frames = cumulative_frames([intro] + [float(s["duration"]) for s in scenes] + [outro])
@@ -89,11 +94,15 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
                            "motion": MOTIONS[i % len(MOTIONS)], "title": s.get("spoken_title")})
     return {"fps": FPS, "topic": topic, "brand": BRAND, "audio": "narration.wav",
             "introFrames": frames[0], "outroFrames": frames[-1],
+            "introOwl": "intro" if "intro" in card_owls else "front",
+            "outroOwl": "outro" if "outro" in card_owls else "three_q",
             "introBg": out_scenes[0]["bg"], "outroBg": out_scenes[-1]["bg"],
             "transitionFrames": TRANSITION_FRAMES, "scenes": out_scenes, "words": compact_words(words),
             "poses": {**pose_table(sizes), **{
                 f"sc{n:02d}": {"name": f"sc{n:02d}", "w": w, "h": h, "height": DEFAULT_HEIGHT, "flippable": False}
-                for n, (w, h) in scene_owls.items()}}}
+                for n, (w, h) in scene_owls.items()}, **{
+                name: {"name": name, "w": w, "h": h, "height": DEFAULT_HEIGHT, "flippable": False}
+                for name, (w, h) in card_owls.items()}}}
 
 
 def sprite_sizes() -> dict[str, tuple[int, int]]:
@@ -111,6 +120,16 @@ def scene_owl_sizes(ep: str, n_scenes: int) -> dict[int, tuple[int, int]]:
         if os.path.isfile(p):
             with Image.open(p) as im:
                 sizes[n] = im.size
+    return sizes
+
+
+def card_owl_sizes(ep: str) -> dict[str, tuple[int, int]]:
+    sizes = {}
+    for name in CARD_OWLS:
+        p = os.path.join(ep, "owl", f"{name}.png")
+        if os.path.isfile(p):
+            with Image.open(p) as im:
+                sizes[name] = im.size
     return sizes
 
 
@@ -132,6 +151,8 @@ def prepare_public(ep: str, n_scenes: int) -> str:
         shutil.copy2(os.path.join(SPRITE_DIR, f"{name}.png"), os.path.join(pub, "owl", f"{name}.png"))
     for n in scene_owl_sizes(ep, n_scenes):
         shutil.copy2(os.path.join(ep, "owl", f"sc{n:02d}.png"), os.path.join(pub, "owl", f"sc{n:02d}.png"))
+    for name in card_owl_sizes(ep):
+        shutil.copy2(os.path.join(ep, "owl", f"{name}.png"), os.path.join(pub, "owl", f"{name}.png"))
     for f in os.listdir(FONTS_DIR):
         if f.endswith(".ttf"):
             shutil.copy2(os.path.join(FONTS_DIR, f), os.path.join(pub, "fonts", f))
@@ -183,7 +204,8 @@ def main() -> None:
         raise SystemExit("musiqi tapilmadi: " + a.music)
 
     pub = prepare_public(ep, len(data["scenes"]))
-    props = episode_props(data, topic, words, sprite_sizes(), scene_owl_sizes(ep, len(data["scenes"])))
+    props = episode_props(data, topic, words, sprite_sizes(), scene_owl_sizes(ep, len(data["scenes"])),
+                          card_owl_sizes(ep))
     props_path = os.path.join(ep, "remotion_props.json")
     with open(props_path, "w", encoding="utf-8") as f:
         json.dump(props, f, ensure_ascii=False)

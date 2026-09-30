@@ -85,6 +85,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 32 | 56 fondan 22-si mövzudan kənar ehtiyat fonla bitdi (mayak, yelkənli), hər biri 3 dəfə boşuna çəkildi; resume/retry qəbul olunmuş fonları yenidən çəkirdi (pricing E2E-2) | hakim dar mövzuda yazılı/təkrar obyekt təklif edirdi (qiymət etiketi, menyu, kassa) → rədd → dərhal hovuz → hovuz fonu yenə "mismatch"; `tries` hər run-da sıfırlanırdı | hakim 3 variant verir + istifadə olunmuş obyektlər siyahısı; hamısı rədd olunsa **səbəblə** ikinci təklif (`choose_prompt`, `suggest_again`); "X with a price label" → yalnız əlavə kəsilir (`cut_text_clause`); QA-da artıq seçilmiş hovuz fonu yalnız "mismatch" üçün yenidən çəkilmir, ilk dəfə isə bir şans alır (`needs_redo`); cəhd sayı `bg_qa.json`-dan bərpa (`load_tries`). Ölçü: 10 pis səhnədən hovuza 9 → 0 |
 | 33 | #32 düzəlişindən sonra hakim 429 aldı (gpt-4o TPM 30k), 429 alan fonlar **yoxlanmadan** keçdi (pricing E2E-3) | istifadə olunmuş obyekt siyahısı hər hakim sorğusuna qoşulurdu: 535 → ~1980 token × 56 paralel | siyahı yalnız `suggest_again`-də (rədd olunanlar, ardıcıl); `judge_text` < 400 simvol, `max_tokens` 300 (ölçü: in=596) |
 | 34 | **Videoda hesab səhvi** (payment-fees: "100 yemək/həftə → $20 qənaət… bir ayda **eight hundred dollars**", düzgün ~$80); istifadəçi: **qəti düzəlsin, bütün videolarda** | ssenarini LLM yazır, heç bir mərhələ hesabı yoxlamırdı | `math_check.py`: rəqəmli HƏR cümlə deterministik tapılır → gpt-4o 3 müstəqil baxışla ifadəyə çevirir → iddia mətndən, nəticə Python-da (`ast`) hesablanır, operandlar mətndə olmalıdır → səhv yalnız çoxluq eyni düzgün dəyəri tapanda; yalnız həmin cümlə yenidən yazılır, düzgün dəyər yoxdursa rədd. `script_gen` yazanda/uzadanda/qısaldanda işləyir; `math_check.json` (skriptin sha256-si) olmadan `verify_script` keçmir. Real ssenaridə: 31 cümlə, 1 səhv düzəldi, 0 yalançı həyəcan (`test_number_accuracy.py`) |
+| 35 | Giriş/çıxış kartında bayquş **yenə titrəyirdi**; kartlarda mövzudan asılı olmayan ümumi sprite; istifadəçi: **sabit dayansın, hər mövzuya uyğun açılış/qapanış bayquşu olsun** | `Cards.tsx` `CardOwl`: 7 px sinus `bob` + spring ilə aşağıdan gəlmə (#25 yalnız səhnə bayquşunu `Owl.tsx`-də düzəltmişdi) | `CardOwl` sabit (yalnız 8 kadr fade); `render_owls.run_cards` hər epizoda `owl/intro.png` (qolunu açıb 'başlayaq', əşyanı göstərir) + `owl/outro.png` (gözlər yumulu əl yelləyir, baş əyir); mövzu əşyası `choose_prop` ilə əvvəlcədən seçilir (ekran/yazı/personaj yox), ikisində eyni; hakimdən keçməsə köhnə sprite; en ≤ 470 px (başlığı örtmür). Render sübutu: bayquş bölgəsi kadrlar arası fərq ≤ 11 (fon zoom-u) (`test_card_owls.py`) |
+| 36 | OpenAI `gpt-image-2` şəffaf fonu rədd edir (HTTP 400) → **bütün səhnə bayquşları səssizcə köhnə sprite-a düşərdi**, mərhələ yenə keçərdi | `_draw` hər LLMError-u 'bu səhnədə sprite' kimi udurdu; `render_owls` verify `[]` idi | bayquş modeli `gpt-image-1.5` (proba: personaja ən yaxın, alfa təmiz); 'not supported for this model' xətası mərhələni dayandırır; `verify_owls`: səhnə bayquşlarının ≥ 80%-i + intro/outro kartı olmalıdır |
 
 **Açıq qalan:** yoxdur.
 
@@ -294,6 +296,9 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-30 — sabit, mövzuya uyğun giriş/çıxış bayquşu (#35, #36)
+- 247 test keçir; real API: 'What Is Cash Flow?' → əşya 'a clear glass jar filled with coins', intro/outro hakimdən 1-ci cəhddə keçdi; Remotion still renderində bayquş tərpənmir, uzun başlığı örtmür
 
 ### 2026-09-30 — hesab səhvlərinə qarşı qapı (#34)
 - `math_check.py` + pipeline qapısı; 233 test keçir. Real payment-fees ssenarisində "eight hundred" → "eighty dollars", başqa dəyişiklik yox, 2 təkrar yoxlamada 0 yalançı həyəcan

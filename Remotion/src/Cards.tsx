@@ -3,19 +3,24 @@ import {AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, use
 import {KenBurns} from './Background';
 import {FONT} from './fonts';
 import {ACCENT, H} from './theme';
+import {OwlPose} from './types';
 
-const CardOwl: React.FC<{name: string; height: number; delay: number; aspect: number}> = (
-  {name, height, delay, aspect}) => {
+const FADE_IN = 8;
+const MAX_OWL_W = 470;     // basliq (sol 170 + maxWidth 1080) ~1300 px-e qeder gedir; 1920-150-470 = 1300
+
+/** Istifadeci 2026-09-30: kart bayqusu da sabit dayanir - sinus "bob" ve yayli giris silindi,
+ *  yalniz yerinde yumsaq gorunur. Sekil movzuya uygun giris/cixis bayqusudur (owl/intro, owl/outro),
+ *  yoxdursa kohne sprite (front/three_q) guzgulenmis gosterilir. */
+const CardOwl: React.FC<{pose?: OwlPose; height: number}> = ({pose, height}) => {
   const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  const sp = spring({frame, fps, delay, config: {damping: 12, stiffness: 110}});
-  const bob = 7 * Math.sin((2 * Math.PI * frame) / fps / 2.8);
-  const h = height * H;
+  const opacity = interpolate(frame, [0, FADE_IN], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  if (!pose) return null;
+  const aspect = pose.w / pose.h;
+  const w = Math.min(height * H * aspect, MAX_OWL_W);
   return (
-    <div style={{position: 'absolute', right: 150, bottom: 50, width: h * aspect, height: h,
-      opacity: Math.min(1, sp * 1.5), transformOrigin: '50% 100%',
-      transform: `translateY(${interpolate(sp, [0, 1], [420, 0]) + bob}px)`}}>
-      <Img src={staticFile(`owl/${name}.png`)} style={{width: '100%', height: '100%', transform: 'scaleX(-1)'}} />
+    <div style={{position: 'absolute', right: 150, bottom: 50, width: w, height: w / aspect, opacity}}>
+      <Img src={staticFile(`owl/${pose.name}.png`)}
+        style={{width: '100%', height: '100%', transform: `scaleX(${pose.flippable ? -1 : 1})`}} />
     </div>
   );
 };
@@ -43,8 +48,8 @@ const Bar: React.FC<{delay: number}> = ({delay}) => {
   return <div style={{width: 14, height: 190 * sp, background: ACCENT, borderRadius: 7, marginRight: 36}} />;
 };
 
-export const IntroCard: React.FC<{title: string; brand: string; bg: string; owlAspect: number}> = (
-  {title, brand, bg, owlAspect}) => {
+export const IntroCard: React.FC<{title: string; brand: string; bg: string; owl?: OwlPose}> = (
+  {title, brand, bg, owl}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const brandIn = spring({frame, fps, delay: 18, config: {damping: 200}});
@@ -59,12 +64,12 @@ export const IntroCard: React.FC<{title: string; brand: string; bg: string; owlA
             opacity: brandIn}}>{brand}</div>
         </div>
       </AbsoluteFill>
-      <CardOwl name="front" height={0.58} delay={6} aspect={owlAspect} />
+      <CardOwl pose={owl} height={0.58} />
     </AbsoluteFill>
   );
 };
 
-export const OutroCard: React.FC<{brand: string; bg: string; owlAspect: number}> = ({brand, bg, owlAspect}) => {
+export const OutroCard: React.FC<{brand: string; bg: string; owl?: OwlPose}> = ({brand, bg, owl}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const btn = spring({frame, fps, delay: 22, config: {damping: 11}});
@@ -83,7 +88,7 @@ export const OutroCard: React.FC<{brand: string; bg: string; owlAspect: number}>
           </div>
         </div>
       </AbsoluteFill>
-      <CardOwl name="three_q" height={0.56} delay={8} aspect={owlAspect} />
+      <CardOwl pose={owl} height={0.56} />
     </AbsoluteFill>
   );
 };
