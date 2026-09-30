@@ -23,7 +23,7 @@ def test_trim_alpha_cuts_transparent_margins():
 def test_prompt_keeps_the_character_and_adds_the_scene_action():
     p = ro.build_owl_prompt("holding a big stopwatch, surprised")
     assert "holding a big stopwatch, surprised" in p
-    assert "same" in p.lower() and "transparent" in p.lower()
+    assert "same" in p.lower() and "magenta" in p.lower()
 
 
 def test_verdict_needs_explicit_problems():

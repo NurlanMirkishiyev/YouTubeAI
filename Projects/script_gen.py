@@ -1,4 +1,4 @@
-"""Add'im 22 - movzu -> 8-10 deqiqelik ELI5 Business skripti (~1350 soz).
+"""Add'im 22 - movzu -> 10-12 deqiqelik ELI5 Business skripti (~1650 soz).
 Istifade:
   python Projects\\script_gen.py "Trademark vs Copyright vs Patent" [--provider openai|deepseek|ollama]
   python Projects\\script_gen.py "..." --slug trademark-copyright-patent --words 1850
@@ -51,7 +51,7 @@ Voice and rules:
 
 OUTLINE_USER = """Topic: {topic}
 
-Plan a ~10 minute ELI5 explainer. Return JSON only:
+Plan a ~11 minute ELI5 explainer. Return JSON only:
 
 {{"sections": [
   {{"title": "short title, max 5 words",
@@ -351,7 +351,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("topic")
     ap.add_argument("--slug", help="default: movzudan yaradilir")
-    ap.add_argument("--words", type=int, default=1230)   # LLM ~10% asir -> ~1350 soz ~ 9 deq video
+    ap.add_argument("--words", type=int, default=1530)   # ~11 deq video (pipeline.DEFAULT_WORDS)
     ap.add_argument("--extend", type=int, metavar="SOZ",
                     help="movcud script.md-ye bu qeder sozluk yeni tedris bolmesi elave et")
     ap.add_argument("--shorten", type=int, metavar="SOZ",

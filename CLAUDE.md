@@ -13,7 +13,7 @@
 3. Loqu Monitor ilə izlə (`[N/11]` mərhələ sətirləri + error/traceback). Ölsə: `run.py --resume <slug>`.
 4. Bitəndə özün yoxla (istifadəçidən soruşma):
    - `owl_qa.json` (hamısı ok, `cards.intro/outro` ok), giriş/çıxış kartı kadrı — mövzuya uyğun bayquş, tərpənmir, bir neçə kadr + `thumbnail.png` vizual — bayquş eyni personaj, sağda, yazı/insan yox;
-   - `checks.final_video_problems(mp4) == []`, müddət 8–10 dəq, −14 LUFS;
+   - `checks.final_video_problems(mp4) == []`, müddət 10–12 dəq, −14 LUFS;
    - `math_check.json` → `"problems": []`;
    - `bg_qa.json` → `"duplicates": []`; kadrlarda uşaqsayağı görüntü (oyuncaq/cizgi fon) yoxdur;
    - musiqi dövr nöqtəsində sükut yoxdur (`silencedetect=n=-40dB:d=0.4`; ~0.4 s danışıq fasiləsi normaldır).
@@ -27,7 +27,7 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 (OpenAI balansı bitib, model yüklənmir, sirr lazımdır).
 
 ## Dəyişməz istifadəçi qərarları
-- Video **8–10 dəq**, heç vaxt 10 dəqiqədən uzun deyil.
+- Video **10–12 dəq** (2026-09-30; əvvəl 8–10), heç vaxt 12 dəqiqədən uzun deyil. Test: `test_pipeline.py::test_parse_args_requires_topic_or_resume`.
 - İlk saniyələrdə **"Hook" yazısı/sözü olmur** (nə ekranda, nə səsdə); giriş kartındakı mövzu başlığı və
   bölmə başlıqları (lower-third) qalır (2026-09-28). Test: `Projects/tests/test_spoken_titles.py`.
 - **Təkrar kadr QƏTİ olmur** (2026-09-28): bir epizodda eyni obyekt/fon iki dəfə yox. `check_bgs` CLIP ilə
@@ -41,6 +41,8 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
   metadata-da rəqəm/hesab yoxdur. Test: `Projects/tests/test_number_accuracy.py`.
 - Bayquş sabit (animasiya yox) — **giriş/çıxış kartında da** (2026-09-30): orada hər mövzuya ayrıca yaradılmış
   `owl/intro.png` (açılış) və `owl/outro.png` (qapanış, sağollaşır), eyni mövzu əşyası ilə. Test: `test_card_owls.py`.
+- Bayquş modeli **gpt-image-2** (istifadəçi 2026-09-30; başqa modelə keçmə). Şəffaf fon vermir → magenta fonda çəkilir,
+  `render_owls.key_out` lokal silir. Test: `test_owl_keying.py`.
 - Bayquş həmişə sağda; hər səhnədə mətnə uyğun ChatGPT bayquşu, görünüşü
   (dəyirmi eynək, göy kostyum, sarı qalstuk) dəyişməz.
 - Musiqi: AI, lokal (Stable Audio Open), pulsuz, istinadsız. Stability Community License aktivdir (2026-09-28).

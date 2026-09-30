@@ -154,7 +154,7 @@ def verify_video(ctx: Ctx) -> list[str]:
     path = ctx.p(f"{ctx.slug}.mp4")
     problems = checks.final_video_problems(path)
     secs = duration(path)
-    if secs > ctx.max_seconds + VIDEO_TOL_S:         # istifadeci: 10 deq-den uzun olmamalidir
+    if secs > ctx.max_seconds + VIDEO_TOL_S:         # istifadeci: 12 deq-den uzun olmamalidir (2026-09-30)
         problems.append(f"video {secs:.0f} s > max {ctx.max_seconds:.0f} s")
     return problems
 

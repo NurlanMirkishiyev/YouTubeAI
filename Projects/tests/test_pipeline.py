@@ -49,7 +49,8 @@ def test_render_owls_stage_is_done_when_its_report_exists(tmp_path):
 
 def test_parse_args_requires_topic_or_resume():
     a = pl.parse_args(["Topic"])
-    assert (a.words, a.min_seconds, a.max_seconds) == (1230, 480.0, 600.0)    # video 8-10 deq
+    # istifadeci 2026-09-30: video 10-12 deq (evvel 8-10); 1230 soz ~8.85 deq verirdi -> 1530 ~11 deq
+    assert (a.words, a.min_seconds, a.max_seconds) == (1530, 600.0, 720.0)
     assert pl.parse_args(["--resume", "t", "--from", "build_episode"]).from_stage == "build_episode"
 
 

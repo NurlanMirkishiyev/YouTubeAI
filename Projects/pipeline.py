@@ -1,6 +1,6 @@
 """FAZA F orchestrator: movzu -> hazir video + youtube\\ paketi.
 Istifade (koku qovluqdan):
-  python run.py "Movzu" [--words 1230] [--music Music\\x.mp3]
+  python run.py "Movzu" [--words 1530] [--music Music\\x.mp3]
   python run.py --resume <slug> [--from build_episode]
 Her merhele oz venv-i ile subprocess kimi isleyir; log: Episodes\\<slug>\\logs\\<merhele>.log.
 Merhele "bitib" = fayl sistemi + yoxlama; state.json yalniz jurnaldir.
@@ -25,11 +25,11 @@ from script_gen import (EFFECTIVE_WPM, EPISODES, slugify, word_count, words_for_
 from stages import PROJ, PY, ROOT, STAGES, Ctx, stage_index  # noqa: E402
 from state import new_state, now_iso, read_state, with_stage, write_state  # noqa: E402
 
-# Istifadeci (2026-09-26): video 8-10 deq, 10 deq-den uzun olmamalidir. LLM hedefi ~10% asir ->
-# 1230 istenen ~1350 soz ~ 9 deq video (EFFECTIVE_WPM ile)
-DEFAULT_WORDS = 1230
-MIN_SECONDS = 480.0
-MAX_SECONDS = 600.0
+# Istifadeci (2026-09-30): video 10-12 deq (evvel 8-10), 12 deq-den uzun olmamalidir.
+# OLCULMUS: 1230 istenen soz -> 8.85 deq video; 1530 -> ~11 deq (araligin ortasi)
+DEFAULT_WORDS = 1530
+MIN_SECONDS = 600.0
+MAX_SECONDS = 720.0
 MAX_EXTENSIONS = 2
 DELIVERY_DIR = os.path.join(ROOT, "Hazir_Videolar")   # butun hazir videolar bir yerde (istifadeci 2026-09-27)
 INVALIDATE_DIRS = ("bg", "bg_hd", "owl", "audio", "cards", "remotion", "youtube")

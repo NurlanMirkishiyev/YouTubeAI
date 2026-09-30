@@ -88,9 +88,6 @@ def test_model_rejecting_transparency_stops_the_stage_instead_of_silent_sprites(
         ro.run_cards(str(tmp_path), "T", gen, lambda p, n: ro.Verdict(True, ()), prop="a wallet")
 
 
-def test_owl_model_supports_transparent_background():
-    assert ro.MODEL != "gpt-image-2"
-
 
 def _ctx(tmp_path):
     import stages

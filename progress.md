@@ -5,7 +5,7 @@
 > Qayda: "Cari vəziyyət" və "Növbəti dəqiq addım" bölmələri həmişə aktual olmalıdır;
 > tamamlanan iş "İcra jurnalı"na bir sətir kimi əlavə edilir (ən yenisi yuxarıda).
 
-**Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd ~10 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
+**Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd 10–12 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
 **Son yenilənmə:** 2026-09-30
 
@@ -86,7 +86,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 33 | #32 düzəlişindən sonra hakim 429 aldı (gpt-4o TPM 30k), 429 alan fonlar **yoxlanmadan** keçdi (pricing E2E-3) | istifadə olunmuş obyekt siyahısı hər hakim sorğusuna qoşulurdu: 535 → ~1980 token × 56 paralel | siyahı yalnız `suggest_again`-də (rədd olunanlar, ardıcıl); `judge_text` < 400 simvol, `max_tokens` 300 (ölçü: in=596) |
 | 34 | **Videoda hesab səhvi** (payment-fees: "100 yemək/həftə → $20 qənaət… bir ayda **eight hundred dollars**", düzgün ~$80); istifadəçi: **qəti düzəlsin, bütün videolarda** | ssenarini LLM yazır, heç bir mərhələ hesabı yoxlamırdı | `math_check.py`: rəqəmli HƏR cümlə deterministik tapılır → gpt-4o 3 müstəqil baxışla ifadəyə çevirir → iddia mətndən, nəticə Python-da (`ast`) hesablanır, operandlar mətndə olmalıdır → səhv yalnız çoxluq eyni düzgün dəyəri tapanda; yalnız həmin cümlə yenidən yazılır, düzgün dəyər yoxdursa rədd. `script_gen` yazanda/uzadanda/qısaldanda işləyir; `math_check.json` (skriptin sha256-si) olmadan `verify_script` keçmir. Real ssenaridə: 31 cümlə, 1 səhv düzəldi, 0 yalançı həyəcan (`test_number_accuracy.py`) |
 | 35 | Giriş/çıxış kartında bayquş **yenə titrəyirdi**; kartlarda mövzudan asılı olmayan ümumi sprite; istifadəçi: **sabit dayansın, hər mövzuya uyğun açılış/qapanış bayquşu olsun** | `Cards.tsx` `CardOwl`: 7 px sinus `bob` + spring ilə aşağıdan gəlmə (#25 yalnız səhnə bayquşunu `Owl.tsx`-də düzəltmişdi) | `CardOwl` sabit (yalnız 8 kadr fade); `render_owls.run_cards` hər epizoda `owl/intro.png` (qolunu açıb 'başlayaq', əşyanı göstərir) + `owl/outro.png` (gözlər yumulu əl yelləyir, baş əyir); mövzu əşyası `choose_prop` ilə əvvəlcədən seçilir (ekran/yazı/personaj yox), ikisində eyni; hakimdən keçməsə köhnə sprite; en ≤ 470 px (başlığı örtmür). Render sübutu: bayquş bölgəsi kadrlar arası fərq ≤ 11 (fon zoom-u) (`test_card_owls.py`) |
-| 36 | OpenAI `gpt-image-2` şəffaf fonu rədd edir (HTTP 400) → **bütün səhnə bayquşları səssizcə köhnə sprite-a düşərdi**, mərhələ yenə keçərdi | `_draw` hər LLMError-u 'bu səhnədə sprite' kimi udurdu; `render_owls` verify `[]` idi | bayquş modeli `gpt-image-1.5` (proba: personaja ən yaxın, alfa təmiz); 'not supported for this model' xətası mərhələni dayandırır; `verify_owls`: səhnə bayquşlarının ≥ 80%-i + intro/outro kartı olmalıdır |
+| 36 | OpenAI `gpt-image-2` şəffaf fonu rədd edir (HTTP 400) → **bütün səhnə bayquşları səssizcə köhnə sprite-a düşərdi**, mərhələ yenə keçərdi | `_draw` hər LLMError-u 'bu səhnədə sprite' kimi udurdu; `render_owls` verify `[]` idi | bayquş modeli **gpt-image-2 qalır** (istifadəçi): bircins magenta (#FF00FF) fonda çəkilir, `key_out` fonu lokal silir (bütün şəkildə — şüşədən görünən fon da; yarımşəffaf kənarda fon rəngi çıxarılır, magenta qalığı 0 piksel); fon magenta/bircins deyilsə şəkil yenidən çəkilir; 'not supported for this model' xətası mərhələni dayandırır; `verify_owls`: səhnə bayquşlarının ≥ 80%-i + intro/outro kartı olmalıdır |
+| 37 | İstifadəçi: video **10–12 dəq** olsun (əvvəl 8–10) | — | `MIN_SECONDS=600`, `MAX_SECONDS=720`, `DEFAULT_WORDS=1530` (ölçülmüş 1230 söz → 8.85 dəq), outline '~11 minute'; söz/TTS qapıları və final video yoxlaması yeni aralıqla işləyir |
 
 **Açıq qalan:** yoxdur.
 
@@ -296,6 +297,9 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-30 — video 10–12 dəq (#37); bayquş gpt-image-2 + magenta key (#36)
+- 253 test keçir; real: 'What Is Break-Even Point?' intro/outro + səhnə bayquşu gpt-image-2 ilə, fon silindi, hakimdən 1-ci cəhddə keçdi
 
 ### 2026-09-30 — sabit, mövzuya uyğun giriş/çıxış bayquşu (#35, #36)
 - 247 test keçir; real API: 'What Is Cash Flow?' → əşya 'a clear glass jar filled with coins', intro/outro hakimdən 1-ci cəhddə keçdi; Remotion still renderində bayquş tərpənmir, uzun başlığı örtmür

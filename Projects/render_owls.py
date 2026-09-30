@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable
 
+import numpy as np
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -26,8 +27,8 @@ sys.path.insert(0, HERE)
 from llm import DEFAULT_PROVIDER, LLMError, chat_json, edit_image  # noqa: E402
 
 OWL_REF = os.path.join(os.path.dirname(HERE), "Character", "ELI5_Owl", "sprites_hd", "front.png")
-MODEL = "gpt-image-1.5"   # 2026-09-30: gpt-image-2 seffaf fonu redd edir (HTTP 400); 1.5 personaji
-                          # referansa en yaxin saxladi (gpt-image-1 ile muqayise probu), alpha temiz
+MODEL = "gpt-image-2"     # istifadeci 2026-09-30: gpt-image-2 qalir (personaj referansa en yaxin)
+BACKGROUND = "opaque"     # gpt-image-2 seffaf fonu redd edir (HTTP 400) -> magenta fonda cekilir, key_out silir
 QUALITY = "low"
 SIZE = "1024x1536"
 MAX_ATTEMPTS = 3
@@ -42,8 +43,15 @@ CHARACTER = ("The exact same cartoon owl character as in the reference image: sa
              "feather tuft, same round black glasses, same navy suit, white shirt, yellow tie and brown belt, "
              "same proportions, face and 3D Pixar-like art style.")
 RULES = ("Only this one owl (plus the single prop if mentioned). Full body from head to feet, feet visible, "
-         "standing, centered. Transparent background, no shadow on the ground, no text, no letters, "
-         "no people, no other animals.")
+         "standing, centered. Background: a perfectly flat, uniform, solid pure magenta (#FF00FF) colour "
+         "filling the whole image - no gradient, no floor, no shadow, no texture, no checkerboard. "
+         "Nothing magenta or pink on the owl or the prop. No text, no letters, no people, no other animals.")
+# Chroma key (2026-09-30): K = kenar pikselleri; "magentaliq" m = min(R, B) - G
+KEY_BORDER = 4          # kenardan bu qeder piksel fon numunesi
+KEY_SPREAD_MAX = 0.05   # numunenin bu payindan coxu K-dan ferqlidirse fon bircins deyil -> yeniden cek
+KEY_DIST = 40.0
+KEY_SOLID = 0.12        # m <= bu * Km -> tam qeyri-seffaf (cehrayi dil, ag koynek)
+KEY_MIN_ALPHA = 0.06
 
 CHECKS = (("different_character", "identity"), ("cropped", "cropped"), ("writing", "text"),
           ("people", "human"), ("extra_owls", "extra_owl"), ("deformed", "deformed"))
@@ -89,6 +97,35 @@ def trim_alpha(im: Image.Image) -> Image.Image:
         return im
     l, t, r, b = box
     return im.crop((max(0, l - PAD), max(0, t - PAD), min(im.width, r + PAD), min(im.height, b + PAD)))
+
+
+def key_out(im: Image.Image) -> Image.Image:
+    """Bircins magenta fonu seffaf edir. Fon butun sekilde silinir (suse banka icinden gorunen fon da),
+    yarimseffaf kenarda fon rengi cixarilir (unmix) - cehrayi haşiye qalmir. Artiq seffaf sekil toxunulmur.
+    Fon magenta / bircins deyilse ValueError -> sekil cekilmemis sayilir, yeniden cekilir."""
+    if im.mode in ("RGBA", "LA", "P") and "A" in im.convert("RGBA").getbands():
+        alpha = np.asarray(im.convert("RGBA").getchannel("A"))
+        edge = np.concatenate([alpha[:KEY_BORDER].ravel(), alpha[-KEY_BORDER:].ravel(),
+                               alpha[:, :KEY_BORDER].ravel(), alpha[:, -KEY_BORDER:].ravel()])
+        if np.median(edge) < 16:
+            return im.convert("RGBA")
+    c = np.asarray(im.convert("RGB")).astype(np.float64)
+    border = np.concatenate([c[:KEY_BORDER].reshape(-1, 3), c[-KEY_BORDER:].reshape(-1, 3),
+                             c[:, :KEY_BORDER].reshape(-1, 3), c[:, -KEY_BORDER:].reshape(-1, 3)])
+    k = np.median(border, axis=0)
+    if not (k[0] > 180 and k[2] > 180 and k[1] < 90):
+        raise ValueError(f"fon magenta deyil: {tuple(int(v) for v in k)}")
+    spread = float(np.mean(np.linalg.norm(border - k, axis=1) > KEY_DIST))
+    if spread > KEY_SPREAD_MAX:
+        raise ValueError(f"fon bircins deyil ({spread:.0%} ferqli kenar pikseli)")
+    km = min(k[0], k[2]) - k[1]
+    m = np.minimum(c[..., 0], c[..., 2]) - c[..., 1]
+    a = np.where(m <= KEY_SOLID * km, 1.0, np.clip(1.0 - m / km, 0.0, 1.0))
+    a[a < KEY_MIN_ALPHA] = 0.0
+    safe = np.where(a > 0, a, 1.0)[..., None]
+    fg = np.clip((c - (1.0 - a)[..., None] * k) / safe, 0, 255)
+    out = np.dstack([fg, a * 255.0]).round().astype(np.uint8)
+    return Image.fromarray(out, "RGBA")
 
 
 def owl_path(ep: str, n: int | str) -> str:
@@ -138,8 +175,13 @@ def _draw(ep: str, n: int | str, action: str, gen: Callable[[str], bytes]) -> bo
             raise      # model/parametr sehvi - her bayqus sprite-a duser, sessizce kecmek olmaz
         print(f"  {os.path.basename(owl_path(ep, n))}: bayqus cekilmedi ({str(e)[:100]})", flush=True)
         return False
-    with Image.open(io.BytesIO(data)) as im:
-        trim_alpha(im).save(owl_path(ep, n))
+    try:
+        with Image.open(io.BytesIO(data)) as im:
+            keyed = key_out(im)
+    except ValueError as e:
+        print(f"  {os.path.basename(owl_path(ep, n))}: fon silinmedi ({e})", flush=True)
+        return False
+    trim_alpha(keyed).save(owl_path(ep, n))
     return True
 
 
@@ -215,7 +257,7 @@ def main() -> None:
 
     def raw_gen(prompt: str) -> bytes:
         limiter.acquire()
-        return edit_image(prompt, OWL_REF, model=MODEL, size=SIZE, quality=QUALITY)
+        return edit_image(prompt, OWL_REF, model=MODEL, size=SIZE, quality=QUALITY, background=BACKGROUND)
 
     gen = with_429_retry(raw_gen)
     report = run(ep, scenes, gen, lambda p, n: judge_owl(p, a.provider))
