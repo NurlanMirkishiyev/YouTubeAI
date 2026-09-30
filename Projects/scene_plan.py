@@ -180,7 +180,6 @@ FALLBACK_POOL = (
     "a lighthouse shining over a dark sea",
     "a sailboat on calm water at golden hour",
     "a tall stack of cardboard boxes by a loading dock",
-    "a leather messenger bag on a wooden bench",
     "a gold wristwatch on a marble table",
     "a bonsai tree on a minimalist desk",
     "a steel cable bridge over a river at dusk",

@@ -79,3 +79,9 @@ def test_llm_is_told_no_price_tags():
     for text in (sp.SYSTEM, sp.RETRY_NOTE):
         low = text.lower()
         assert "price tag" in low and "digits" in low
+
+
+def test_fallback_pool_has_no_look_alike_bags():
+    # why-9-99 check_bgs: "leather briefcase" ve "leather messenger bag" CLIP+hakim ucun eyni kadr idi
+    bags = [p for p in sp.FALLBACK_POOL if "briefcase" in p or " bag " in f"{p} "]
+    assert len(bags) <= 1, bags
