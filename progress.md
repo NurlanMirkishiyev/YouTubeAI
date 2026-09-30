@@ -95,7 +95,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti:** açıq iş YOXDUR, `Episodes\` boşdur. İstifadəçi yeni mövzu verəcək ("Video: <Mövzu>") → CLAUDE.md addım 1–6 (tam avtonom; sonda təsdiq → `forget_episode.py`).
+**Növbəti:** açıq iş YOXDUR, `Episodes\` boşdur, 253 test keçir (2026-10-01). İstifadəçi yeni sessiyada birbaşa mövzu verəcək → CLAUDE.md addım 1–6 (tam avtonom; sonda təsdiq → `forget_episode.py`). **Diqqət — bu video #34–#37-nin ilk tam E2E-sidir:** yoxla (a) müddət 10–12 dəq və 1530 söz hədəfi həqiqətən ~11 dəq verirmi (vermirsə `DEFAULT_WORDS`-u ölçüyə görə düzəlt); (b) `math_check.json` `problems: []`; (c) `owl_qa.json` → `cards.intro/outro` ok, səhnə bayquşlarının ≥80%-i ok, kadrlarda magenta haşiyə yoxdur; (d) giriş/çıxış kartında bayquş tərpənmir və mövzuya uyğundur.
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
