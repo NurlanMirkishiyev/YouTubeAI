@@ -16,6 +16,7 @@ import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from llm import LLMError, add_provider_arg, chat, chat_json  # noqa: E402
+from math_check import check_file as check_math  # noqa: E402
 
 EPISODES = r"C:\YouTubeAI\Episodes"
 WORDS_MIN, WORDS_MAX = 1700, 2050
@@ -42,6 +43,9 @@ Voice and rules:
 - No filler, no "in today's video we will", no sponsor reads, no emojis, no stage directions.
 - Numbers and examples must be plausible and generic; never invent statistics,
   studies, company figures or laws you are not certain about. Prefer "roughly" over fake precision.
+- Every calculation must be correct and easy to follow: use round numbers, say the inputs before
+  the result, and do one step at a time. Name time conversions explicitly ("over four weeks",
+  "over twelve months"). Check each result twice before writing it.
 - Output is narration text only - it will be read aloud word for word by a TTS voice.
   Do not write anything a narrator would not say out loud."""
 
@@ -282,6 +286,16 @@ Current text:
 {body}"""
 
 
+def verify_math(a: argparse.Namespace, script_path: str) -> None:
+    """Skript her yazilandan sonra hesablamalar yoxlanir/duzelir; qalan sehv merheleni dayandirir."""
+    try:
+        problems = check_math(script_path, provider=a.provider, model=a.model)
+    except LLMError as e:
+        raise SystemExit("hesablama yoxlamasi xetasi: " + str(e)) from e
+    if problems:
+        raise SystemExit(f"{len(problems)} hesablama sehvi duzelmedi - bax: math_check.json")
+
+
 def run_shorten(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     if not os.path.isfile(script_path):
         raise SystemExit("qisaltmaq ucun script.md yoxdur: " + script_path)
@@ -303,6 +317,7 @@ def run_shorten(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
         f.write(script.rstrip() + "\n")
     n = word_count(script)
     print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
+    verify_math(a, script_path)
 
 
 def run_extend(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
@@ -329,6 +344,7 @@ def run_extend(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
     print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
+    verify_math(a, script_path)
 
 
 def main() -> None:
@@ -380,6 +396,7 @@ def main() -> None:
         print("  DIQQET: catismayan basliqlar:", ", ".join(missing))
     if not WORDS_MIN <= n <= WORDS_MAX:
         print(f"  DIQQET: soz sayi {WORDS_MIN}-{WORDS_MAX} araliginda deyil")
+    verify_math(a, script_path)
 
 
 if __name__ == "__main__":

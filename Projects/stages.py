@@ -94,8 +94,9 @@ def _read(path: str) -> str:
 
 def verify_script(ctx: Ctx) -> list[str]:
     from script_gen import check_headings
+    from math_check import report_problems
     missing = check_headings(_read(ctx.p("script.md")))
-    return [f"catismayan basliqlar: {', '.join(missing)}"] if missing else []
+    return ([f"catismayan basliqlar: {', '.join(missing)}"] if missing else []) + report_problems(ctx.ep_dir)
 
 
 def verify_scenes(ctx: Ctx) -> list[str]:

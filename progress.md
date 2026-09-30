@@ -84,6 +84,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 31 | check_bgs yanlış "təkrar kadr" ilə 2 dəfə düşdü: saniyəölçən / kompas / qum saatı (pricing E2E-2, 2026-09-29); eyni vaxtda iki qol saatı (0.878) tutulmadı | CLIP realist fotoda mövzu/kompozisiya oxşarlığını ölçür: fərqli obyektlər 0.897–0.918, eyni sikkə 0.884 — tək hədd ayırmır | CLIP yalnız namizəd (`DUP_SIM` 0.85), hər cütü gpt-4o iki şəklə baxıb təsdiqləyir (`confirm_duplicates`, `same_scene`); cavab yoxdursa təkrar sayılır (`test_no_repeats.py`) |
 | 32 | 56 fondan 22-si mövzudan kənar ehtiyat fonla bitdi (mayak, yelkənli), hər biri 3 dəfə boşuna çəkildi; resume/retry qəbul olunmuş fonları yenidən çəkirdi (pricing E2E-2) | hakim dar mövzuda yazılı/təkrar obyekt təklif edirdi (qiymət etiketi, menyu, kassa) → rədd → dərhal hovuz → hovuz fonu yenə "mismatch"; `tries` hər run-da sıfırlanırdı | hakim 3 variant verir + istifadə olunmuş obyektlər siyahısı; hamısı rədd olunsa **səbəblə** ikinci təklif (`choose_prompt`, `suggest_again`); "X with a price label" → yalnız əlavə kəsilir (`cut_text_clause`); QA-da artıq seçilmiş hovuz fonu yalnız "mismatch" üçün yenidən çəkilmir, ilk dəfə isə bir şans alır (`needs_redo`); cəhd sayı `bg_qa.json`-dan bərpa (`load_tries`). Ölçü: 10 pis səhnədən hovuza 9 → 0 |
 | 33 | #32 düzəlişindən sonra hakim 429 aldı (gpt-4o TPM 30k), 429 alan fonlar **yoxlanmadan** keçdi (pricing E2E-3) | istifadə olunmuş obyekt siyahısı hər hakim sorğusuna qoşulurdu: 535 → ~1980 token × 56 paralel | siyahı yalnız `suggest_again`-də (rədd olunanlar, ardıcıl); `judge_text` < 400 simvol, `max_tokens` 300 (ölçü: in=596) |
+| 34 | **Videoda hesab səhvi** (payment-fees: "100 yemək/həftə → $20 qənaət… bir ayda **eight hundred dollars**", düzgün ~$80); istifadəçi: **qəti düzəlsin, bütün videolarda** | ssenarini LLM yazır, heç bir mərhələ hesabı yoxlamırdı | `math_check.py`: rəqəmli HƏR cümlə deterministik tapılır → gpt-4o 3 müstəqil baxışla ifadəyə çevirir → iddia mətndən, nəticə Python-da (`ast`) hesablanır, operandlar mətndə olmalıdır → səhv yalnız çoxluq eyni düzgün dəyəri tapanda; yalnız həmin cümlə yenidən yazılır, düzgün dəyər yoxdursa rədd. `script_gen` yazanda/uzadanda/qısaldanda işləyir; `math_check.json` (skriptin sha256-si) olmadan `verify_script` keçmir. Real ssenaridə: 31 cümlə, 1 səhv düzəldi, 0 yalançı həyəcan (`test_number_accuracy.py`) |
 
 **Açıq qalan:** yoxdur.
 
@@ -293,6 +294,10 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-09-30 — hesab səhvlərinə qarşı qapı (#34)
+- `math_check.py` + pipeline qapısı; 233 test keçir. Real payment-fees ssenarisində "eight hundred" → "eighty dollars", başqa dəyişiklik yox, 2 təkrar yoxlamada 0 yalançı həyəcan
+- Artıq hazır `Hazir_Videolar\how-small-businesses-…` videosunda səhv qalır (yeni kod yalnız yeni videolara tətbiq olunur)
 
 ### 2026-09-29 gecə — təsdiq + yaddaş silmə mərhələsi
 - Köhnə pricing run-u (`--resume why-9-99-…`, check_bgs/render_bgs prosesləri) istifadəçi istəyi ilə dayandırıldı

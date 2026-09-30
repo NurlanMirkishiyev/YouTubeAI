@@ -14,6 +14,7 @@
 4. Bitəndə özün yoxla (istifadəçidən soruşma):
    - `owl_qa.json` (hamısı ok), bir neçə kadr + `thumbnail.png` vizual — bayquş eyni personaj, sağda, yazı/insan yox;
    - `checks.final_video_problems(mp4) == []`, müddət 8–10 dəq, −14 LUFS;
+   - `math_check.json` → `"problems": []`;
    - `bg_qa.json` → `"duplicates": []`; kadrlarda uşaqsayağı görüntü (oyuncaq/cizgi fon) yoxdur;
    - musiqi dövr nöqtəsində sükut yoxdur (`silencedetect=n=-40dB:d=0.4`; ~0.4 s danışıq fasiləsi normaldır).
 5. `Hazir_Videolar\<slug>\` hazır olduğunu qısa bildir, `progress.md` jurnalına sətir yaz, commit et.
@@ -35,6 +36,9 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 - **Uşaq videosu kimi görünmür** (2026-09-28, seçim A): fonlar realist fotoqrafiya (Pixar/3D yox), oyuncaq/
   konfet/karusel yox; ssenari 25–45 yaş yetkinlər üçün; uşaq musiqisi yox. Bayquş dəyişmir.
   Test: `Projects/tests/test_adult_look.py`.
+- **Hesab səhvi QƏTİ olmur** (2026-09-30): ssenaridəki hər rəqəmli cümlə `math_check.py` ilə yoxlanır
+  (gpt-4o 3 baxış + Python hesabı); `math_check.json` olmadan `script_gen` mərhələsi keçmir. YouTube
+  metadata-da rəqəm/hesab yoxdur. Test: `Projects/tests/test_number_accuracy.py`.
 - Bayquş sabit (animasiya yox), həmişə sağda; hər səhnədə mətnə uyğun ChatGPT bayquşu, görünüşü
   (dəyirmi eynək, göy kostyum, sarı qalstuk) dəyişməz.
 - Musiqi: AI, lokal (Stable Audio Open), pulsuz, istinadsız. Stability Community License aktivdir (2026-09-28).
