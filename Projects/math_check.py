@@ -31,8 +31,16 @@ EXACT_TOL = 0.01
 APPROX_TOL = 0.10
 HEDGES = re.compile(r"\b(roughly|about|around|nearly|almost|approximately|close to|over|more than|"
                     r"less than|under|just over|just under|or so|some)\b", re.I)
-# vaxt/vahid cevrilmeleri ve faiz - metnde yazilmasa da ifadede ola biler
-CONSTANTS = {1, 2, 3, 4, 4.3, 4.33, 4.345, 5, 7, 10, 12, 24, 26, 30, 52, 60, 100, 365, 1000}
+# metnde yazilmayan sabit yalniz uygun vahid sozleri olanda qebul olunur (real hal why-9-99: "3 * 4 * 50"
+# ile saat sayi "4 hefte" kimi uyduruldu). Her qrupdan en az bir soz kontekstde olmalidir.
+_WEEK, _MONTH, _YEAR, _DAY = r"week", r"month", r"year|annual", r"day|daily"
+CONSTANTS: dict[float, tuple[str, ...]] = {
+    1: (), 100: (),
+    2: (r"double|twice|half|both|pair",),
+    4: (_WEEK, _MONTH), 4.3: (_WEEK, _MONTH), 4.33: (_WEEK, _MONTH), 4.345: (_WEEK, _MONTH),
+    52: (_WEEK, _YEAR), 12: (_MONTH, _YEAR), 30: (_DAY, _MONTH), 365: (_DAY, _YEAR), 7: (_DAY, _WEEK),
+    24: (r"hour", _DAY), 60: (r"minute|second", r"hour|minute"),
+}
 
 UNITS = {w: i for i, w in enumerate(
     "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
@@ -203,9 +211,10 @@ def numeric_sentences(markdown: str) -> list[dict]:
 
 
 def _grounded(value: float, context: str) -> bool:
-    if any(abs(value - c) < 1e-9 for c in CONSTANTS):
-        return True
     low = context.lower()
+    for c, needs in CONSTANTS.items():
+        if abs(value - c) < 1e-9 and all(re.search(n, low) for n in needs):
+            return True
     for start, end, v in find_numbers(context):
         unit = low[end:end + 9].lstrip()
         forms = [v]
@@ -466,6 +475,17 @@ def llm_rewrite(paragraph: str, problems: list[dict], **llm_kw) -> dict:
     return got if isinstance(got, dict) else {}
 
 
+def _number_audit(md: str, problems: list[dict], llm_kw: dict) -> tuple[str, list[dict]]:
+    """Son hokm ikinci qatindir (number_audit: HER reqem, fail-closed, ikinci baxis, son care reqemsiz cumle).
+    Birinci qat yalniz cogunlugun tapdigi duzgun deyerle duzelis edir; onun qalan "problemleri" (2026-10-02
+    real hal: 'try $49.99' = 50 - 49.99 kimi yalanci) pipeline-i dayandirmir - o reqemler ikinci qatda
+    ayrica yoxlanir ve tesdiq olunmasa videoya dusmur."""
+    import number_audit as na
+    if problems:
+        print(f"  1-ci qatin {len(problems)} qeydi 2-ci qatda yoxlanacaq", flush=True)
+    return na.check(md, **llm_kw)
+
+
 def check_file(script_path: str, **llm_kw) -> list[dict]:
     """script.md-ni yoxlayir/duzeldir, yeniden yazir, hesabati yazir -> qalan problemler."""
     if llm_kw.get("provider", "openai") == "openai" and not llm_kw.get("model"):
@@ -475,6 +495,7 @@ def check_file(script_path: str, **llm_kw) -> list[dict]:
     print(f"[math] hesablamalar yoxlanir ({PASSES} musteqil baxis)", flush=True)
     fixed, problems = audit_and_fix(md, lambda s: llm_extract(s, **llm_kw),
                                     lambda p, pr: llm_rewrite(p, pr, **llm_kw))
+    fixed, problems = _number_audit(fixed, problems, llm_kw)
     if fixed != md:
         with open(script_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(fixed.rstrip() + "\n")

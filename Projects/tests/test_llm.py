@@ -56,3 +56,27 @@ def test_edit_image_sends_reference_as_multipart(monkeypatch, tmp_path):
     for part in (b'name="image[]"; filename="ref.png"', b"PNGDATA", b'name="background"', b"transparent",
                  b'name="model"', b"gpt-image-2", b"owl waving"):
         assert part in sent["body"]
+
+
+# math audit (2026-10-02): gpt-4o TPM limiti - 1+2+4 s backoff azdir, 4 defe 3-cu cehde catdi.
+# Indi API-nin dediyi muddet ("try again in 2.272s") + ehtiyat gozlenilir ve TPM-de daha cox cehd edilir.
+def test_rate_limit_waits_as_long_as_the_api_says(monkeypatch):
+    calls, waits = [], []
+
+    def urlopen(req, timeout):
+        calls.append(1)
+        if len(calls) < 6:
+            raise _http_error(429, {"error": {"message": "Rate limit reached for gpt-4o on tokens per min "
+                                                         "(TPM). Please try again in 7.5s.", "code": "rate_limit_exceeded"}})
+        return io.BytesIO(b'{"ok": 1}')
+
+    monkeypatch.setattr(llm.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(llm.time, "sleep", waits.append)
+    assert llm._post("https://x", "k", {}) == {"ok": 1}
+    assert len(calls) == 6 and all(w >= 7.5 for w in waits)
+
+
+def test_retry_after_parses_milliseconds():
+    assert llm.retry_after("Please try again in 950ms.") == pytest.approx(0.95)
+    assert llm.retry_after("Please try again in 2.272s.") == pytest.approx(2.272)
+    assert llm.retry_after("other") is None

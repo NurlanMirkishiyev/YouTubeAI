@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -18,6 +19,7 @@ from dataclasses import dataclass
 ENV_FILE = r"C:\YouTubeAI\.env"
 TIMEOUT_S = 180
 MAX_RETRIES = 4
+RATE_RETRIES = 8          # 429 (TPM) - API-nin dediyi muddet gozlenilir, daha cox cehd
 
 
 @dataclass(frozen=True)
@@ -81,8 +83,11 @@ def _post(url: str, key: str, payload: dict) -> dict:
 
 def _send(url: str, key: str, body: bytes, content_type: str) -> dict:
     headers = {"Content-Type": content_type, "Authorization": f"Bearer {key}"}
-    last = ""
-    for attempt in range(MAX_RETRIES):
+    last, limited = "", False
+    for attempt in range(RATE_RETRIES):
+        if attempt >= MAX_RETRIES and not limited:
+            break
+        limited = False
         req = urllib.request.Request(url, data=body, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
@@ -96,13 +101,22 @@ def _send(url: str, key: str, body: bytes, content_type: str) -> dict:
                                "billing -de kredit elave et, sonra: python run.py --resume <slug>") from e
             if e.code not in (408, 409, 429) and e.code < 500:
                 raise LLMError(last) from e
+            limited = e.code == 429
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
             last = f"{type(e).__name__}: {e}"
-        if attempt < MAX_RETRIES - 1:
-            wait = 2 ** attempt
-            print(f"  ... cehd {attempt + 1} ugursuz ({last}); {wait}s sonra tekrar")
+        if attempt < (RATE_RETRIES if limited else MAX_RETRIES) - 1:
+            wait = max(2 ** min(attempt, 4), (retry_after(last) or 0) + 1) if limited else 2 ** attempt
+            print(f"  ... cehd {attempt + 1} ugursuz ({last[:160]}); {wait:g}s sonra tekrar")
             time.sleep(wait)
-    raise LLMError(f"{MAX_RETRIES} cehdden sonra ugursuz - {last}")
+    raise LLMError(f"{attempt + 1} cehdden sonra ugursuz - {last}")
+
+
+def retry_after(message: str) -> float | None:
+    """'Please try again in 2.272s' / '950ms' -> saniye (TPM limiti; 1-2-4 s backoff azdir)."""
+    m = re.search(r"try again in (\d+(?:\.\d+)?)\s*(ms|s)\b", message)
+    if not m:
+        return None
+    return float(m.group(1)) / (1000 if m.group(2) == "ms" else 1)
 
 
 def chat(system: str, user: str | list, *, provider: str = DEFAULT_PROVIDER, model: str | None = None,

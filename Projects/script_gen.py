@@ -46,6 +46,10 @@ Voice and rules:
 - Every calculation must be correct and easy to follow: use round numbers, say the inputs before
   the result, and do one step at a time. Name time conversions explicitly ("over four weeks",
   "over twelve months"). Check each result twice before writing it.
+- State every input of a computed figure before the result, in the same paragraph: count, price,
+  hours, period. Never give a total that depends on an unstated quantity (e.g. earnings of clients
+  paid per hour when the hours are not said). Keep worked examples in whole numbers; do not multiply
+  prices like 49.99 - compare such prices only by their difference.
 - Output is narration text only - it will be read aloud word for word by a TTS voice.
   Do not write anything a narrator would not say out loud."""
 

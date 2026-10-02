@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd 10–12 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-10-01
+**Son yenilənmə:** 2026-10-02
 
 ---
 
@@ -91,13 +91,16 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 38 | `scene_plan` 3 dəfə çökdü: "ehtiyat fon çatmır: 43 lazım, 39 var" (why-9-99, 2026-10-01); qiymət mövzusunda LLM hər səhnəyə "price tag $9.99" yazır → 65-dən 57-si boş fona düşürdü; "$10" rəqəmləri filtrdən keçirdi; gpt-4o artikl yazmır → hamısı atılırdı; ehtiyat fonlar mövzudan kənar (mayak) | LLM qadağaya əməl etmir + filtr boşluqları (`$`/rəqəm, labels, sticker, logo, form, card, review…; "two …", "close-up of", "side by side"); generik hovuz mövzusuzdur | `TEXT_BEARING` `$`/rəqəm + çap olunan şeylər, qiymət bəndi kəsilir, ilk hissəyə artikl, `hero` düzəlişi; SYSTEM/RETRY-də "no price tags/digits"; **`topic_pool`**: qalan səhnələr əvvəlcə mövzuya aid təkrarsız fonlar, generik hovuz yalnız sonda. Test: `test_price_topic.py`. Əlavə: hovuzdan "leather messenger bag" çıxarıldı (briefcase ilə eyni kadr, check_bgs [55,58]) |
 | 39 | `make_srt` qapısı 3 dəfə düşdü: "whisper 1776 söz, skript 1646 söz" (why-9-99, 2026-10-01) — səs düzgün idi | Whisper `$9.99` → "9 dollars and 99 cents" (5 söz), `$10` → "10 dollars" (2); skript sayğacı 1 sayırdı | `stages.spoken_words`: qiymətlər tələffüz kimi sayılır (1762 vs 1776 = 0.8%). Test: `test_price_topic.py::test_srt_gate_counts_prices_as_spoken` |
 
+| 40 | **Videoda yenə kobud hesab səhvi** (why-9-99): "three clients a month at $50 an hour … instead of earning **$600** … you'd pull in **$649.97** for four clients" — saat sayı yoxdur, rəqəmlər uyğunsuz; `math_check` [] verdi. İstifadəçi: **"birdəfəlik həll et"** | (1) fail-open: səhv yalnız 3 baxışın çoxluğu EYNİ düzgün dəyəri tapanda sayılırdı — baxışlar fərqli ifadə verdi (`49.99*4` / `3*50` / "hesab deyil") → susdu; (2) natamam hesab (giriş yoxdur) halı ümumiyyətlə tanınmırdı; (3) `4`, `12`, `3`… sabitləri istənilən uydurma ifadəni "əsaslandırırdı"; (4) generator gizli girişlə nəticə yazırdı | **`number_audit.py` — son hökm, fail-closed:** HƏR rəqəm deterministik işarələnir (hərfli marker `⟦A⟧`, sorğuda ≤ 26 — rəqəmli/ikihərfli markeri gpt-4o qarışdırırdı); rol: given / result (ifadə, operandlar rəqəmdən ƏVVƏL deyilməli) / missing; rəqəm yalnız ≥2/3 təsdiqlə keçir; şübhəli rəqəmə fokuslu 2-ci baxış (əvvəlki bölmələr + başlıq kontekstdə; başlıqdakı/əvvəl deyilmiş ≥13 rəqəmin təkrarı ok); keçməsə abzas yenidən yazılır — **bayraqsız rəqəmlər dəyişə bilməz** (real: `$9.99`→`$10` pozulması bloklandı); raundlardan sonra cümlə rəqəmsiz yazılır, olmasa silinir. Sabitlər yalnız vahid sözləri ilə (4 = həftə+ay, 12 = ay+il…). 1-ci qat (`math_check`) yalnız düzəliş ön-keçididir. Generator: "hər girişi nəticədən əvvəl de, gizli kəmiyyət yox, 49.99-u vurma". Real ölçü: why-9-99 3/3 tutuldu və düzəldi (yalnız həmin abzas dəyişdi), payment-fees köhnə $800 səhvi 3/3, yalançı həyəcan 6 run-da 1 (nəticəsi yalnız abzas yoxlaması). Test: `test_number_audit.py` (20) |
+| 41 | `math_check` gpt-4o TPM 429-a 81 dəfə düşdü, 4 dəfə 3-cü cəhdə çatdı (1 cəhd qalmışdı) | backoff 1-2-4 s, API "try again in 2.27s" deyirdi | 429-da API-nin dediyi müddət + 1 s, 8 cəhd (`llm.retry_after`, `RATE_RETRIES`). Test: `test_llm.py` |
+
 **Açıq qalan:** yoxdur.
 
 ---
 
 ## Növbəti dəqiq addım
 
-**Növbəti:** `why-9-99-feels-cheaper-than-10` HAZIRDIR (2026-10-01), istifadəçi təsdiqi gözlənilir → təsdiqdə `forget_episode.py why-9-99-feels-cheaper-than-10` + bu videonun sətirlərini sil. 266 test keçir. #34–#37 ilk tam E2E-də təsdiqləndi: 11.56 dəq (1612 söz), `math_check` [], owl 65/65, kartlar ok.
+**Növbəti:** #40 hesab yoxlaması hazırdır (2026-10-02, 288 test) — növbəti mövzunu gözlə. Köhnə: `why-9-99-feels-cheaper-than-10` (2026-10-01) videosunda #40 səhvi var, istifadəçi qərarı gözlənilir → təsdiqdə `forget_episode.py why-9-99-feels-cheaper-than-10` + bu videonun sətirlərini sil. 266 test keçir. #34–#37 ilk tam E2E-də təsdiqləndi: 11.56 dəq (1612 söz), `math_check` [], owl 65/65, kartlar ok.
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -299,6 +302,11 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-02 — #40 hesab/rəqəm səhvləri fail-closed yoxlama, #41 429 gözləmə
+- `number_audit.py` (yeni), `math_check` sabit qaydaları + son hökm 2-ci qatda, `script_gen` SYSTEM qaydası, `llm.retry_after`
+- 288 test keçir. Real: why-9-99 ssenarisi düzəldi ("$50 an hour for one hour each … $150 … more for four clients"), ~5 dəq
+- Qeyd: `Hazir_Videolar\` bu sessiya ərzində boşaldılıb (mən silməmişəm); `Episodes\why-9-99…` qalır
 
 ### 2026-10-01 — E2E `why-9-99-feels-cheaper-than-10` HAZIRDIR (#38, #39)
 - 65 səhnə, 11.56 dəq, −14.2 LUFS, `final_video_problems=[]`, `math_check` [], `duplicates: []`, owl 65/65 + kartlar ok, sükut yoxdur

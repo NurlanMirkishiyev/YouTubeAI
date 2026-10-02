@@ -39,6 +39,10 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 - **Hesab səhvi QƏTİ olmur** (2026-09-30): ssenaridəki hər rəqəmli cümlə `math_check.py` ilə yoxlanır
   (gpt-4o 3 baxış + Python hesabı); `math_check.json` olmadan `script_gen` mərhələsi keçmir. YouTube
   metadata-da rəqəm/hesab yoxdur. Test: `Projects/tests/test_number_accuracy.py`.
+  **2026-10-02 (#40, "birdəfəlik"):** son hökm `number_audit.py`-dir — skriptdəki HƏR rəqəm ayrıca, fail-closed:
+  3 baxışdan ≥2-si onu "verilmiş" və ya Python-da düzgün hesablanmış saymasa → fokuslu 2-ci baxış → abzas yenidən
+  yazılır (bayraqsız rəqəmlər dəyişə bilməz) → yenə keçməsə cümlə rəqəmsiz yazılır/silinir. Yoxlanmamış hesab
+  videoya düşmür. Test: `Projects/tests/test_number_audit.py`.
 - Bayquş sabit (animasiya yox) — **giriş/çıxış kartında da** (2026-09-30): orada hər mövzuya ayrıca yaradılmış
   `owl/intro.png` (açılış) və `owl/outro.png` (qapanış, sağollaşır), eyni mövzu əşyası ilə. Test: `test_card_owls.py`.
 - Bayquş modeli **gpt-image-2** (istifadəçi 2026-09-30; başqa modelə keçmə). Şəffaf fon vermir → magenta fonda çəkilir,
