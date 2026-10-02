@@ -88,11 +88,16 @@ def test_fallback_pool_has_no_look_alike_bags():
 
 
 def test_srt_gate_counts_prices_as_spoken():
-    # why-9-99 make_srt: whisper "$9.99" -> "9 dollars and 99 cents" (5 soz), "$10" -> "10 dollars";
-    # skript 1646, whisper 1776 - ses dogru idi, qapi yalan yere dusdu
+    # why-9-99 make_srt: whisper bir isde "$9.99" -> "9 dollars and 99 cents" (5 soz), "$10" -> "10 dollars";
+    # 2026-10-03 isinde ise "$9 .99" (2 token). Her iki terefe eyni kanonik forma - format ferqi qapini yixmir.
     import stages
-    assert stages.spoken_words("One is priced at $9.99, and the other at $10.") == \
-        len("One is priced at 9 dollars and 99 cents, and the other at 10 dollars.".split())
-    assert stages.spoken_words("a $49.99 rate or $1,500 a month") == \
-        len("a 49 dollars and 99 cents rate or 1,500 dollars a month".split())
+    script = "One is priced at $9.99, and the other at $10. Prices ending in .99 work."
+    want = stages.spoken_words(script)
+    assert want == len(script.split())
+    spelled = "One is priced at 9 dollars and 99 cents, and the other at 10 dollars. Prices ending in .99 work."
+    split = "One is priced at $9 .99, and the other at $10. Prices ending in .99 work."
+    assert stages.whisper_word_count(spelled.split()) == want
+    assert stages.whisper_word_count(split.split()) == want
+    assert stages.whisper_word_count("a 1,500 dollars plan".split()) == 3
     assert stages.spoken_words("# Title\nplain words here") == 3
+

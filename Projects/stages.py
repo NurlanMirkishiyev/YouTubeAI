@@ -141,22 +141,29 @@ def spoken_extra_words(ctx: Ctx) -> int:
     return len(cards.split()) + len(titles.split())
 
 
-# Reyestr #39: whisper "$9.99" -> "9 dollars and 99 cents" (5 soz), "$10" -> "10 dollars" (2 soz)
-_CENTS_PRICE = re.compile(r"\$\d[\d,]*\.\d\d\b")
-_WHOLE_PRICE = re.compile(r"\$\d[\d,]*")
+# Reyestr #39/#43: whisper qiymeti isden-ise ferqli yazir - "9 dollars and 99 cents", "$9 .99" ve ya "$9.99".
+# Whisper sozleri skriptin formasina ("$9.99", "$10") getirilir, sonra her iki teref eyni sayilir.
+_SPELLED_CENTS = re.compile(r"\b(\d[\d,]*) dollars? and (\d\d) cents?\b")
+_SPELLED_WHOLE = re.compile(r"(?<!\$)\b(\d[\d,]*) dollars?\b")
+_SPLIT_CENTS = re.compile(r"(\$\d[\d,]*) (\.\d\d)\b")
 
 
 def spoken_words(markdown: str) -> int:
-    """Skript sozleri (basliqsiz), qiymetler whisper-in yazdigi kimi sayilir."""
+    """Skript sozleri (basliqsiz); qiymet bir sozdur."""
     from script_gen import word_count
-    body = "\n".join(ln for ln in markdown.splitlines() if not ln.lstrip().startswith("#"))
-    extra = 4 * len(_CENTS_PRICE.findall(body))
-    extra += len(_WHOLE_PRICE.findall(_CENTS_PRICE.sub("", body)))
-    return word_count(markdown) + extra
+    return word_count(markdown)
+
+
+def whisper_word_count(words: list[str]) -> int:
+    text = " ".join(w.strip() for w in words)
+    text = _SPELLED_CENTS.sub(r"$\1.\2", text)
+    text = _SPELLED_WHOLE.sub(r"$\1", text)
+    text = _SPLIT_CENTS.sub(r"\1\2", text)
+    return len(text.split())
 
 
 def verify_srt(ctx: Ctx) -> list[str]:
-    got = len(json.loads(_read(ctx.p("narration.words.json"))))
+    got = whisper_word_count([w["word"] for w in json.loads(_read(ctx.p("narration.words.json")))])
     want = spoken_words(_read(ctx.p("script.md"))) + spoken_extra_words(ctx)
     if abs(got - want) > SRT_WORD_TOL * want:
         return [f"whisper {got} soz, skript {want} soz (>{SRT_WORD_TOL:.0%} ferq)"]
