@@ -141,3 +141,24 @@ def test_wide_card_owl_is_scaled_down_so_it_never_covers_the_title():
     m = re.search(r"MAX_OWL_W = (\d+)", open(CARDS_TSX, encoding="utf-8").read())
     assert m and 1920 - 150 - int(m.group(1)) >= 1300
     assert "MAX_OWL_W" in src
+
+
+def test_card_prop_replaces_the_reference_book():
+    """Real hal 2026-10-03 (why-9-99): referans sprite kitab tutur; outro 'tucked under the other arm' ->
+    model qiymet etiketi evezine kitab cekdi, hakim kecirdi."""
+    a = ro.card_actions("T", "a price tag")
+    assert all("instead of the book" in v for v in a.values())
+
+
+def test_card_judge_rejects_owl_without_the_topic_prop():
+    system = ro.judge_system("a price tag")
+    assert "missing_prop" in system and "a price tag" in system
+    assert "missing_prop" not in ro.judge_system(None)
+    assert ro.parse_owl_verdict({"missing_prop": True}).problems == ("prop",)
+    assert ro.parse_owl_verdict({}).ok
+
+
+def test_card_prop_is_drawn_blank_so_judge_does_not_reject_it_for_text():
+    """Real hal 2026-10-03: prop 'a price tag with a dollar amount' -> outro 3 defe 'text' ile yixildi."""
+    a = ro.card_actions("T", "a price tag with a dollar amount")
+    assert all("no writing or numbers" in v for v in a.values())

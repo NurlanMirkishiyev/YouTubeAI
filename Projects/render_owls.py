@@ -54,7 +54,8 @@ KEY_SOLID = 0.12        # m <= bu * Km -> tam qeyri-seffaf (cehrayi dil, ag koyn
 KEY_MIN_ALPHA = 0.06
 
 CHECKS = (("different_character", "identity"), ("cropped", "cropped"), ("writing", "text"),
-          ("people", "human"), ("extra_owls", "extra_owl"), ("deformed", "deformed"))
+          ("people", "human"), ("extra_owls", "extra_owl"), ("deformed", "deformed"),
+          ("missing_prop", "prop"))
 
 SYSTEM = """You compare two images of a cartoon mascot. Image 1 is the REFERENCE owl. Image 2 is a new
 drawing that must show the SAME character in a new pose. Answer each check with true/false, judging only
@@ -69,6 +70,14 @@ what is visible:
   printed or drawn on the clothes or on a prop.
 - "deformed": broken anatomy (extra limbs, melted face) or a prop fused into the body.
 Answer ONLY JSON with keys: different_character, cropped, writing, people, extra_owls, deformed."""
+# Kart bayqusu (2026-10-03): movzu esyasi mutleq gorunmeli - referansdaki kitab onu evez etmesin
+PROP_CHECK = """
+- "missing_prop": the owl is NOT clearly holding {prop} (e.g. it holds a book or notebook instead).
+Also include the key missing_prop in the JSON."""
+
+
+def judge_system(prop: str | None) -> str:
+    return SYSTEM + PROP_CHECK.format(prop=prop) if prop else SYSTEM
 
 
 @dataclass(frozen=True)
@@ -156,14 +165,16 @@ def choose_prop(topic: str, chat: Callable = chat_json, **llm_kw) -> str:
 
 def card_actions(topic: str, prop: str) -> dict[str, str]:
     """Giris/cixis karti ucun movzuya uygun, acilis ve qapanis oldugu aydin gorunen pozlar (2026-09-30).
-    Eyni movzu esyasi her ikisinde - kartlar bir-birine baglanir."""
+    Eyni movzu esyasi her ikisinde - kartlar bir-birine baglanir. Esya yazisiz (2026-10-03: "price tag with
+    a dollar amount" -> hakim 'text' ile redd edirdi)."""
+    prop = f"{prop} (blank, with no writing or numbers on it)"
     return {
         "intro": (f"opening the video about \"{topic}\": welcoming the viewer and presenting the topic - one "
                   f"wing stretched wide open to the side in an inviting 'let's begin' gesture, eyes wide with "
-                  f"excitement, big open smile, holding {prop} up proudly in the other wing"),
+                  f"excitement, big open smile, holding {prop} up proudly in the other wing instead of the book"),
         "outro": (f"closing the video about \"{topic}\": saying goodbye - waving farewell with one wing raised "
-                  f"high, happy closed-eye smile, head slightly bowed in thanks, the same {prop} tucked "
-                  f"under the other arm"),
+                  f"high, happy closed-eye smile, head slightly bowed in thanks, holding the same {prop} "
+                  f"clearly visible in the other wing instead of the book"),
     }
 
 
@@ -227,11 +238,11 @@ def run_cards(ep: str, topic: str, gen: Callable[[str], bytes], judge: Callable[
     return {k: {**v, "prop": prop} for k, v in report.items()}
 
 
-def judge_owl(path: str, provider: str) -> Verdict:
+def judge_owl(path: str, provider: str, prop: str | None = None) -> Verdict:
     from check_bgs import _image_part
     try:
         return parse_owl_verdict(chat_json(
-            SYSTEM, [{"type": "text", "text": "Image 1 (reference), then image 2 (new drawing)."},
+            judge_system(prop), [{"type": "text", "text": "Image 1 (reference), then image 2 (new drawing)."},
                      _image_part(OWL_REF), _image_part(path)],
             provider=provider, model=JUDGE_MODEL if provider == "openai" else None,
             temperature=0.0, max_tokens=200))
@@ -264,7 +275,7 @@ def main() -> None:
     topic = episode_topic(ep)
     prop = choose_prop(topic, provider=a.provider)
     print(f"[owl] giris/cixis karti: movzu esyasi = {prop}", flush=True)
-    cards = run_cards(ep, topic, gen, lambda p, n: judge_owl(p, a.provider), prop=prop)
+    cards = run_cards(ep, topic, gen, lambda p, n: judge_owl(p, a.provider, prop), prop=prop)
     with open(os.path.join(ep, REPORT), "w", encoding="utf-8") as f:
         json.dump({"scenes": report, "cards": cards}, f, indent=2, ensure_ascii=False)
     bad = sorted(int(n) for n, r in report.items() if not r["ok"])
