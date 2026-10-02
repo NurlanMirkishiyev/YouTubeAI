@@ -103,7 +103,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti (2026-10-03):** `Hazir_Videolar\why-9-99-feels-cheaper-than-10\` hazırdır — istifadəçi təsdiqi gözlənilir (təsdiqdə `forget_episode.py`). 294 test keçir.
+**Növbəti (2026-10-03):** açıq iş yoxdur — növbəti mövzunu gözlə. 294 test keçir (#42 kart əşyası, #43 SRT qiymət sayğacı, #44 musiqi daxili boşluğu).
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -305,10 +305,6 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
-
-### 2026-10-03 — `why-9-99-feels-cheaper-than-10` E2E (number_audit ilk tam run) HAZIRDIR, təsdiq gözləyir
-- 11.22 dəq, −14.3 LUFS, `final_video_problems` [], videoda sükut yoxdur; `math_check` [] + bütün hesablı cümlələr əl ilə yoxlandı (hamısı $0.01 fərq, düzgün); `bg_qa` 64 səhnə `duplicates: []`; owl 64/64 + kartlar ok.
-- Run zamanı 3 yeni problem tapıldı və kodda həll edildi: #42 kart bayquşu əşya (`39aa303`), #43 SRT qiymət sayğacı (`fe8ec0f`), #44 musiqidə daxili boşluq (`fefc7aa`). 294 test.
 
 ### 2026-10-02 — #40 hesab/rəqəm səhvləri fail-closed yoxlama, #41 429 gözləmə
 - `number_audit.py` (yeni), `math_check` sabit qaydaları + son hökm 2-ci qatda, `script_gen` SYSTEM qaydası, `llm.retry_after`
