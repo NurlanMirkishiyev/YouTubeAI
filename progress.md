@@ -311,12 +311,6 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 - 288 test keçir. Real: why-9-99 ssenarisi düzəldi ("$50 an hour for one hour each … $150 … more for four clients"), ~5 dəq
 - `Hazir_Videolar\` və `Episodes\why-9-99…` istifadəçi tərəfindən silindi (köhnə video səhvli idi); mövzu yeni sessiyada sıfırdan çəkiləcək
 
-### 2026-10-01 — E2E `why-9-99-feels-cheaper-than-10` HAZIRDIR (#38, #39)
-- 65 səhnə, 11.56 dəq, −14.2 LUFS, `final_video_problems=[]`, `math_check` [], `duplicates: []`, owl 65/65 + kartlar ok, sükut yoxdur
-- scene_plan 3 dəfə çökdü (#38) → filtr + `topic_pool` (28 mövzu + 9 generik ehtiyat fon); check_bgs [55,58] briefcase≈messenger bag → hovuzdan çıxarıldı; make_srt yalançı qapı (#39) → `spoken_words`
-- Kadrlar (giriş/çıxış kartı 6 kadr, 12 səhnə) + thumbnail vizual yoxlandı: bayquş sabit, sağda, mövzu əşyası (qiymət etiketi, yazısız); fonlarda yazı/insan/uşaqsayağı yox
-- Qeyd: 9 səhnə hələ generik ehtiyat fondadır (gəmi, mayak, lampa) — mövzu hovuzu 28/37 örtdü
-
 ### 2026-09-30 — video 10–12 dəq (#37); bayquş gpt-image-2 + magenta key (#36)
 - 253 test keçir; real: 'What Is Break-Even Point?' intro/outro + səhnə bayquşu gpt-image-2 ilə, fon silindi, hakimdən 1-ci cəhddə keçdi
 
