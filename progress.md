@@ -100,7 +100,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti:** #40 hesab yoxlaması hazırdır (2026-10-02, 288 test) — növbəti mövzunu gözlə. Köhnə: `why-9-99-feels-cheaper-than-10` (2026-10-01) videosunda #40 səhvi var, istifadəçi qərarı gözlənilir → təsdiqdə `forget_episode.py why-9-99-feels-cheaper-than-10` + bu videonun sətirlərini sil. 266 test keçir. #34–#37 ilk tam E2E-də təsdiqləndi: 11.56 dəq (1612 söz), `math_check` [], owl 65/65, kartlar ok.
+**Növbəti (2026-10-02):** yeni sessiyada **eyni mövzu sıfırdan**: `Video: Why $9.99 Feels Cheaper Than $10` (köhnə epizod və çatdırılmış video silinib, `Episodes\` və `Hazir_Videolar\` boşdur). Bu, #40 `number_audit`-in ilk tam E2E-sidir: bitəndə `math_check.json` [] + ssenaridəki hər hesablı cümləni özün də yoxla. 288 test keçir.
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -306,7 +306,7 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ### 2026-10-02 — #40 hesab/rəqəm səhvləri fail-closed yoxlama, #41 429 gözləmə
 - `number_audit.py` (yeni), `math_check` sabit qaydaları + son hökm 2-ci qatda, `script_gen` SYSTEM qaydası, `llm.retry_after`
 - 288 test keçir. Real: why-9-99 ssenarisi düzəldi ("$50 an hour for one hour each … $150 … more for four clients"), ~5 dəq
-- Qeyd: `Hazir_Videolar\` bu sessiya ərzində boşaldılıb (mən silməmişəm); `Episodes\why-9-99…` qalır
+- `Hazir_Videolar\` və `Episodes\why-9-99…` istifadəçi tərəfindən silindi (köhnə video səhvli idi); mövzu yeni sessiyada sıfırdan çəkiləcək
 
 ### 2026-10-01 — E2E `why-9-99-feels-cheaper-than-10` HAZIRDIR (#38, #39)
 - 65 səhnə, 11.56 dəq, −14.2 LUFS, `final_video_problems=[]`, `math_check` [], `duplicates: []`, owl 65/65 + kartlar ok, sükut yoxdur
