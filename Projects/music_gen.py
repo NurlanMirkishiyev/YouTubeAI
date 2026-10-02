@@ -12,9 +12,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import time
+from typing import Callable
 
 MODEL = "stabilityai/stable-audio-open-1.0"
 MODEL_FILES = ["model_index.json", "projection_model/*", "scheduler/*", "text_encoder/*", "tokenizer/*",
@@ -29,6 +31,11 @@ CLIP_TP = -1.5
 SILENCE_DB = -50
 TAIL_DB = -35  # klip sonu reverb quyrugu ile -50 dB-e qeder 4 s sonur - dovr noqtesinde desik olurdu
 END_FADE_S = 0.4
+# Reyestr #44 (2026-10-03): model klipin ORTASINDA da ~1 s pauza verir -> danisiq pauzasi ile tam sukut
+GAP_DB = -40
+GAP_S = 0.4
+MAX_TRIES = 3
+SEED_STEP = 1000
 NEGATIVE = "vocals, singing, speech, voice, low quality, distortion, noise, harsh, loud drums"
 STYLES = (
     "Light upbeat corporate background music, soft acoustic guitar, warm piano, gentle claps, positive, "
@@ -83,6 +90,43 @@ def crossfade_cmd(clips: list[str], out: str, fade: float) -> list[str]:
     return cmd + ["-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", out]
 
 
+def parse_gaps(log: str, track_s: float) -> list[tuple[float, float]]:
+    """silencedetect loqundan daxili bosluqlar; trekin sonundaki fade-out sayilmir."""
+    starts = [float(m) for m in re.findall(r"silence_start: ([\d.]+)", log)]
+    durs = [float(m) for m in re.findall(r"silence_duration: ([\d.]+)", log)]
+    return [(s, d) for s, d in zip(starts, durs) if s + d < track_s - 0.05]
+
+
+def track_gaps(path: str) -> list[tuple[float, float]]:
+    import soundfile as sf
+    log = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af",
+                          f"silencedetect=n={GAP_DB}dB:d={GAP_S}", "-f", "null", "-"],
+                         capture_output=True, text=True).stderr
+    return parse_gaps(log, sf.info(path).duration)
+
+
+def build_track(seed: int, out: str, make: Callable[[int, str], None],
+                gaps: Callable[[str], list[tuple[float, float]]]) -> int:
+    """Daxili bosluqsuz trek alinana qeder yeni seed ile (MAX_TRIES); alinmasa en az sukutlu qalir."""
+    best: tuple[float, str] | None = None
+    for i in range(MAX_TRIES):
+        tmp = f"{out}.try{i}.wav"
+        make(seed + i * SEED_STEP, tmp)
+        found = gaps(tmp)
+        total = sum(d for _, d in found)
+        print(f"[music] cehd {i + 1}: daxili bosluq {found or 'yoxdur'}", flush=True)
+        if best is None or total < best[0]:
+            if best:
+                os.remove(best[1])
+            best = (total, tmp)
+        else:
+            os.remove(tmp)
+        if not found:
+            break
+    os.replace(best[1], out)
+    return i + 1
+
+
 def model_dir() -> str:
     """Yalniz diffusers komponentleri (~5.3 GB). Repo id ile from_pretrained kokdeki lazimsiz
     4.8 GB model.safetensors-u da yukleyir (2026-09-27 olculdu), ona gore lokal qovluq verilir."""
@@ -124,10 +168,15 @@ def main() -> None:
     slug = os.path.basename(ep)
     parts_dir = os.path.join(ep, "music_parts")
     os.makedirs(parts_dir, exist_ok=True)
-    clips = generate(pick_prompts(slug, a.clips), _seed(slug), parts_dir)
-    subprocess.run(crossfade_cmd(clips, out, FADE_S), check=True)
+    prompts = pick_prompts(slug, a.clips)
+
+    def make(seed: int, path: str) -> None:
+        clips = generate(prompts, seed, parts_dir)
+        subprocess.run(crossfade_cmd(clips, path, FADE_S), check=True)
+
+    tries = build_track(_seed(slug), out, make, track_gaps)
     shutil.rmtree(parts_dir, ignore_errors=True)
-    print(f"[music] OK {track_seconds(len(clips), CLIP_S, FADE_S):.0f} s -> {out}")
+    print(f"[music] OK {track_seconds(a.clips, CLIP_S, FADE_S):.0f} s, {tries} cehd -> {out}")
 
 
 if __name__ == "__main__":
