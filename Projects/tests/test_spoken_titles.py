@@ -18,6 +18,10 @@ def test_no_backspace_characters_in_source():
     # Reyestr #28 ve 2026-10-04 (visuals.py): regex-de `\b` evezine 0x08 yazilmisdi - sessizce isleyirdi
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[2]
-    files = [*root.glob("Projects/*.py"), *root.glob("Projects/tests/*.py"), *root.glob("Remotion/src/**/*.ts*")]
-    bad = [str(f) for f in files if "\x08" in f.read_text(encoding="utf-8")]
+    # 2026-10-04: progress.md-de `Projects\forget` -> form feed (0x0C) da tapildi - butun idare simvollari + sened
+    import re
+    control = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f]")
+    files = [*root.glob("Projects/*.py"), *root.glob("Projects/tests/*.py"), *root.glob("Remotion/src/**/*.ts*"),
+             *root.glob("*.md"), *root.glob("docs/**/*.md")]
+    bad = [str(f) for f in files if control.search(f.read_text(encoding="utf-8"))]
     assert bad == []

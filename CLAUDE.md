@@ -1,7 +1,8 @@
 # CLAUDE.md — YouTubeAI (ELI5 Business video pipeline)
 
 ## Sessiyanın əvvəli (HƏMİŞƏ)
-1. `progress.md`-ni oxu ("Cari vəziyyət", "Növbəti dəqiq addım", "Problemlər reyestri").
+1. `progress.md`-ni oxu ("Cari vəziyyət", "Növbəti dəqiq addım", "Problemlər reyestri",
+   **"Təkrarlanmamalı yanlış yollar"** — oradakı səhvləri bu sessiyada təkrarlama).
 2. Açıq iş varsa ondan davam et; yoxdursa istifadəçinin mövzusunu gözlə.
 3. `progress.md` HƏR mərhələdən sonra yenilənir (tamamlanan iş → "İcra jurnalı", ən yenisi yuxarıda).
 
@@ -17,8 +18,15 @@
    - `math_check.json` → `"problems": []`;
    - `bg_qa.json` → `"duplicates": []`; kadrlarda uşaqsayağı görüntü (oyuncaq/cizgi fon) yoxdur;
    - musiqi dövr nöqtəsində sükut yoxdur (`silencedetect=n=-40dB:d=0.4`; ~0.4 s danışıq fasiləsi normaldır).
-5. `Hazir_Videolar\<slug>\` hazır olduğunu qısa bildir, `progress.md` jurnalına sətir yaz, commit et.
-6. **Təsdiq + yaddaşı silmə** (istifadəçi 2026-09-29): AskUserQuestion ilə soruş — "Video təsdiqlənsin və
+5. **Xəta qeydi — HƏR videoda, məcburi** (istifadəçi 2026-10-04: "hər yeni videoda qarşılaşdığın xətanı qeyd et ki
+   bir də təkrarlanmasın"). Run boyu rast gəlinən HƏR xəta — pipeline xətası, yanlış nəticə, retry, dayandırılmış run,
+   həm də mənim alət/əmr səhvlərim (yol, sed, encoding, kilid və s.) — video təhvil verilməzdən ƏVVƏL qeyd olunur:
+   - kod/nəticə xətası → `progress.md` "Problemlər reyestri"nə yeni # sətir + test (TDD) + kod düzəlişi;
+   - iş üsulu/alət səhvi → `progress.md` "Təkrarlanmamalı yanlış yollar" cədvəlinə sətir (nə + düzgün yol);
+   - ümumi dərs → yaddaş `youtube-repeat-mistakes.md`-yə bir sətir.
+   Xəta olmayıbsa jurnalda açıq yaz: "xəta yoxdur". Qeydsiz xəta = tapşırıq bitməyib.
+6. `Hazir_Videolar\<slug>\` hazır olduğunu qısa bildir (qeyd olunan xətalar daxil), `progress.md` jurnalına sətir yaz, commit et.
+7. **Təsdiq + yaddaşı silmə** (istifadəçi 2026-09-29): AskUserQuestion ilə soruş — "Video təsdiqlənsin və
    pipeline-dakı yaddaşı silinsin?". Təsdiqdə: `Projects\.venv\Scripts\python Projects\forget_episode.py <slug>`
    (`Episodes\<slug>\` + həmin epizodun `_run_*.log/.err` silinir; `Hazir_Videolar\<slug>\` QALIR), sonra
    `progress.md`-dən həmin videonun jurnal/vəziyyət sətirlərini sil (reyestrdəki ümumi kod düzəlişləri qalır), commit.

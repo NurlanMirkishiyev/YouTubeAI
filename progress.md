@@ -315,6 +315,10 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | Shell işçi qovluğu `Episodes\<slug>\` içində qalanda `forget_episode.py` | Windows qovluğu kilidləyir (WinError 32). Əvvəl `cd /c/YouTubeAI`. |
 | Windows ffmpeg-ə `/tmp/...` yolu vermək | Açılmır. Müvəqqəti fayllar scratchpad qovluğuna. |
 | Şərhdə/testdə ölçülməmiş rəqəmi fakt kimi yazmaq | Data dürüstlüyü pozulur. Ölçülməyibsə "ölçülməyib/ehtiyat" yaz. |
+| Skriptlə sənədə `\f` (məs. `Projects\forget`) yazmaq | Form feed (0x0C) olur — `progress.md`-də tapıldı. Guard test indi kod + `.md`-də bütün idarə simvollarını tutur. |
+
+**Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
+reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur".
 
 ---
 
@@ -343,7 +347,7 @@ E2E test videosu (break-even) təsdiqləndi, epizod yaddaşı silindi (2026-10-0
 
 ### 2026-09-29 gecə — təsdiq + yaddaş silmə mərhələsi
 - Köhnə pricing run-u (`--resume why-9-99-…`, check_bgs/render_bgs prosesləri) istifadəçi istəyi ilə dayandırıldı
-- Yeni: video hazır olandan sonra Claude AskUserQuestion ilə təsdiq istəyir; təsdiqdə `Projectsorget_episode.py <slug>` → `Episodes\<slug>\` + həmin epizodun `_run_*.log/.err` silinir (`Hazir_Videolar` qalır), progress.md-dən o videonun sətirləri çıxarılır (CLAUDE.md addım 6)
+- Yeni: video hazır olandan sonra Claude AskUserQuestion ilə təsdiq istəyir; təsdiqdə `Projects\forget_episode.py <slug>` → `Episodes\<slug>\` + həmin epizodun `_run_*.log/.err` silinir (`Hazir_Videolar` qalır), progress.md-dən o videonun sətirləri çıxarılır (CLAUDE.md addım 7; 2026-10-04-dən əvvəl 6 idi)
 - Kod başqa epizodların məlumatını oxumur (yoxlanıb) — silmədən sonra pipeline köhnə videonu "xatırlamır"
 - 196 test keçir (`test_forget_episode.py`)
 - İstifadəçi təsdiqi ilə 5 köhnə epizodun (cash-flow, profit-margin, same-business-after-ai, will-ai-replace, yarımçıq pricing) yaddaşı + `Temp\cashflow_*` silindi → `Episodes\` boşdur, pipeline təmiz başlayır
