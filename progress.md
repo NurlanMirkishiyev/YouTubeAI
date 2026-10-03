@@ -96,14 +96,18 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 42 | Çıxış kartı bayquşu mövzu əşyası (qiymət etiketi) əvəzinə kitab tutdu, hakim keçirdi; yenidən çəkiləndə "price tag with a dollar amount" 3 dəfə `text` ilə yıxıldı (why-9-99, 2026-10-03) | referans sprite kitab tutur, outro "tucked under the other arm" → model kitabı köçürür; kart hakimi əşyanı yoxlamırdı; LLM əşyası yazı nəzərdə tuturdu | kart pozunda əşya "instead of the book" + "(blank, with no writing or numbers)"; kart hakiminə `missing_prop` (`judge_system(prop)`); `test_card_owls.py` (3 test) |
 | 43 | `make_srt` qapısı yalan yerə yıxıldı: whisper 1659, skript 1776 söz (why-9-99, 2026-10-03) | #39 whisper-in qiyməti "9 dollars and 99 cents" yazdığını fərz edirdi; bu dəfə `$9 .99` (2 token) yazdı — format işdən-işə dəyişir | `whisper_word_count` whisper sözlərini skript formasına (`$9.99`, `$10`) gətirir, skript qiyməti 1 söz sayır; `test_price_topic.py::test_srt_gate_counts_prices_as_spoken` hər iki format |
 | 44 | Videoda 587 s-də 0.67 s tam sükut (why-9-99, 2026-10-03) | Stable Audio klipin ORTASINDA ~1 s pauza verdi (music.wav 142 s, −40 dB); #26 yalnız klip uclarını kəsirdi; danışıq pauzası ilə üst-üstə düşdü | `music_gen.build_track`: yekun trekdə daxili boşluq (`silencedetect −40 dB/0.4 s`, son fade sayılmır) varsa yeni seed ilə yenidən (3 cəhd), alınmasa ən az sükutlu qalır; `test_music_gen.py` (3 test) |
+| 45 | İstifadəçi (2026-10-03): **hər səhnədə mövzuya uyğun, məntiqli analitik Remotion animasiyası; şəkil sayı azalsın** — seçim: ~60% animasiya | hər səhnə yalnız foto + Ken Burns idi (~53 şəkil) | `visuals.py`: LLM hər səhnəyə chart spec (bars/line/compare/ring/equation/flow/timeline/counter/keypoints) + bal verir; **chart-dakı hər rəqəm (dəyər və etiket) həmin səhnənin danışığında deyilməlidir**, ring yalnız deyilmiş faiz, equation hesabı Python-da yoxlanır — keçməsə rəqəmsiz `keypoints`, o da olmasa foto (fail-closed); `choose_animated`: ~60%, ilk səhnə foto, ardıcıl ≤3 animasiya. `scene_plan` fonu yalnız foto səhnələrinə planlayır; `render_bgs`/`check_bgs`/`upscale_bgs`/`prepare_public` animasiya səhnəsini ötürür (köhnə fotosu silinir). Remotion `visuals/` (StudioBackdrop + 9 komponent), `reveal_frames`: element rəqəmi/etiketi səslənəndə açılır. Test: `test_visuals.py` |
+| 46 | Giriş kartı 1-ci, çıxış kartı son səhnənin fotosunu **təkrar** göstərirdi | `episode_props` `introBg/outroBg` = səhnə fonu | kartlar Remotion dizayn fonu (`StudioBackdrop`) ilə; `test_no_repeats.py::test_cards_do_not_reuse_scene_photos` |
+| 47 | İstifadəçi: **thumbnail daha keyfiyyətli olsun** (why-9-99: qiymət mövzusunda qəhvə qovurma maşını fonu, tək rəngli yazı, ümumi sprite) | fon səhnə fotolarının "ən kontrastlısı" idi | `thumbnail.py`: LLM `thumb_scene` → gpt-image-2 **high** 2 variant → gpt-4o hakimi (yazı/insan yox, ən cəlbedici); `cards.thumbnail`: sol tünd keçid, avtomatik ölçülü 2–3 sətir, açar söz (`thumb_highlight`) sarı, kontur + kölgə, brend nişanı, mövzu əşyalı `owl/intro.png` işıq halesi ilə; alınmasa köhnə yol. Model dəyişmədi (istifadəçi). Test: `test_thumbnail.py` |
+| 48 | İstifadəçi: yenə "eyni/təkrar şəkillər" | (#46-dan əlavə) CLIP namizəd pəncərəsi dar ola bilərdi — ölçülməyib | `DUP_SIM` 0.85 → 0.80 (hakim təsdiqi qalır); foto sayı ~60% azaldığı üçün təkrar ehtimalı da azalır |
 
-**Açıq qalan:** yoxdur.
+**Açıq qalan:** #45–#48 üçün E2E video yoxlaması.
 
 ---
 
 ## Növbəti dəqiq addım
 
-**Növbəti (2026-10-03):** açıq iş yoxdur — növbəti mövzunu gözlə. 294 test keçir (#42 kart əşyası, #43 SRT qiymət sayğacı, #44 musiqi daxili boşluğu).
+**Növbəti (2026-10-04):** #45–#48 kodda hazırdır (328 test). Növbəti: test mövzusu ilə tam E2E run → animasiya kadrları, təkrarsızlıq, thumbnail vizual yoxlaması. Plan: `docs/superpowers/plans/2026-10-03-analytics-animations.md`.
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -305,6 +309,11 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-03/04 — analitik animasiyalar (#45), kart təkrarı (#46), thumbnail (#47), dedupe (#48)
+İstifadəçi 5 tələb verdi; model dəyişikliyi rədd edildi ("olduğu kimi qalsın"), animasiya payı ~60%. Kod + 34 yeni test
+(328 keçir), Remotion `tsc` təmiz, 9 animasiya növünün kadrı render edilib vizual yoxlandı, real thumbnail probu
+(2 × gpt-image-2 high, ~72 s/şəkil) keçdi. E2E gözlənilir.
 
 ### 2026-10-02 — #40 hesab/rəqəm səhvləri fail-closed yoxlama, #41 429 gözləmə
 - `number_audit.py` (yeni), `math_check` sabit qaydaları + son hökm 2-ci qatda, `script_gen` SYSTEM qaydası, `llm.retry_after`

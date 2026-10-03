@@ -83,6 +83,12 @@ def test_clip_threshold_is_a_candidate_filter_below_real_repeats():
     assert bg_dedupe.DUP_SIM <= 0.85
 
 
+def test_clip_candidate_threshold_is_wide_enough_for_same_kind_objects():
+    # Reyestr #48 (2026-10-03): istifadeci yene "eyni/tekrar sekiller" gordu. Ehtiyat tedbiri: CLIP namized
+    # penceresi genislenir ki, ferqli gorunuslu eyni nov obyekt hakime catsin (dəqiq oxsarliq olculmeyib).
+    assert bg_dedupe.DUP_SIM <= 0.80
+
+
 def test_check_bgs_stage_fails_while_duplicates_remain(tmp_path):
     ctx = st.Ctx(topic="T", slug="t", ep_dir=str(tmp_path), words=1230, music=None,
                  min_seconds=480.0, max_seconds=600.0, provider="openai")

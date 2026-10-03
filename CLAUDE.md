@@ -43,6 +43,10 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
   3 baxışdan ≥2-si onu "verilmiş" və ya Python-da düzgün hesablanmış saymasa → fokuslu 2-ci baxış → abzas yenidən
   yazılır (bayraqsız rəqəmlər dəyişə bilməz) → yenə keçməsə cümlə rəqəmsiz yazılır/silinir. Yoxlanmamış hesab
   videoya düşmür. Test: `Projects/tests/test_number_audit.py`.
+- **Analitik animasiyalar** (2026-10-03): səhnələrin ~60%-i Remotion chart/diaqram (`visuals.py` + `Remotion/src/visuals/`),
+  qalanı foto. Chart-dakı HƏR rəqəm səhnə danışığında deyilməlidir (fail-closed). Giriş/çıxış kartı səhnə fotosunu
+  təkrar etmir. Thumbnail fonu ayrıca (gpt-image-2 high + hakim). Mətn modeli dəyişmir (gpt-4o-mini, istifadəçi qərarı).
+  Test: `test_visuals.py`, `test_thumbnail.py`.
 - Bayquş sabit (animasiya yox) — **giriş/çıxış kartında da** (2026-09-30): orada hər mövzuya ayrıca yaradılmış
   `owl/intro.png` (açılış) və `owl/outro.png` (qapanış, sağollaşır), eyni mövzu əşyası ilə. Test: `test_card_owls.py`.
 - Bayquş modeli **gpt-image-2** (istifadəçi 2026-09-30; başqa modelə keçmə). Şəffaf fon vermir → magenta fonda çəkilir,
