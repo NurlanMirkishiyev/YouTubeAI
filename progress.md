@@ -306,6 +306,15 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | `cmd.exe /c start /min run_comfyui.bat` (Git Bash-dan) | ComfyUI qalxmır. Birbaşa `.venv/Scripts/python.exe main.py ...` işə salınmalıdır. |
 | Heredoc `str.replace` ilə fayl düzəlişi | Səssiz uğursuz olur. `plan.md` və oxşar fayllar **Edit tool** ilə düzəldilməlidir. |
 | `build_episode.py`-da müddətləri XFADE ilə doldurmamaq | Narration-un sonu 14 s kəsilir. |
+| Heredoc/`python -c` daxilində `\b` yazmaq (2026-10-04, #28-in təkrarı) | Alət zəncirində 0x08 olur, regex səssizcə zəifləyir (`visuals.py` faiz/dollar, `progress.md`). Regex-i Edit/Write tool ilə yaz və ya `chr(92)+"b"`; `test_no_backspace_characters_in_source` tutur. |
+| `sed -i` əvəzində `\n` yazmaq | Git Bash sed literal `\n` qoyur, Python sintaksisi pozulur. Çoxsətirli düzəliş yalnız Edit tool ilə. |
+| LLM promptunda yer tutucu nümunə (`["..", ".."]`) | Model hərfən köçürür → videoda boş maddələr. Nümunə həmişə real dəyərlərlə; validator ≥3 hərf tələb edir (#49). |
+| Chart vahidini LLM-ə tapşırmaq | "$4" ekranda "4" çıxdı. Vahid danışıqdan deterministik (`visuals.unit_of`); +/− düsturda ortaq vahid. |
+| Animasiya seçimində növ/başlıq limiti olmamaq | 40-dan 22 keypoints, eyni başlıq 5 dəfə. `KEYPOINTS_SHARE` 0.3 + unikal başlıq. |
+| E2E-də `scene_plan`-dan sonra planı yoxlamadan gözləmək | Pullu mərhələlərə (gpt-image) pis planla keçilir. `scenes.json`-u dərhal yoxla (animasiya payı, növlər, boş mətn); pisdirsə prosesi dayandır, düzəlt, `--resume <slug> --from scene_plan`. |
+| Shell işçi qovluğu `Episodes\<slug>\` içində qalanda `forget_episode.py` | Windows qovluğu kilidləyir (WinError 32). Əvvəl `cd /c/YouTubeAI`. |
+| Windows ffmpeg-ə `/tmp/...` yolu vermək | Açılmır. Müvəqqəti fayllar scratchpad qovluğuna. |
+| Şərhdə/testdə ölçülməmiş rəqəmi fakt kimi yazmaq | Data dürüstlüyü pozulur. Ölçülməyibsə "ölçülməyib/ehtiyat" yaz. |
 
 ---
 
