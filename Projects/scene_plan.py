@@ -14,6 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from llm import LLMError, add_provider_arg, chat_json  # noqa: E402
+from visuals import plan_visuals  # noqa: E402
 
 SPRITES_JSON = r"C:\YouTubeAI\Character\ELI5_Owl\sprites\sprites.json"
 WPM = 199.0   # olculmus; hər halda add. 25-de gercek audio uzunlugu ile evez olunur
@@ -436,9 +437,18 @@ def topic_pool(topic: str, used_heroes: set[str], n: int, **llm_kw) -> list[str]
     return out
 
 
-def plan(scenes: list[dict], poses: list[str], topic: str = "", **llm_kw) -> list[dict]:
+def photo_repeats(prompts: list[str], subjects: list[str], photo: list[int]) -> list[int]:
+    """repeats() yalniz foto sehnelerinde (#45: animasiya sehnesinin fonu yoxdur) - indeksler umumi siradadir."""
+    return [photo[k] for k in repeats([prompts[i] for i in photo], [subjects[i] for i in photo])]
+
+
+def plan(scenes: list[dict], poses: list[str], topic: str = "", visuals: list[dict | None] | None = None,
+         **llm_kw) -> list[dict]:
     """Hisse-hisse planlanir (son movzular LLM-e verilir), sonra tekrarlar bir defe yeniden istenir,
-    qalanlar evvelce movzu hovuzundan, sonra tekrarsiz FALLBACK_POOL-dan alir. Pozlar tam beden."""
+    qalanlar evvelce movzu hovuzundan, sonra tekrarsiz FALLBACK_POOL-dan alir. Pozlar tam beden.
+    visuals[i] (spec) olan sehne analitik animasiyadir: fon promptu bos, yalniz bayqus plani qalir."""
+    visuals = visuals or [None] * len(scenes)
+    photo = [i for i, v in enumerate(visuals) if not v]
     missing = [p for p in VIDEO_POSES if p not in poses]
     if missing:
         raise LLMError(f"sprites.json-da poz yoxdur: {missing}")
@@ -457,8 +467,11 @@ def plan(scenes: list[dict], poses: list[str], topic: str = "", **llm_kw) -> lis
             subjects.append(sub)
             sprites.append(spr)
             actions.append(act)
+    for i, v in enumerate(visuals):
+        if v:
+            prompts[i], subjects[i] = "", ""
     for _ in range(RETRY_ROUNDS):
-        bad = repeats(prompts, subjects)
+        bad = photo_repeats(prompts, subjects, photo)
         if not bad:
             break
         print(f"  tekrar/bos fon: {len(bad)} sehne yeniden istenir")
@@ -470,9 +483,9 @@ def plan(scenes: list[dict], poses: list[str], topic: str = "", **llm_kw) -> lis
                     prompts[i], subjects[i], _, act = _fields(it)
                     actions[i] = act or actions[i]
     # Istifadeci (2026-09-28): tekrar kadr QETI olmasin - qalan butun tekrarlar ehtiyat fonla evez olunur
-    final = repeats(prompts, subjects)
+    final = photo_repeats(prompts, subjects, photo)
     print(f"  ehtiyat fon: {len(final)} (bos: {sum(prompts[i] == FALLBACK_BG for i in final)})")
-    kept = {hero(p) for j, p in enumerate(prompts) if j not in final}
+    kept = {hero(p) for j, p in enumerate(prompts) if j not in final and p}
     # Reyestr #38: evvelce movzuya aid tekrarsiz obyektler, generik hovuz (mayak, yelkenli) yalniz sonda
     pool = topic_pool(topic, kept, len(final) + TOPIC_POOL_SPARE, **llm_kw)[:len(final)] if topic and final else []
     kept |= {hero(p) for p in pool}
@@ -480,9 +493,10 @@ def plan(scenes: list[dict], poses: list[str], topic: str = "", **llm_kw) -> lis
     for k, (i, fb) in enumerate(zip(final, pool + pick_fallbacks(len(final) - len(pool), kept))):
         prompts[i], subjects[i] = fb, f"fallback {k}"
     out = []
-    for sc, bg, sub, spr, pos, act in zip(scenes, prompts, subjects, fit_poses(sprites), assign_positions(scenes),
-                                          actions):
+    for sc, bg, sub, spr, pos, act, vis in zip(scenes, prompts, subjects, fit_poses(sprites),
+                                               assign_positions(scenes), actions, visuals):
         out.append({**sc, "bg_prompt": bg, "subject": sub, "sprite": spr, "pos": pos, "owl_action": act,
+                    "visual": vis,
                     "sprite_token": f"{spr}@{pos}", "duration": duration_for(sc["narration"])})
     return out
 
@@ -515,9 +529,12 @@ def main() -> None:
         raise SystemExit("script.md-den sehne cixmadi")
     print(f"[23] {len(scenes)} sehne bolundu -> fon promptu + sprite secilir")
 
+    topic = episode_topic(a.episode_dir)
+    llm_kw = {"provider": a.provider, "model": a.model, "temperature": a.temperature}
     try:
-        planned = plan(scenes, poses, topic=episode_topic(a.episode_dir),
-                       provider=a.provider, model=a.model, temperature=a.temperature)
+        # #45: evvelce hansi sehnelerin animasiya olacagi - fon yalniz qalan foto sehnelerine planlanir
+        visuals = plan_visuals(scenes, topic, **llm_kw)
+        planned = plan(scenes, poses, topic=topic, visuals=visuals, **llm_kw)
     except LLMError as e:
         raise SystemExit("LLM xetasi: " + str(e)) from e
 

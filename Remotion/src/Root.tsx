@@ -9,7 +9,7 @@ const calculateMetadata: CalculateMetadataFunction<EpisodeProps> = ({props}) => 
 
 const empty: EpisodeProps = {
   fps: 30, topic: 'Preview', brand: 'ELI5 Business', audio: '', introFrames: 90, outroFrames: 90, introOwl: 'front', outroOwl: 'three_q',
-  introBg: '', outroBg: '', transitionFrames: 15, scenes: [], words: [], poses: {},
+  introBg: null, outroBg: null, transitionFrames: 15, scenes: [], words: [], poses: {},
 };
 
 export const RemotionRoot = () => (

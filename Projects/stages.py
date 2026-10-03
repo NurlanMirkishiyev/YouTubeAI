@@ -62,6 +62,15 @@ def numbered(ctx: Ctx, sub: str, ext: str = ".png") -> list[str]:
     return [ctx.p(sub, f"sc{i:02d}{ext}") for i in range(1, len(load_scenes(ctx)) + 1)]
 
 
+def photo_numbers(ctx: Ctx) -> list[int]:
+    """Foto fonu olan sehneler (1-esasli); qalanlari analitik animasiyadir (#45)."""
+    return [i for i, s in enumerate(load_scenes(ctx), 1) if not s.get("visual")]
+
+
+def photo_files(ctx: Ctx, sub: str, ext: str = ".png") -> list[str]:
+    return [ctx.p(sub, f"sc{n:02d}{ext}") for n in photo_numbers(ctx)]
+
+
 def all_exist(paths: list[str]) -> bool:
     return bool(paths) and all(os.path.isfile(p) for p in paths)
 
@@ -122,7 +131,7 @@ def verify_script(ctx: Ctx) -> list[str]:
 
 def verify_scenes(ctx: Ctx) -> list[str]:
     bad = [i for i, s in enumerate(load_scenes(ctx), 1)
-           if not (s.get("narration") and s.get("bg_prompt") and s.get("sprite_token"))]
+           if not (s.get("narration") and (s.get("bg_prompt") or s.get("visual")) and s.get("sprite_token"))]
     return [f"natamam sehneler: {bad}"] if bad else []
 
 
@@ -200,16 +209,16 @@ STAGES: tuple[Stage, ...] = (
           lambda c: os.path.isfile(c.p("scenes.json")), verify_scenes),
     # fonlar OpenAI gpt-image ile (ComfyUI lazim deyil)
     Stage("render_bgs", lambda c, f: _proj("render_bgs.py", c.ep_dir, force=f),
-          lambda c: all_exist(numbered(c, "bg")), lambda c: size_problems(numbered(c, "bg"), BG_MIN)),
+          lambda c: all_exist(photo_files(c, "bg")), lambda c: size_problems(photo_files(c, "bg"), BG_MIN)),
     # vision hakimi: yazi/insan/menasiz fonlari yeniden cekir (evvel el ile yoxlanirdi)
     Stage("check_bgs", lambda c, f: _proj("check_bgs.py", c.ep_dir, "--provider", c.provider, force=f),
           lambda c: os.path.isfile(c.p("bg_qa.json")),
-          lambda c: size_problems(numbered(c, "bg"), BG_MIN) + qa_problems(c)),
+          lambda c: size_problems(photo_files(c, "bg"), BG_MIN) + qa_problems(c)),
     # sehneye uygun bayqus (ChatGPT, referans sprite); pis/cekilmeyen sehnede kohne poz qalir
     Stage("render_owls", lambda c, f: _proj("render_owls.py", c.ep_dir, "--provider", c.provider, force=f),
           lambda c: os.path.isfile(c.p("owl_qa.json")), verify_owls),
     Stage("upscale_bgs", lambda c, f: _proj("upscale_bgs.py", c.ep_dir, force=f),
-          lambda c: all_exist(numbered(c, "bg_hd")), lambda c: size_problems(numbered(c, "bg_hd"), HD_MIN),
+          lambda c: all_exist(photo_files(c, "bg_hd")), lambda c: size_problems(photo_files(c, "bg_hd"), HD_MIN),
           needs_comfy=True),
     Stage("tts_gen",
           lambda c, f: [PY["tts"], os.path.join(PROJ, "tts_gen.py"), c.ep_dir] + (["--force"] if f else []),

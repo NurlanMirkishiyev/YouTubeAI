@@ -117,3 +117,15 @@ def test_parse_same_verdict_only_true_is_same():
     assert cb.parse_same({"same": True}) is True
     assert cb.parse_same({"same": False}) is False
     assert cb.parse_same({"same": "yes"}) is None and cb.parse_same({}) is None
+
+
+# Reyestr #46 (2026-10-03): giris karti 1-ci, cixis karti son sehnenin fotosunu tekrar gosterirdi
+def test_cards_do_not_reuse_scene_photos():
+    import remotion_build as rb
+    data = {"intro_seconds": 3.0, "outro_seconds": 5.0, "scenes": [
+        {"duration": 6.0, "sprite": "front", "pos": "right", "spoken_title": None},
+        {"duration": 6.0, "sprite": "front", "pos": "right", "spoken_title": None}]}
+    p = rb.episode_props(data, "T", [], {"front": (100, 200), "three_q": (100, 200)})
+    scene_bgs = {s["bg"] for s in p["scenes"]}
+    assert p["introBg"] is None and p["outroBg"] is None
+    assert not scene_bgs & {p["introBg"], p["outroBg"]}

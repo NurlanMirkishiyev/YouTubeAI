@@ -107,11 +107,12 @@ def render_one(scene: dict, dest: str, gen) -> None:
         crop_16x9(im.convert("RGB")).save(dest, compress_level=3)
 
 
-def prune_extra(folder: str, n_scenes: int) -> None:
-    """Sehne sayindan artiq scNN.png-ler silinir (plan yeniden qurulub qisalanda kohneler qalirdi)."""
+def prune_extra(folder: str, n_scenes: int, animated: set[int] = frozenset()) -> None:
+    """Sehne sayindan artiq scNN.png-ler silinir (plan yeniden qurulub qisalanda kohneler qalirdi).
+    #45: animasiya sehnesinin kohne fotosu da silinir - tekrar yoxlamasina ve videoya dusmesin."""
     for name in os.listdir(folder):
         m = re.fullmatch(r"sc(\d+)\.png", name)
-        if m and int(m[1]) > n_scenes:
+        if m and (int(m[1]) > n_scenes or int(m[1]) in animated):
             os.remove(os.path.join(folder, name))
 
 
@@ -142,16 +143,17 @@ def main() -> None:
         scenes = json.load(f)["scenes"]
     bg_dir = os.path.join(a.episode_dir, "bg")
     os.makedirs(bg_dir, exist_ok=True)
+    animated = {i + 1 for i, s in enumerate(scenes) if s.get("visual")}
     for folder in (bg_dir, os.path.join(a.episode_dir, "bg_hd")):
         if os.path.isdir(folder):
-            prune_extra(folder, len(scenes))
+            prune_extra(folder, len(scenes), animated)
 
     def dest(i: int) -> str:
         return os.path.join(bg_dir, f"sc{i + 1:02d}.png")
 
-    todo = [i for i in range(len(scenes))
-            if (not a.only or i + 1 in a.only) and (a.force or not os.path.isfile(dest(i)))]
-    print(f"[24] {len(todo)}/{len(scenes)} sehne cekilecek ({MODEL}/{QUALITY}) -> {bg_dir}", flush=True)
+    todo = [i for i in range(len(scenes)) if i + 1 not in animated
+            and (not a.only or i + 1 in a.only) and (a.force or not os.path.isfile(dest(i)))]
+    print(f"[24] {len(todo)}/{len(scenes) - len(animated)} foto sehne cekilecek ({MODEL}/{QUALITY}) -> {bg_dir}", flush=True)
 
     limiter = RateLimiter(IMAGES_PER_MIN)
 
@@ -173,7 +175,7 @@ def main() -> None:
     with ThreadPoolExecutor(WORKERS) as pool:
         errors = [e for e in pool.map(job, todo) if e]
     save_bg_paths(scenes_path, bg_dir)
-    missing = [i + 1 for i in range(len(scenes)) if not os.path.isfile(dest(i))]
+    missing = [i + 1 for i in range(len(scenes)) if i + 1 not in animated and not os.path.isfile(dest(i))]
     print(f"  bitdi {(time.time() - t0) / 60:.1f} deq;  catismayan: {missing or 'yoxdur'}", flush=True)
     if errors:
         for e in errors:

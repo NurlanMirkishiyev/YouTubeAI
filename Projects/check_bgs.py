@@ -286,6 +286,11 @@ def find_duplicates(ep: str, provider: str = DEFAULT_PROVIDER) -> dict:
     return res
 
 
+def photo_scene_numbers(scenes: list[dict]) -> list[int]:
+    """#45: analitik animasiya sehnelerinin fonu yoxdur - hakim yalniz foto sehnelerine baxir."""
+    return [n for n, s in enumerate(scenes, 1) if not s.get("visual")]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("episode_dir")
@@ -298,7 +303,7 @@ def main() -> None:
     report: dict[str, dict] = {}
     with open(scenes_path, encoding="utf-8") as f:
         first = json.load(f)["scenes"]
-    pending = list(range(1, len(first) + 1))
+    pending = photo_scene_numbers(first)
     tries: dict[int, int] = load_tries(ep, first)
     clean = False               # hakim + tekrar yoxlamasi temiz bitdi
     for rnd in range(1, MAX_ATTEMPTS + DEDUPE_ROUNDS + 1):

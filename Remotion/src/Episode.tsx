@@ -9,6 +9,7 @@ import {Captions} from './Captions';
 import {IntroCard, LowerThird, OutroCard} from './Cards';
 import './fonts';
 import {OwlLayer} from './Owl';
+import {AnalyticsScene} from './visuals/AnalyticsScene';
 import {EpisodeProps, Side} from './types';
 
 const LOWER_THIRD_S = 4;
@@ -37,7 +38,8 @@ export const Episode: React.FC<EpisodeProps> = (p) => {
     {key: 'intro', frames: p.introFrames, section: '__intro__',
       node: <IntroCard title={p.topic} brand={p.brand} bg={p.introBg} owl={p.poses[p.introOwl]} />},
     ...p.scenes.map((s, i) => ({key: `sc${i}`, frames: s.frames, section: s.side + (s.title ?? i),
-      node: <KenBurns src={s.bg} motion={s.motion} flip={s.flip} />})),
+      node: s.visual ? <AnalyticsScene visual={s.visual} reveal={s.reveal ?? []} />
+        : <KenBurns src={s.bg as string} motion={s.motion} flip={s.flip} />})),
     {key: 'outro', frames: p.outroFrames, section: '__outro__',
       node: <OutroCard brand={p.brand} bg={p.outroBg} owl={p.poses[p.outroOwl]} />},
   ];

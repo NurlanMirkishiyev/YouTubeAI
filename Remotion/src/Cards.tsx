@@ -4,6 +4,7 @@ import {KenBurns} from './Background';
 import {FONT} from './fonts';
 import {ACCENT, H} from './theme';
 import {OwlPose} from './types';
+import {StudioBackdrop} from './visuals/Studio';
 
 const FADE_IN = 8;
 const MAX_OWL_W = 470;     // basliq (sol 170 + maxWidth 1080) ~1300 px-e qeder gedir; 1920-150-470 = 1300
@@ -48,14 +49,14 @@ const Bar: React.FC<{delay: number}> = ({delay}) => {
   return <div style={{width: 14, height: 190 * sp, background: ACCENT, borderRadius: 7, marginRight: 36}} />;
 };
 
-export const IntroCard: React.FC<{title: string; brand: string; bg: string; owl?: OwlPose}> = (
+export const IntroCard: React.FC<{title: string; brand: string; bg: string | null; owl?: OwlPose}> = (
   {title, brand, bg, owl}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const brandIn = spring({frame, fps, delay: 18, config: {damping: 200}});
   return (
     <AbsoluteFill>
-      <KenBurns src={bg} motion="zoom_in" blur={12} dim={0.45} />
+      {bg ? <KenBurns src={bg} motion="zoom_in" blur={12} dim={0.45} /> : <StudioBackdrop />}
       <AbsoluteFill style={{flexDirection: 'row', alignItems: 'center', paddingLeft: 170}}>
         <Bar delay={2} />
         <div>
@@ -69,14 +70,14 @@ export const IntroCard: React.FC<{title: string; brand: string; bg: string; owl?
   );
 };
 
-export const OutroCard: React.FC<{brand: string; bg: string; owl?: OwlPose}> = ({brand, bg, owl}) => {
+export const OutroCard: React.FC<{brand: string; bg: string | null; owl?: OwlPose}> = ({brand, bg, owl}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const btn = spring({frame, fps, delay: 22, config: {damping: 11}});
   const pulse = 1 + 0.035 * Math.sin((2 * Math.PI * frame) / fps / 1.1);
   return (
     <AbsoluteFill>
-      <KenBurns src={bg} motion="zoom_out" blur={12} dim={0.5} />
+      {bg ? <KenBurns src={bg} motion="zoom_out" blur={12} dim={0.5} /> : <StudioBackdrop />}
       <AbsoluteFill style={{flexDirection: 'row', alignItems: 'center', paddingLeft: 170}}>
         <Bar delay={2} />
         <div>

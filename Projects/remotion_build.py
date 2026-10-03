@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -22,6 +23,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "_ffmpeg"))
 from audio_master import loudnorm_apply, measure, mix_graph  # noqa: E402
+from math_check import find_numbers  # noqa: E402
 
 REMOTION_DIR = r"C:\YouTubeAI\Remotion"
 SPRITE_DIR = r"C:\YouTubeAI\Character\ELI5_Owl\sprites_hd"
@@ -67,6 +69,70 @@ def compact_words(words: list[dict]) -> list[dict]:
     return out
 
 
+REVEAL_LEAD = 4        # element sozden bir az evvel acilir - goz qulaqdan qabaq getsin
+REVEAL_MIN = 12        # basliq evvel gorunsun
+REVEAL_TAIL = 20       # son element sehne bitmemis tam acilsin
+REVEAL_GAP = 6
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def visual_elements(v: dict) -> list[dict]:
+    """Chart-in ardicil acilan elementleri: {"value": reqem|None, "label": metn}."""
+    k = v.get("kind")
+    if k in ("bars", "line"):
+        return list(v.get("items" if k == "bars" else "points") or [])
+    if k == "compare":
+        return [v.get("left") or {}, v.get("right") or {}]
+    if k in ("ring", "counter"):
+        return [{"value": v.get("value"), "label": v.get("label", "")}]
+    if k == "equation":
+        return [*(v.get("terms") or []), v.get("result") or {}]
+    if k == "timeline":
+        return [{"label": e.get("label", "")} for e in v.get("events") or []]
+    return [{"label": t} for t in v.get("steps" if k == "flow" else "points") or []]
+
+
+def _cue(el: dict, words: list[dict], text: str, starts: list[int], after: int) -> int | None:
+    """Elementin deyeri (ve ya etiketinin esas sozu) seslenen ilk sozun indeksi (after-dan sonra)."""
+    val = el.get("value")
+    if isinstance(val, (int, float)):
+        for a, _, x in find_numbers(text):
+            i = max(k for k, st in enumerate(starts) if st <= a)
+            if i > after and abs(x - val) < 1e-6:
+                return i
+    keys = [t for t in _WORD.findall(str(el.get("label", "")).lower()) if len(t) >= 4]
+    if keys:
+        for i in range(after + 1, len(words)):
+            if keys[0] in _WORD.findall(words[i]["w"].lower()):
+                return i
+    return None
+
+
+def reveal_frames(v: dict, words: list[dict], start_s: float, frames: int, fps: int = FPS) -> list[int]:
+    """#45: her element hemin reqem/fikir seslenende acilir; tapilmasa beraber addimla. Sira qorunur."""
+    els = visual_elements(v)
+    n = len(els)
+    last = max(REVEAL_MIN, frames - REVEAL_TAIL)
+    step = min(1.2 * fps, (0.55 * frames - REVEAL_MIN) / max(1, n - 1))
+    out = [round(REVEAL_MIN + i * step) for i in range(n)]
+    scene = [w for w in words if start_s <= w["s"] < start_s + frames / fps]
+    starts, pos = [], 0
+    for w in scene:
+        starts.append(pos)
+        pos += len(w["w"]) + 1
+    text = " ".join(w["w"] for w in scene)
+    after = -1
+    for i, el in enumerate(els):
+        j = _cue(el, scene, text, starts, after) if scene else None
+        if j is not None:
+            out[i] = round((scene[j]["s"] - start_s) * fps) - REVEAL_LEAD
+            after = j
+    for i in range(n):
+        lo = REVEAL_MIN if i == 0 else out[i - 1] + REVEAL_GAP
+        out[i] = min(max(out[i], lo), last)
+    return out
+
+
 def pose_table(sizes: dict[str, tuple[int, int]]) -> dict[str, dict]:
     return {name: {"name": name, "w": w, "h": h, "height": POSE_HEIGHT.get(name, DEFAULT_HEIGHT),
                    "flippable": name not in NOT_FLIPPABLE} for name, (w, h) in sizes.items()}
@@ -82,12 +148,19 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
     scenes = data["scenes"]
     intro, outro = float(data["intro_seconds"]), float(data["outro_seconds"])
     frames = cumulative_frames([intro] + [float(s["duration"]) for s in scenes] + [outro])
+    cw = compact_words(words)
+    start = frames[0]
     out_scenes = []
     for i, (s, f) in enumerate(zip(scenes, frames[1:-1])):
         pose = s.get("sprite") if s.get("sprite") in VIDEO_POSES else FALLBACK_POSE
         if i + 1 in scene_owls:
             pose = f"sc{i + 1:02d}"
-        out_scenes.append({"frames": f, "bg": f"bg/sc{i + 1:02d}.jpg", "pose": pose,
+        visual = s.get("visual") or None
+        reveal = reveal_frames(visual, cw, start / FPS, f) if visual else []
+        start += f
+        out_scenes.append({"frames": f, "bg": None if visual else f"bg/sc{i + 1:02d}.jpg", "visual": visual,
+                           "reveal": reveal,
+                           "pose": pose,
                            # Bayqus hemise sagda sabit; fonu bos yeri solda qurulmus (kohne epizod)
                            # sehnelerde sekil guzgulenir - bos yer saga kecir, fonda yazi yoxdur
                            "side": "right", "flip": s.get("pos") == "left",
@@ -96,8 +169,9 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
             "introFrames": frames[0], "outroFrames": frames[-1],
             "introOwl": "intro" if "intro" in card_owls else "front",
             "outroOwl": "outro" if "outro" in card_owls else "three_q",
-            "introBg": out_scenes[0]["bg"], "outroBg": out_scenes[-1]["bg"],
-            "transitionFrames": TRANSITION_FRAMES, "scenes": out_scenes, "words": compact_words(words),
+            # #46: kartlar sehne fotosunu tekrar gostermir - Remotion dizayn fonu (StudioBackdrop) cekir
+            "introBg": None, "outroBg": None,
+            "transitionFrames": TRANSITION_FRAMES, "scenes": out_scenes, "words": cw,
             "poses": {**pose_table(sizes), **{
                 f"sc{n:02d}": {"name": f"sc{n:02d}", "w": w, "h": h, "height": DEFAULT_HEIGHT, "flippable": False}
                 for n, (w, h) in scene_owls.items()}, **{
@@ -133,12 +207,16 @@ def card_owl_sizes(ep: str) -> dict[str, tuple[int, int]]:
     return sizes
 
 
-def prepare_public(ep: str, n_scenes: int) -> str:
+def prepare_public(ep: str, n_scenes: int, animated: set[int] = frozenset()) -> str:
     pub = os.path.join(ep, "remotion")
     for sub in ("bg", "owl", "fonts"):
         os.makedirs(os.path.join(pub, sub), exist_ok=True)
     for i in range(1, n_scenes + 1):
         dest = os.path.join(pub, "bg", f"sc{i:02d}.jpg")
+        if i in animated:          # #45: analitik animasiya - foto yoxdur, kohne JPEG de qalmasin
+            if os.path.isfile(dest):
+                os.remove(dest)
+            continue
         src = next((p for p in (os.path.join(ep, "bg_hd", f"sc{i:02d}.png"), os.path.join(ep, "bg", f"sc{i:02d}.png"))
                     if os.path.isfile(p)), None)
         if src is None:
@@ -203,7 +281,8 @@ def main() -> None:
     if a.music and not os.path.isfile(a.music):
         raise SystemExit("musiqi tapilmadi: " + a.music)
 
-    pub = prepare_public(ep, len(data["scenes"]))
+    animated = {n for n, s in enumerate(data["scenes"], 1) if s.get("visual")}
+    pub = prepare_public(ep, len(data["scenes"]), animated)
     props = episode_props(data, topic, words, sprite_sizes(), scene_owl_sizes(ep, len(data["scenes"])),
                           card_owl_sizes(ep))
     props_path = os.path.join(ep, "remotion_props.json")

@@ -3,7 +3,9 @@ export type Motion = 'zoom_in' | 'zoom_out' | 'pan_lr' | 'pan_rl';
 
 export type Scene = {
   frames: number;          // gorunme muddeti (kecid ortusmesi daxil deyil)
-  bg: string;              // public-dir-e nisbi yol
+  bg: string | null;       // public-dir-e nisbi yol; analitik sehnede null
+  visual?: Visual | null;
+  reveal?: number[];       // visual elementlerinin acilma kadrlari
   pose: string;            // owl/<pose>.png
   side: Side;
   flip?: boolean;          // fonu guzgule: bos yer solda qurulub, bayqus ise hemise sagdadir
@@ -22,8 +24,8 @@ export type EpisodeProps = {
   outroFrames: number;
   introOwl: string;        // poses acari: movzu bayqusu 'intro' ve ya sprite 'front'
   outroOwl: string;        // 'outro' ve ya 'three_q'
-  introBg: string;
-  outroBg: string;
+  introBg: string | null;   // #46: null -> dizayn fonu (sehne fotosu tekrar olunmur)
+  outroBg: string | null;
   transitionFrames: number;
   scenes: Scene[];
   words: Word[];
@@ -31,3 +33,17 @@ export type EpisodeProps = {
 };
 
 export type OwlPose = {name: string; w: number; h: number; height: number; flippable: boolean};
+
+// #45: analitik animasiya spec-i (Projects/visuals.py yoxlayir); reveal = elementlerin acilma kadri (sehne basindan)
+export type Unit = '$' | '%' | '';
+export type Item = {label: string; value: number | null};
+export type Visual =
+  | {kind: 'bars'; title: string; unit: Unit; items: Item[]}
+  | {kind: 'line'; title: string; unit: Unit; points: Item[]}
+  | {kind: 'compare'; title: string; unit: Unit; left: Item & {note: string}; right: Item & {note: string}}
+  | {kind: 'ring'; title: string; value: number; label: string}
+  | {kind: 'equation'; title: string; unit: Unit; op: '+' | '-' | '×' | '÷'; terms: Item[]; result: Item}
+  | {kind: 'flow'; title: string; steps: string[]}
+  | {kind: 'timeline'; title: string; events: {label: string; when: string}[]}
+  | {kind: 'counter'; title: string; value: number; unit: Unit; label: string}
+  | {kind: 'keypoints'; title: string; points: string[]};
