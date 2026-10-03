@@ -17,6 +17,10 @@ from math_check import find_numbers
 KINDS = ("bars", "line", "compare", "ring", "equation", "flow", "timeline", "counter", "keypoints")
 ANIM_SHARE = 0.6                # istifadeci 2026-10-03: ~60% animasiya
 MAX_RUN = 3                     # ardicil en cox 3 animasiya - arada foto nefes verir
+# E2E break-even (2026-10-04): 40 animasiyanin 22-si keypoints idi - "analitik" gorunmurdu
+KEYPOINTS_SHARE = 0.3
+MIN_LETTERS = 3                 # LLM numuneni kocurub ".." yazirdi
+_LETTER = re.compile(r"[A-Za-z]")
 CHUNK = 12
 TITLE_MAX, LABEL_MAX, LINE_MAX = 40, 22, 32
 UNITS = ("$", "%", "")
@@ -49,7 +53,15 @@ a vivid object that a photo shows better)."""
 
 USER = """Video topic: {topic}
 
-Return JSON exactly: {{"scenes": [{{"n": 1, "score": 7, "visual": {{...}}, "points": ["..", ".."]}}]}}
+Prefer real analysis: bars, line, compare, ring, equation, counter whenever the scene has numbers or a
+comparison; flow or timeline for processes. Use keypoints only when nothing else fits. Every animation title
+must be different from all other titles in the video.
+
+Return JSON exactly, e.g.:
+{{"scenes": [{{"n": 1, "score": 8, "visual": {{"kind": "compare", "title": "Rent vs coffee beans",
+"unit": "", "left": {{"label": "Fixed cost", "value": null, "note": "Same every month"}},
+"right": {{"label": "Variable cost", "value": null, "note": "Grows with each cup"}}}},
+"points": ["Fixed costs stay put", "Variable costs follow sales"]}}]}}
 
 Scenes:
 {scenes}"""
@@ -84,7 +96,7 @@ def _said(value: float, narration: str, pool: list[float] | None = None) -> bool
 
 def _text_ok(s: str, limit: int, narration: str) -> bool:
     """Bos deyil, qisa, icindeki her reqem (soz ve ya reqem) danisiqda deyilib."""
-    return bool(s) and len(s) <= limit and all(_said(v, narration) for _, _, v in find_numbers(s))
+    return len(_LETTER.findall(s)) >= MIN_LETTERS and len(s) <= limit and all(_said(v, narration) for _, _, v in find_numbers(s))
 
 
 def _value_ok(v: object, narration: str, optional: bool = False) -> tuple[bool, float | None]:
@@ -210,16 +222,33 @@ def _run_ok(picked: set[int], i: int) -> bool:
     return hi - lo + 1 <= MAX_RUN
 
 
-def choose_animated(scores: list[float], share: float = ANIM_SHARE) -> set[int]:
+def _title_key(t: str) -> str:
+    return "".join(_WORDCH.findall(t.lower()))
+
+
+_WORDCH = re.compile(r"[a-z0-9]")
+
+
+def choose_animated(scores: list[float], share: float = ANIM_SHARE, kinds: list[str] | None = None,
+                    titles: list[str] | None = None) -> set[int]:
     """En yuksek balli sehneler (bal < 0 = kecerli spec yoxdur). Ilk sehne foto (intro-dan sonra canli kadr),
-    ardicil MAX_RUN-dan cox animasiya olmur."""
+    ardicil MAX_RUN-dan cox animasiya olmur, keypoints <= KEYPOINTS_SHARE, eyni basliq iki defe olmur."""
     want = round(share * len(scores))
+    kinds = kinds or [""] * len(scores)
+    titles = titles or [str(i) for i in range(len(scores))]
+    kp_cap = max(1, round(KEYPOINTS_SHARE * want))
     picked: set[int] = set()
+    seen: set[str] = set()
     for i in sorted(range(1, len(scores)), key=lambda k: (-scores[k], k)):
         if len(picked) >= want:
             break
-        if scores[i] >= 0 and _run_ok(picked | {i}, i):
-            picked.add(i)
+        key = _title_key(titles[i])
+        if scores[i] < 0 or not _run_ok(picked | {i}, i) or key in seen:
+            continue
+        if kinds[i] == "keypoints" and sum(1 for j in picked if kinds[j] == "keypoints") >= kp_cap:
+            continue
+        picked.add(i)
+        seen.add(key)
     return picked
 
 
@@ -259,7 +288,8 @@ def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, sha
             score, spec = _candidate(got.get(n) or {}, scenes[n - 1]["narration"])
             scores.append(score)
             specs.append(spec)
-    picked = choose_animated(scores, share)
+    picked = choose_animated(scores, share, kinds=[sp["kind"] if sp else "" for sp in specs],
+                             titles=[sp["title"] if sp else "" for sp in specs])
     print(f"  animasiya: {len(picked)}/{len(scenes)} sehne ("
           + ", ".join(f"{k}x{sum(1 for i in picked if specs[i]['kind'] == k)}" for k in KINDS
                       if any(specs[i]["kind"] == k for i in picked)) + ")", flush=True)

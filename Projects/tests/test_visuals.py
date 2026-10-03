@@ -234,3 +234,30 @@ def test_props_include_reveal_for_animated_scenes():
              {"word": " 40%", "start": 4.0, "end": 4.4}]
     p = rb.episode_props(data, "T", words, {"front": (100, 200), "three_q": (100, 200)})
     assert p["scenes"][0]["reveal"] == [30 - rb.REVEAL_LEAD]
+
+
+# --- E2E break-even (2026-10-04): LLM numuneni kocurdu ["..", ".."], 40 animasiyanin 22-si keypoints idi,
+#     "Common Mistakes" basligi 5 defe tekrarlandi -----------------------------------------------------
+
+def test_placeholder_text_is_rejected():
+    assert validate_visual({"kind": "keypoints", "title": "Break-Even Point", "points": ["..", ".."]}, NARR) is None
+    assert to_keypoints({"title": "Break-Even", "points": ["..", "...", "-"]}, NARR) is None
+    assert validate_visual({"kind": "flow", "title": "..", "steps": ["Plan it", "Build it", "Ship it"]}, NARR) is None
+
+
+def test_keypoints_are_capped_and_titles_never_repeat():
+    from visuals import KEYPOINTS_SHARE
+    n = 20
+    scores = [0.0] + [9.0] * (n - 1)
+    kinds = ["photo"] + ["keypoints"] * (n - 1)
+    titles = [""] + [f"T{k}" for k in range(1, n)]
+    picked = choose_animated(scores, 0.6, kinds=kinds, titles=titles)
+    assert len(picked) <= round(KEYPOINTS_SHARE * round(0.6 * n)) + 1
+    picked = choose_animated([0.0, 9, 9, 9, 9], 1.0, kinds=["photo", "bars"] * 2 + ["flow"],
+                             titles=["", "Common Mistakes", "common mistakes", "Costs", "Costs!"])
+    assert picked == {1, 3}
+
+
+def test_prompt_example_has_no_placeholder_points():
+    from visuals import USER
+    assert '".."' not in USER
