@@ -102,13 +102,13 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 49 | E2E break-even (2026-10-04): chart-da `".."` maddələri, 40 animasiyanın 22-si keypoints, "Common Mistakes" başlığı 5 dəfə; "$4" ekranda "4"; `%`/dollar regex-ində `` əvəzinə 0x08 (ring faiz yoxlaması səssizcə zəif idi) | LLM promptdakı `["..",".."]` nümunəsini köçürdü; seçimdə növ/başlıq nəzarəti yox idi; vahidi LLM verirdi | mətn ≥3 hərf, nümunə real; keypoints ≤30%, eyni başlıq bir dəfə; vahid hər elementə danışıqdan (`unit_of`), +/− düsturda ortaq vahid; mənbədə 0x08 tutan test (`test_spoken_titles.py`) |
 | 48 | İstifadəçi: yenə "eyni/təkrar şəkillər" | (#46-dan əlavə) CLIP namizəd pəncərəsi dar ola bilərdi — ölçülməyib | `DUP_SIM` 0.85 → 0.80 (hakim təsdiqi qalır); foto sayı ~60% azaldığı üçün təkrar ehtimalı da azalır |
 
-**Açıq qalan:** `what-is-a-break-even-point` istifadəçi təsdiqi.
+**Açıq qalan:** yoxdur.
 
 ---
 
 ## Növbəti dəqiq addım
 
-**Növbəti (2026-10-04):** #45–#49 hazırdır (334 test), E2E `what-is-a-break-even-point` yığıldı → istifadəçi təsdiqi + yaddaş silmə (CLAUDE.md addım 6). Plan: `docs/superpowers/plans/2026-10-03-analytics-animations.md`.
+**Növbəti (2026-10-04):** açıq iş yoxdur — növbəti mövzunu gözlə. 334 test keçir (#45 analitik animasiyalar ~57–60%, #46 kart təkrarı, #47 thumbnail, #48 dedupe, #49 chart mətn/vahid).
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -315,10 +315,7 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 İstifadəçi 5 tələb verdi; model dəyişikliyi rədd edildi ("olduğu kimi qalsın"), animasiya payı ~60%. Kod + 34 yeni test
 (328 keçir), Remotion `tsc` təmiz, 9 animasiya növünün kadrı render edilib vizual yoxlandı, real thumbnail probu
 (2 × gpt-image-2 high, ~72 s/şəkil) keçdi.
-**E2E `what-is-a-break-even-point`:** 67 səhnə → 38 animasiya (57%) + **29 foto** (əvvəl hər səhnəyə foto). check_bgs:
-CLIP 34 namizəd, hakim **6 təkrar cütü təsdiqlədi** (sc7/10/13/60, sc18/23) → yenidən çəkildi → `duplicates: []`.
-owl 66/66, kartlar ok, `math_check` [], 10.24 dəq, −14.3 LUFS, tək sükut 0.42 s (danışıq). İlk run-da #49 tapıldı
-(run dayandırıldı, düzəldildi, `--from scene_plan`), sonra vahid düzəlişi ilə `--from build_episode` yenidən yığıldı.
+E2E test videosu (break-even) təsdiqləndi, epizod yaddaşı silindi (2026-10-04).
 
 ### 2026-10-02 — #40 hesab/rəqəm səhvləri fail-closed yoxlama, #41 429 gözləmə
 - `number_audit.py` (yeni), `math_check` sabit qaydaları + son hökm 2-ci qatda, `script_gen` SYSTEM qaydası, `llm.retry_after`
