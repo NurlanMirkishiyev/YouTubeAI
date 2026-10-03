@@ -99,15 +99,16 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 45 | İstifadəçi (2026-10-03): **hər səhnədə mövzuya uyğun, məntiqli analitik Remotion animasiyası; şəkil sayı azalsın** — seçim: ~60% animasiya | hər səhnə yalnız foto + Ken Burns idi (~53 şəkil) | `visuals.py`: LLM hər səhnəyə chart spec (bars/line/compare/ring/equation/flow/timeline/counter/keypoints) + bal verir; **chart-dakı hər rəqəm (dəyər və etiket) həmin səhnənin danışığında deyilməlidir**, ring yalnız deyilmiş faiz, equation hesabı Python-da yoxlanır — keçməsə rəqəmsiz `keypoints`, o da olmasa foto (fail-closed); `choose_animated`: ~60%, ilk səhnə foto, ardıcıl ≤3 animasiya. `scene_plan` fonu yalnız foto səhnələrinə planlayır; `render_bgs`/`check_bgs`/`upscale_bgs`/`prepare_public` animasiya səhnəsini ötürür (köhnə fotosu silinir). Remotion `visuals/` (StudioBackdrop + 9 komponent), `reveal_frames`: element rəqəmi/etiketi səslənəndə açılır. Test: `test_visuals.py` |
 | 46 | Giriş kartı 1-ci, çıxış kartı son səhnənin fotosunu **təkrar** göstərirdi | `episode_props` `introBg/outroBg` = səhnə fonu | kartlar Remotion dizayn fonu (`StudioBackdrop`) ilə; `test_no_repeats.py::test_cards_do_not_reuse_scene_photos` |
 | 47 | İstifadəçi: **thumbnail daha keyfiyyətli olsun** (why-9-99: qiymət mövzusunda qəhvə qovurma maşını fonu, tək rəngli yazı, ümumi sprite) | fon səhnə fotolarının "ən kontrastlısı" idi | `thumbnail.py`: LLM `thumb_scene` → gpt-image-2 **high** 2 variant → gpt-4o hakimi (yazı/insan yox, ən cəlbedici); `cards.thumbnail`: sol tünd keçid, avtomatik ölçülü 2–3 sətir, açar söz (`thumb_highlight`) sarı, kontur + kölgə, brend nişanı, mövzu əşyalı `owl/intro.png` işıq halesi ilə; alınmasa köhnə yol. Model dəyişmədi (istifadəçi). Test: `test_thumbnail.py` |
+| 49 | E2E break-even (2026-10-04): chart-da `".."` maddələri, 40 animasiyanın 22-si keypoints, "Common Mistakes" başlığı 5 dəfə; "$4" ekranda "4"; `%`/dollar regex-ində `` əvəzinə 0x08 (ring faiz yoxlaması səssizcə zəif idi) | LLM promptdakı `["..",".."]` nümunəsini köçürdü; seçimdə növ/başlıq nəzarəti yox idi; vahidi LLM verirdi | mətn ≥3 hərf, nümunə real; keypoints ≤30%, eyni başlıq bir dəfə; vahid hər elementə danışıqdan (`unit_of`), +/− düsturda ortaq vahid; mənbədə 0x08 tutan test (`test_spoken_titles.py`) |
 | 48 | İstifadəçi: yenə "eyni/təkrar şəkillər" | (#46-dan əlavə) CLIP namizəd pəncərəsi dar ola bilərdi — ölçülməyib | `DUP_SIM` 0.85 → 0.80 (hakim təsdiqi qalır); foto sayı ~60% azaldığı üçün təkrar ehtimalı da azalır |
 
-**Açıq qalan:** #45–#48 üçün E2E video yoxlaması.
+**Açıq qalan:** `what-is-a-break-even-point` istifadəçi təsdiqi.
 
 ---
 
 ## Növbəti dəqiq addım
 
-**Növbəti (2026-10-04):** #45–#48 kodda hazırdır (328 test). Növbəti: test mövzusu ilə tam E2E run → animasiya kadrları, təkrarsızlıq, thumbnail vizual yoxlaması. Plan: `docs/superpowers/plans/2026-10-03-analytics-animations.md`.
+**Növbəti (2026-10-04):** #45–#49 hazırdır (334 test), E2E `what-is-a-break-even-point` yığıldı → istifadəçi təsdiqi + yaddaş silmə (CLAUDE.md addım 6). Plan: `docs/superpowers/plans/2026-10-03-analytics-animations.md`.
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -313,7 +314,11 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 ### 2026-10-03/04 — analitik animasiyalar (#45), kart təkrarı (#46), thumbnail (#47), dedupe (#48)
 İstifadəçi 5 tələb verdi; model dəyişikliyi rədd edildi ("olduğu kimi qalsın"), animasiya payı ~60%. Kod + 34 yeni test
 (328 keçir), Remotion `tsc` təmiz, 9 animasiya növünün kadrı render edilib vizual yoxlandı, real thumbnail probu
-(2 × gpt-image-2 high, ~72 s/şəkil) keçdi. E2E gözlənilir.
+(2 × gpt-image-2 high, ~72 s/şəkil) keçdi.
+**E2E `what-is-a-break-even-point`:** 67 səhnə → 38 animasiya (57%) + **29 foto** (əvvəl hər səhnəyə foto). check_bgs:
+CLIP 34 namizəd, hakim **6 təkrar cütü təsdiqlədi** (sc7/10/13/60, sc18/23) → yenidən çəkildi → `duplicates: []`.
+owl 66/66, kartlar ok, `math_check` [], 10.24 dəq, −14.3 LUFS, tək sükut 0.42 s (danışıq). İlk run-da #49 tapıldı
+(run dayandırıldı, düzəldildi, `--from scene_plan`), sonra vahid düzəlişi ilə `--from build_episode` yenidən yığıldı.
 
 ### 2026-10-02 — #40 hesab/rəqəm səhvləri fail-closed yoxlama, #41 429 gözləmə
 - `number_audit.py` (yeni), `math_check` sabit qaydaları + son hökm 2-ci qatda, `script_gen` SYSTEM qaydası, `llm.retry_after`
