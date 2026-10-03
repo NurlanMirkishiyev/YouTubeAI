@@ -12,3 +12,12 @@ def test_hook_section_gets_no_title_but_other_sections_do():
 def test_hook_variants_are_skipped_but_hooked_words_are_not():
     assert spoken_titles([{"section": "Hook: Carnival"}]) == [None]
     assert spoken_titles([{"section": "Hooked on Nines"}]) == ["Hooked on Nines"]
+
+
+def test_no_backspace_characters_in_source():
+    # Reyestr #28 ve 2026-10-04 (visuals.py): regex-de `\b` evezine 0x08 yazilmisdi - sessizce isleyirdi
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[2]
+    files = [*root.glob("Projects/*.py"), *root.glob("Projects/tests/*.py"), *root.glob("Remotion/src/**/*.ts*")]
+    bad = [str(f) for f in files if "\x08" in f.read_text(encoding="utf-8")]
+    assert bad == []

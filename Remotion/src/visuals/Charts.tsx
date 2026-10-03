@@ -29,7 +29,7 @@ const Bar: React.FC<{item: Item; unit: Unit; delay: number; width: number; heigh
   return (
     <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width, position: 'relative'}}>
       <div style={{fontSize: 52, fontWeight: 800, color, marginBottom: 14, ...rise(p, 20)}}>
-        {item.value !== null ? <Count value={item.value} unit={unit} delay={delay} /> : null}
+        {item.value !== null ? <Count value={item.value} unit={item.unit ?? unit} delay={delay} /> : null}
       </div>
       <div style={{width, height: Math.max(6, height * p), borderRadius: '18px 18px 6px 6px',
         background: `linear-gradient(180deg, ${color} 0%, ${color}99 100%)`,
@@ -92,7 +92,7 @@ const LinePoint: React.FC<{item: Item; unit: Unit; x: number; y: number; labelY:
         background: C.accent, border: '5px solid #111A30', transform: `scale(${p})`}} />
       {item.value !== null ? (
         <div style={{position: 'absolute', left: x - 120, width: 240, top: y - 78, textAlign: 'center',
-          fontSize: 40, fontWeight: 800, ...rise(p, 16)}}>{fmt(item.value, unit)}</div>) : null}
+          fontSize: 40, fontWeight: 800, ...rise(p, 16)}}>{fmt(item.value, item.unit ?? unit)}</div>) : null}
       <div style={{position: 'absolute', left: x - 120, width: 240, top: labelY, textAlign: 'center', fontSize: 30,
         fontWeight: 600, color: C.muted, opacity: p}}>{item.label}</div>
     </>

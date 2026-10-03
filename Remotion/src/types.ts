@@ -36,7 +36,7 @@ export type OwlPose = {name: string; w: number; h: number; height: number; flipp
 
 // #45: analitik animasiya spec-i (Projects/visuals.py yoxlayir); reveal = elementlerin acilma kadri (sehne basindan)
 export type Unit = '$' | '%' | '';
-export type Item = {label: string; value: number | null};
+export type Item = {label: string; value: number | null; unit?: Unit};   // unit: danisiqdan ($4, 40%)
 export type Visual =
   | {kind: 'bars'; title: string; unit: Unit; items: Item[]}
   | {kind: 'line'; title: string; unit: Unit; points: Item[]}

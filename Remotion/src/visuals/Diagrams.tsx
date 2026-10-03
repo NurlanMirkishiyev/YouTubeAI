@@ -25,7 +25,7 @@ export const Compare: React.FC<{left: Item & {note: string}; right: Item & {note
       justifyContent: 'center'}}>
       <div style={{fontSize: 40, fontWeight: 800, color: accent ? C.accent : C.teal}}>{it.label}</div>
       {it.value !== null ? (
-        <div style={{fontSize: 96, fontWeight: 800, marginTop: 10}}><Count value={it.value} unit={unit} delay={d} /></div>
+        <div style={{fontSize: 96, fontWeight: 800, marginTop: 10}}><Count value={it.value} unit={it.unit ?? unit} delay={d} /></div>
       ) : null}
       {it.note ? <div style={{fontSize: 32, fontWeight: 600, color: C.muted, marginTop: 14}}>{it.note}</div> : null}
     </Card>
@@ -76,7 +76,7 @@ const Term: React.FC<{item: Item; unit: Unit; delay: number; width: number; acce
       <div style={{fontSize: item.value !== null ? 34 : 46, fontWeight: 800, color: accent ? C.accent : C.text}}>
         {item.label}</div>
       {item.value !== null ? (
-        <div style={{fontSize: 66, fontWeight: 800, marginTop: 8}}><Count value={item.value} unit={unit} delay={delay} /></div>
+        <div style={{fontSize: 66, fontWeight: 800, marginTop: 8}}><Count value={item.value} unit={item.unit ?? unit} delay={delay} /></div>
       ) : null}
     </Card>
   );

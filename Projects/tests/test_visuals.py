@@ -261,3 +261,25 @@ def test_keypoints_are_capped_and_titles_never_repeat():
 def test_prompt_example_has_no_placeholder_points():
     from visuals import USER
     assert '".."' not in USER
+
+
+# E2E break-even: "Selling Price 4" - danisiqda "four dollars" idi, ekranda "$" yox idi; "100 cups x $2" qarisiq vahid
+def test_each_item_gets_its_unit_from_the_narration():
+    narr = "If you sell a hundred cups at two dollars each, your costs are two hundred dollars, a 40% margin."
+    v = {"kind": "equation", "title": "Total costs", "op": "×", "unit": "",
+         "terms": [{"label": "Cups sold", "value": 100}, {"label": "Cost per cup", "value": 2}],
+         "result": {"label": "Total cost", "value": 200}}
+    out = validate_visual(v, narr)
+    assert [t["unit"] for t in out["terms"]] == ["", "$"] and out["result"]["unit"] == "$"
+    c = validate_visual({"kind": "counter", "title": "Margin", "value": 40, "unit": "", "label": "margin"}, narr)
+    assert c["unit"] == "%"
+
+
+def test_addition_and_subtraction_share_one_unit():
+    # E2E break-even sc35: "Four hundred minus two hundred equals two hundred dollars" - hamisi dollardir
+    narr = "Four hundred minus two hundred equals two hundred dollars in profit."
+    v = {"kind": "equation", "title": "Profit", "op": "-",
+         "terms": [{"label": "Revenue", "value": 400}, {"label": "Costs", "value": 200}],
+         "result": {"label": "Profit", "value": 200}}
+    out = validate_visual(v, narr)
+    assert [t["unit"] for t in out["terms"]] == ["$", "$"] and out["result"]["unit"] == "$"

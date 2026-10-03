@@ -81,12 +81,30 @@ def grounded_values(narration: str) -> list[float]:
     return [v for _, _, v in find_numbers(narration)]
 
 
-_PERCENT_AFTER = re.compile(r"\s*(?:%|per\s?cent)", re.I)
+_PERCENT_AFTER = re.compile(r"\s*(?:%|per\s?cent\b)", re.I)
 
 
 def percent_values(narration: str) -> list[float]:
     """Yalniz faiz kimi deyilen reqemler ("40%", "forty percent") - ring bunlardan biri olmalidir."""
     return [v for _, end, v in find_numbers(narration) if _PERCENT_AFTER.match(narration, end)]
+
+
+_MONEY_AFTER = re.compile(r"\s*(?:dollars?|bucks?)\b", re.I)
+
+
+def unit_of(value: float, narration: str) -> str:
+    """Reqemin danisiqdaki vahidi: "$4" / "four dollars" -> "$", "40%" / "forty percent" -> "%", qalan "".
+    E2E break-even: chart-a vahidi LLM verirdi - "four dollars" ekranda "4" idi, "100 cups" ise "$100" ola bilerdi."""
+    for start, end, v in find_numbers(narration):
+        if not math.isclose(v, value, rel_tol=1e-9, abs_tol=1e-6):
+            continue
+        span = narration[start:end].lower()
+        money = "dollar" in span or "cent" in span or _MONEY_AFTER.match(narration, end)
+        if narration[max(0, start - 1):start] == "$" or money:
+            return "$"
+        if _PERCENT_AFTER.match(narration, end):
+            return "%"
+    return ""                   # hec bir deyilisde vahid yoxdur (eyni reqem bir yerde vahidli ola biler)
 
 
 def _said(value: float, narration: str, pool: list[float] | None = None) -> bool:
@@ -117,7 +135,7 @@ def _labelled(items: object, lo: int, hi: int, narration: str, optional: bool = 
         ok, val = _value_ok(it.get("value"), narration, optional)
         if not ok or not _text_ok(label, LABEL_MAX, narration):
             return None
-        out.append({"label": label, "value": val})
+        out.append({"label": label, "value": val, "unit": unit_of(val, narration) if val is not None else ""})
     return out
 
 
@@ -144,7 +162,7 @@ def _side(d: object, narration: str) -> dict | None:
     ok, val = _value_ok(d.get("value"), narration, optional=True)
     if not ok or not _text_ok(label, LABEL_MAX, narration) or (note and not _text_ok(note, LINE_MAX, narration)):
         return None
-    return {"label": label, "value": val, "note": note}
+    return {"label": label, "value": val, "note": note, "unit": unit_of(val, narration) if val is not None else ""}
 
 
 def _build(kind: str, v: dict, narration: str) -> dict | None:
@@ -164,7 +182,8 @@ def _build(kind: str, v: dict, narration: str) -> dict | None:
     if kind == "counter":
         ok, val = _value_ok(v.get("value"), narration)
         label = _text(v.get("label"))
-        return {"value": val, "unit": unit, "label": label} if ok and _text_ok(label, LABEL_MAX, narration) else None
+        good = ok and _text_ok(label, LABEL_MAX, narration)
+        return {"value": val, "unit": unit_of(val, narration), "label": label} if good else None
     if kind == "equation":
         op = OPS.get(_text(v.get("op")))
         terms = _labelled(v.get("terms"), *LIMITS["equation"], narration, optional=True)
@@ -174,7 +193,12 @@ def _build(kind: str, v: dict, narration: str) -> dict | None:
         vals = [t["value"] for t in terms]
         if None not in vals and result[0]["value"] is not None and not _arith_ok(op, vals, result[0]["value"]):
             return None
-        return {"op": op, "terms": terms, "result": result[0], "unit": unit}
+        res = result[0]
+        if op in "+-":          # toplama/cixmada butun hedler eyni vahiddedir ("400 - 200 = 200 dollars")
+            shared = next((x["unit"] for x in (*terms, res) if x["unit"]), "")
+            terms = [{**t, "unit": shared if t["value"] is not None else ""} for t in terms]
+            res = {**res, "unit": shared if res["value"] is not None else ""}
+        return {"op": op, "terms": terms, "result": res, "unit": unit}
     if kind == "timeline":
         ev = v.get("events")
         if not isinstance(ev, list) or not LIMITS["timeline"][0] <= len(ev) <= LIMITS["timeline"][1]:
