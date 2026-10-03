@@ -15,6 +15,7 @@ from PIL import Image, ImageStat
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cards  # noqa: E402
+import thumbnail  # noqa: E402
 from llm import LLMError, add_provider_arg, chat_json  # noqa: E402
 from timeline import INTRO_S, OUTRO_S, display_title, section_starts  # noqa: E402
 
@@ -44,7 +45,10 @@ Return JSON only:
   "summary": "two or three sentences: what the viewer will understand after watching",
   "tags": ["12 to 15 search tags, lowercase, 1-4 words each"],
   "hashtags": ["three hashtags without spaces"],
-  "thumb_text": "3 to 5 punchy words for the thumbnail"}}"""
+  "thumb_text": "3 to 5 punchy words for the thumbnail that create curiosity",
+  "thumb_highlight": "the ONE most important word of thumb_text, copied exactly",
+  "thumb_scene": "one striking realistic photo idea for the thumbnail background, 10-20 words: ONE large real
+    object or place that captures the topic, dramatic light; no text, signs, screens, price tags, people or animals"}}"""
 
 
 def fmt_ts(sec: float) -> str:
@@ -159,7 +163,14 @@ def pack_problems(ydir: str) -> list[str]:
     return problems
 
 
-def write_pack(ep: str, topic: str, data: dict, chaps: list[tuple[float, str]], credit: str = "") -> str:
+def thumb_owl(ep: str) -> str:
+    """Movzu esyali giris bayqusu (render_owls.run_cards); yoxdursa umumi sprite."""
+    own = os.path.join(ep, "owl", "intro.png")
+    return own if os.path.isfile(own) else os.path.join(SPRITE_HD, "confident.png")
+
+
+def write_pack(ep: str, topic: str, data: dict, chaps: list[tuple[float, str]], credit: str = "",
+               make_bg=thumbnail.make_background) -> str:
     ydir = os.path.join(ep, "youtube")
     os.makedirs(ydir, exist_ok=True)
     titles = data.get("titles") or []
@@ -173,8 +184,10 @@ def write_pack(ep: str, topic: str, data: dict, chaps: list[tuple[float, str]], 
             f.write(text)
     bgs = sorted(glob.glob(os.path.join(ep, "bg_hd", "sc*.png"))) or \
         sorted(glob.glob(os.path.join(ep, "bg", "sc*.png")))
-    cards.thumbnail(pick_thumb_bg(bgs), os.path.join(SPRITE_HD, "confident.png"),
-                    str(data.get("thumb_text") or topic), os.path.join(ydir, "thumbnail.png"))
+    # #47: ayrica cekilmis movzu fonu; alinmasa en kontrastli sehne fotosu, o da yoxdursa dizayn fonu
+    bg = make_bg(str(data.get("thumb_scene") or topic), ydir) or (pick_thumb_bg(bgs) if bgs else None)
+    cards.thumbnail(bg, thumb_owl(ep), str(data.get("thumb_text") or topic), os.path.join(ydir, "thumbnail.png"),
+                    highlight=str(data.get("thumb_highlight") or ""))
     return ydir
 
 
