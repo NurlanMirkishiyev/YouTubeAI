@@ -335,3 +335,15 @@ def test_plan_visuals_re_asks_scenes_the_llm_skipped():
 
     plan_visuals(scenes, "Why prices", chat=fake_chat, share=ANIM_SHARE)
     assert asked[1] == [3, 4, 5]
+
+
+def test_first_element_never_waits_until_the_end_of_the_scene():
+    # why-9-99 2026-10-05 sc53: "Cents" yalniz sonda ("those cents add up") seslendi -> chart 346/410 kadra
+    # qeder bos idi (ekranda yalniz basliq)
+    import remotion_build as rb
+    eq = {"kind": "equation", "terms": [{"label": "Cents"}, {"label": "Budget"}], "result": {"label": "Total Impact"}}
+    words = _w("one common mistake is assuming a price difference of one cent does not matter it feels "
+               "reasonable because it is small but when you are budgeting those cents add up", 0.0, step=0.42)
+    r = rb.reveal_frames(eq, words, 0.0, 410)
+    assert r[0] <= round(rb.FIRST_REVEAL_MAX * 410)
+    assert r == sorted(r) and r[-1] <= 410 - rb.REVEAL_TAIL

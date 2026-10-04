@@ -73,6 +73,7 @@ REVEAL_LEAD = 4        # element sozden bir az evvel acilir - goz qulaqdan qabaq
 REVEAL_MIN = 12        # basliq evvel gorunsun
 REVEAL_TAIL = 20       # son element sehne bitmemis tam acilsin
 REVEAL_GAP = 6
+FIRST_REVEAL_MAX = 0.35  # ilk element sehnenin en gec 35%-inde (why-9-99 sc53: chart 84% bos idi)
 _WORD = re.compile(r"[a-z0-9]+")
 
 
@@ -127,6 +128,8 @@ def reveal_frames(v: dict, words: list[dict], start_s: float, frames: int, fps: 
         if j is not None:
             out[i] = round((scene[j]["s"] - start_s) * fps) - REVEAL_LEAD
             after = j
+    if out:
+        out[0] = min(out[0], round(FIRST_REVEAL_MAX * frames))
     for i in range(n):
         lo = REVEAL_MIN if i == 0 else out[i - 1] + REVEAL_GAP
         out[i] = min(max(out[i], lo), last)
