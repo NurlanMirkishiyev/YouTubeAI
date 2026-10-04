@@ -38,6 +38,21 @@ def _sentences(para: str) -> list[tuple[int, str]]:
     return out
 
 
+def _price_ending(sent: str, start: int) -> bool:
+    """'those .99 prices' - qiymet sonlugu etiketidir (oncesinde reqem yoxdur), hesab iddiasi deyil."""
+    return start > 0 and sent[start - 1] == "." and not sent[start - 2:start - 1].isdigit()
+
+
+_PRONOUN_BEFORE = re.compile(r"\b(?:the|this|that|which|another|each|any)\s+$", re.I)
+_UNIT_AFTER = re.compile(r"\s*(?:-\s*)?(?:cents?|dollars?|bucks?|percent|per\s?cent|%)", re.I)
+
+
+def _pronoun_one(sent: str, start: int, end: int) -> bool:
+    """'but the one priced at $9.99' - 'one' evezlikdir; 'that one cent difference' ise mebleqdir."""
+    return (sent[start:end].lower() == "one" and bool(_PRONOUN_BEFORE.search(sent[:start]))
+            and not _UNIT_AFTER.match(sent, end))
+
+
 def _number_text(body: str, start: int, end: int) -> str:
     if start > 0 and body[start - 1] == "$":
         start -= 1
@@ -76,6 +91,8 @@ def marked_sections(markdown: str) -> list[dict]:
         for pi, para in enumerate(sec["paras"]):
             for s_off, sent in _sentences(para):
                 for start, end, value in mc.find_numbers(sent):
+                    if _price_ending(sent, start) or _pronoun_one(sent, start, end):
+                        continue
                     n += 1
                     text = _number_text(sent, start, end)
                     t_end = s_off + start - (1 if text.startswith("$") else 0) + len(text)
@@ -165,13 +182,15 @@ def _vote_raw(num: dict, ans: dict | None) -> tuple[str, float | None, str]:
 
 
 def judge(sections: list[dict], passes: list[dict]) -> list[dict]:
-    """Reqem yalniz cogunluq onu tesdiq edende kecir; sehv deyeri ancaq cogunluq eyni duzgun deyeri tapanda verilir."""
+    """Reqem yalniz cogunluq onu tesdiq edende VE hec bir baxis onu hesabla tekzib etmeyende kecir;
+    sehv deyeri ancaq cogunluq eyni duzgun deyeri tapanda verilir."""
     need = len(passes) // 2 + 1
     problems = []
     for sec in sections:
         for num in sec["numbers"]:
             votes = [_vote(num, p.get(num["n"])) for p in passes]
-            if sum(v[0] == "ok" for v in votes) >= need:
+            # Python-da subut olunmus sehv ('wrong') "given" ses coxlugu ile ortulmur (why-9-99 'just a dollar')
+            if sum(v[0] == "ok" for v in votes) >= need and not any(v[0] == "wrong" for v in votes):
                 continue
             correct, reason = None, next((v[2] for v in votes if v[0] != "ok"), "tesdiq olunmadi")
             for kind, val, why in votes:
@@ -286,6 +305,8 @@ For EVERY marker return its role:
   formula with digits and + - * / ( ) only, built from those earlier numbers, that computes it.
   Never copy the stated result into the formula. Money is in dollars (forty cents -> 0.40).
   A percentage is part / whole (a three dollar fee on a twenty dollar sale is a loss of 3 / 20).
+  An amount saved, paid more or less, or a gap between two prices is a "result" even when it is said
+  casually ("saving money, even if it's just a dollar" after $9.99 and $10 -> "10 - 9.99").
 - "missing": presented as a result, but the earlier text does not state every input needed
   (for example a total for clients paid per hour when the hours are never stated), or no formula
   from the earlier numbers gives it.
@@ -301,6 +322,8 @@ numbers). For each one decide carefully:
 - "given" if it is a premise (price, fee, count, rate, assumption) or repeats a number said earlier;
 - "result" if it follows from numbers stated EARLIER - then give "expr" with digits and + - * / ( ) only,
   built from those earlier numbers (a percentage is part / whole: a 3 dollar fee on 20 dollars -> 3 / 20);
+  an amount saved or a gap between two prices is a "result" even when said casually
+  ("even if it's just a dollar" after $9.99 and $10 -> "10 - 9.99");
 - "missing" only if the earlier text really does not contain every input needed.
 Return JSON only: {{"numbers": [{{"n": "G", "role": "result", "expr": "3 / 20"}}]}}
 

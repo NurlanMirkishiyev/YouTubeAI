@@ -73,6 +73,8 @@ def _run(toks: list[str], i: int) -> tuple[float, int] | None:
         d = _digit(t)
         if d is not None and not seen:
             current, seen = d, True
+        elif t in TENS and seen and 0 < current < 10 and toks[i - 1] in UNITS:
+            break   # "nine ninety-nine" = 9.99 (find_numbers qiymet kimi birlesdirir), 108 deyil
         elif t in UNITS or t in TENS:
             current += UNITS.get(t, 0) + TENS.get(t, 0)
             seen = True
@@ -84,6 +86,8 @@ def _run(toks: list[str], i: int) -> tuple[float, int] | None:
             current, seen = 0.0, True
         elif t == "a" and not seen and nxt in ("hundred", *SCALES):
             current = 1
+        elif t == "a" and not seen and nxt in ("dollar", "cent"):
+            return 1.0, i + 1   # "just a dollar" / "a cent" - mebleg iddiasidir, audit gormelidir
         elif t == "and" and seen and _is_num_word(nxt) and toks[i - 1] in ("hundred", *SCALES):
             pass
         elif t == "point" and seen and (nxt in UNITS or (nxt[:1].isdigit())):
@@ -119,7 +123,15 @@ def find_numbers(text: str) -> list[tuple[int, int, float]]:
         value, j = got
         start, end = tk[i][1], tk[j - 1][2]
         nxt = words[j] if j < len(words) else ""
-        if nxt in ("dollar", "dollars") and j + 2 < len(words) and words[j + 1] == "and":
+        if nxt in TENS and words[j - 1] in UNITS:   # "nine ninety-nine" -> 9.99
+            cents = _run(words, j)
+            value += cents[0] / 100
+            end = tk[cents[1] - 1][2]
+            j = cents[1]
+        elif words[i] == "a" and nxt == "dollar":   # "just a dollar" -> 1 (soz de reqem metnine daxil)
+            end = tk[j][2]
+            j += 1
+        elif nxt in ("dollar", "dollars") and j + 2 < len(words) and words[j + 1] == "and":
             cents = _run(words, j + 2)
             if cents and cents[1] < len(words) and words[cents[1]] in ("cent", "cents"):
                 value += cents[0] / 100
@@ -258,7 +270,8 @@ def _check_one(s: dict, it: dict) -> dict | None:
         targets.append(correct / 100)      # ifade sentle, iddia dollarla (40 - 20 -> 0.20)
     if any(abs(claimed - t) <= max(tol * abs(t), 0.005) for t in targets):
         return None
-    best = targets[-1] if len(targets) > 1 and abs(correct) < 1 else correct
+    in_cents = "cent" in claimed_text.lower()   # 'a dollar' vs '10 - 9.99' -> 0.01, 0.0001 deyil
+    best = targets[-1] if len(targets) > 1 and abs(correct) < 1 and in_cents else correct
     return _problem(s, f"'{claimed_text}' = {claimed:g}, amma {expr} = {best:g}",
                     expr=expr, claimed=claimed, correct=best)
 

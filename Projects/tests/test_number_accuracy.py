@@ -25,6 +25,9 @@ Fees matter.
     ("one thousand two hundred", 1200), ("$1,200", 1200), ("$39.99", 39.99), ("12%", 12),
     ("two point five", 2.5), ("three-dollar", 3), ("twenty-five", 25), ("six hundred dollars", 600),
     ("half", 0.5), ("1.5 million", 1_500_000),
+    # why-9-99 2026-10-04: "saving money, even if it's just a dollar" (fark 1 sent) audit-e dusmurdu,
+    # "nine ninety-nine" 108 oxunurdu
+    ("a dollar", 1), ("a cent", 0.01), ("nine ninety-nine", 9.99), ("four ninety-nine", 4.99),
 ])
 def test_parse_number_reads_spoken_and_digit_forms(text, value):
     assert mc.parse_number(text) == pytest.approx(value)

@@ -112,6 +112,44 @@ def test_majority_agreeing_on_correct_value_gives_the_fix_value():
     assert len(probs) == 1 and probs[0]["correct"] == pytest.approx(160)
 
 
+def test_one_pass_proving_a_number_wrong_beats_two_given_votes():
+    """Real hal (why-9-99, 2026-10-04): "nine ninety-nine ... ten dollars ... saving money, even if it's just
+    a dollar" - 1 baxis '10 - 9.99' verdi (1 deyil), 2 baxis 'given' -> reqem kecirdi. Python-da subut
+    olunmus sehv ses coxlugu ile ortulmur (fokuslu 2-ci baxisa gedir)."""
+    md = ("## Section 1: X\n\nA shirt costs nine ninety-nine instead of ten dollars. "
+          "You feel like you are saving money, even if it's just a dollar.\n")
+    assert _find(md, "a dollar")["value"] == 1
+    proof = _given_all(md, **{"a dollar": {"role": "result", "expr": "10 - 9.99"}})
+    probs = na.judge(na.marked_sections(md), [_given_all(md), proof, _given_all(md)])
+    assert {p["text"] for p in probs} == {"a dollar"}
+
+
+def test_dollar_gap_fix_value_is_not_divided_into_cents():
+    """Real: 'just a dollar' vs '10 - 9.99' duzgun deyer 0.0001 cixdi (sent cevirmesi) - 0.01 olmalidir."""
+    md = ("## Section 1: X\n\nA shirt costs nine ninety-nine instead of ten dollars, that one cent matters. "
+          "You feel like you are saving money, even if it's just a dollar.\n")
+    kind, correct, _ = na._vote(_find(md, "a dollar"), {"role": "result", "expr": "10 - 9.99"})
+    assert kind == "wrong" and correct == pytest.approx(0.01)
+
+
+def test_price_ending_label_is_not_a_number_claim():
+    """Real: 'those .99 prices feel cheaper' - '.99' qiymet sonlugu etiketidir, '99' kimi audit olunurdu."""
+    md = "## Section 1: X\n\nYou will see why those .99 prices feel cheaper. A pen costs $2.99 today.\n"
+    assert [n["text"] for n in _nums(md)] == ["$2.99"]
+
+
+def test_pronoun_one_is_not_a_number_but_one_cent_is():
+    """Real: 'but the one priced at nine ninety-nine feels like a better deal' - 'one' evezlikdir."""
+    md = ("## Section 1: X\n\nBoth shirts look the same, but the one priced at $9.99 sells more. "
+          "That one cent difference matters. Which one would you pick?\n")
+    assert [n["text"] for n in _nums(md)] == ["$9.99", "one cent"]
+
+
+def test_extract_prompt_treats_casual_savings_as_results():
+    """Real olcu: 3 baxisdan 2-si 'just a dollar' qenaetini 'given' saydi -> prompt bunu acik deyir."""
+    assert "just a dollar" in na.EXTRACT_USER and "just a dollar" in na.FOCUS_USER
+
+
 def test_number_no_pass_answered_is_a_problem():
     probs = na.judge(na.marked_sections(GOOD), [{}, {}, {}])
     assert len(probs) == len(_nums(GOOD))
