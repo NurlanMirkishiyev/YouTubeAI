@@ -285,10 +285,16 @@ def _candidate(item: dict, narration: str) -> tuple[float, dict | None]:
     return ((score if score is not None else 0.0) if spec else -1.0), spec
 
 
-def _ask(scenes: list[dict], numbers: list[int], topic: str, chat: Callable, llm_kw: dict) -> dict[int, dict]:
+# why-9-99 (2026-10-04): mucerred movzuda LLM 68 sehneden 33-e keypoints verdi -> limitden sonra pay 37%
+NO_KEYPOINTS = ("\n\nDo NOT use keypoints for these scenes: choose flow, compare, timeline or equation "
+                "(value null when the narration says no number).")
+
+
+def _ask(scenes: list[dict], numbers: list[int], topic: str, chat: Callable, llm_kw: dict,
+         note: str = "") -> dict[int, dict]:
     listing = "\n".join(f"{n}. [{scenes[n - 1]['section']}] {scenes[n - 1]['narration']}" for n in numbers)
     try:
-        data = chat(SYSTEM, USER.format(topic=topic, scenes=listing), max_tokens=4000, **llm_kw)
+        data = chat(SYSTEM, USER.format(topic=topic, scenes=listing) + note, max_tokens=4000, **llm_kw)
     except LLMError as e:
         print(f"  animasiya plani xetasi: {str(e)[:120]} - bu sehneler foto qalir", flush=True)
         return {}
@@ -301,20 +307,41 @@ def _ask(scenes: list[dict], numbers: list[int], topic: str, chat: Callable, llm
     return out
 
 
+def _ask_all(scenes: list[dict], numbers: list[int], topic: str, chat: Callable, llm_kw: dict,
+             note: str = "") -> dict[int, dict]:
+    """CHUNK-larla sorusur; LLM-in buraxdigi sehneler bir defe yeniden sorusulur (why-9-99: 64-68 bos qaldi)."""
+    got: dict[int, dict] = {}
+    for start in range(0, len(numbers), CHUNK):
+        part = numbers[start:start + CHUNK]
+        got.update(_ask(scenes, part, topic, chat, llm_kw, note))
+        missing = [n for n in part if n not in got]
+        if missing:
+            got.update(_ask(scenes, missing, topic, chat, llm_kw, note))
+    return got
+
+
+def _pick(scores: list[float], specs: list[dict | None], share: float) -> set[int]:
+    return choose_animated(scores, share, kinds=[sp["kind"] if sp else "" for sp in specs],
+                           titles=[sp["title"] if sp else "" for sp in specs])
+
+
 def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, share: float = ANIM_SHARE,
                  **llm_kw) -> list[dict | None]:
-    """Her sehne ucun animasiya spec-i ve ya None (foto)."""
-    scores: list[float] = []
-    specs: list[dict | None] = []
-    for start in range(0, len(scenes), CHUNK):
-        numbers = list(range(start + 1, min(len(scenes), start + CHUNK) + 1))
-        got = _ask(scenes, numbers, topic, chat, llm_kw)
-        for n in numbers:
-            score, spec = _candidate(got.get(n) or {}, scenes[n - 1]["narration"])
-            scores.append(score)
-            specs.append(spec)
-    picked = choose_animated(scores, share, kinds=[sp["kind"] if sp else "" for sp in specs],
-                             titles=[sp["title"] if sp else "" for sp in specs])
+    """Her sehne ucun animasiya spec-i ve ya None (foto). Pay catmasa keypoints/kecmeyen sehneler
+    keypoints-siz yeniden sorusulur."""
+    got = _ask_all(scenes, list(range(1, len(scenes) + 1)), topic, chat, llm_kw)
+    pairs = [_candidate(got.get(n) or {}, scenes[n - 1]["narration"]) for n in range(1, len(scenes) + 1)]
+    scores, specs = [p[0] for p in pairs], [p[1] for p in pairs]
+    picked = _pick(scores, specs, share)
+    if len(picked) < round(share * len(scenes)):
+        retry = [i + 1 for i in range(1, len(scenes))
+                 if i not in picked and (specs[i] is None or specs[i]["kind"] == "keypoints")]
+        more = _ask_all(scenes, retry, topic, chat, llm_kw, NO_KEYPOINTS) if retry else {}
+        for n in retry:
+            score, spec = _candidate(more.get(n) or {}, scenes[n - 1]["narration"])
+            if spec and spec["kind"] != "keypoints":
+                scores[n - 1], specs[n - 1] = score, spec
+        picked = _pick(scores, specs, share)
     print(f"  animasiya: {len(picked)}/{len(scenes)} sehne ("
           + ", ".join(f"{k}x{sum(1 for i in picked if specs[i]['kind'] == k)}" for k in KINDS
                       if any(specs[i]["kind"] == k for i in picked)) + ")", flush=True)

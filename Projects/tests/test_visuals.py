@@ -294,3 +294,44 @@ def test_bare_word_one_does_not_ground_a_chart_number():
     assert validate_visual(v, narr) is None
     ok = validate_visual({**v, "value": 0.01}, narr)
     assert ok is not None and ok["unit"] == "$"
+
+
+def _numbered(user):
+    import re as _re
+    return [int(n) for n in _re.findall(r"(?m)^(\d+)\. \[", user)]
+
+
+def test_plan_visuals_asks_again_without_keypoints_when_share_is_short():
+    # why-9-99 2026-10-04: LLM 68 sehneden 33-e keypoints verdi, limit 12 -> pay 37% (hedef ~60%)
+    scenes = [{"section": "S", "narration": f"Shoppers react to price endings in situation {w}."}
+              for w in "abcdefghij"]
+    calls = []
+
+    def fake_chat(system, user, **kw):
+        calls.append(user)
+        if "Do NOT use keypoints" in user:
+            return {"scenes": [{"n": n, "score": 6, "visual": {"kind": "flow", "title": f"Reaction path {chr(64 + n)}",
+                    "steps": ["See the price", "Feel the deal", "Decide to buy"]}} for n in _numbered(user)]}
+        return {"scenes": [{"n": n, "score": 5, "visual": {"kind": "keypoints", "title": f"Idea {chr(64 + n)}",
+                "points": ["Price endings matter", "Shoppers react"]}} for n in _numbered(user)]}
+
+    out = plan_visuals(scenes, "Why prices", chat=fake_chat, share=ANIM_SHARE)
+    assert sum(v is not None for v in out) == round(ANIM_SHARE * len(scenes))
+    assert any("Do NOT use keypoints" in u for u in calls)
+
+
+def test_plan_visuals_re_asks_scenes_the_llm_skipped():
+    # why-9-99: son hisse 61-68-de LLM 64-68-i qaytarmadi -> hamisi foto qaldi
+    scenes = [{"section": "S", "narration": f"Retail stores track how buyers respond in case {w}."}
+              for w in "abcde"]
+    asked = []
+
+    def fake_chat(system, user, **kw):
+        nums = _numbered(user)
+        asked.append(nums)
+        keep = nums[:2] if len(asked) == 1 else nums
+        return {"scenes": [{"n": n, "score": 6, "visual": {"kind": "flow", "title": f"Buyer path {chr(64 + n)}",
+                "steps": ["Notice price", "Compare options", "Make a choice"]}} for n in keep]}
+
+    plan_visuals(scenes, "Why prices", chat=fake_chat, share=ANIM_SHARE)
+    assert asked[1] == [3, 4, 5]
