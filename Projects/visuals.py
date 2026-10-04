@@ -78,7 +78,8 @@ def _num(v: object) -> float | None:
 
 
 def grounded_values(narration: str) -> list[float]:
-    return [v for _, _, v in find_numbers(narration)]
+    """Tek 'one' sozu chart reqemini esaslandirmir ("One common mistake ... one cent" -> counter '1' kecirdi)."""
+    return [v for s, e, v in find_numbers(narration) if narration[s:e].lower() != "one"]
 
 
 _PERCENT_AFTER = re.compile(r"\s*(?:%|per\s?cent\b)", re.I)

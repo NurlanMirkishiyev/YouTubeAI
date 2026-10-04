@@ -283,3 +283,14 @@ def test_addition_and_subtraction_share_one_unit():
          "result": {"label": "Profit", "value": 200}}
     out = validate_visual(v, narr)
     assert [t["unit"] for t in out["terms"]] == ["$", "$"] and out["result"]["unit"] == "$"
+
+
+def test_bare_word_one_does_not_ground_a_chart_number():
+    # why-9-99 2026-10-04 sc53: "One common mistake ... a price difference of one cent" -> counter "1"
+    # (vahidsiz) kecirdi; ferq 0.01-dir, "One" ise sadece "bir sehv"
+    narr = ("One common mistake is assuming that a price difference of one cent doesn't matter. "
+            "But when you're budgeting, those cents add up.")
+    v = {"kind": "counter", "title": "Cents Add Up", "value": 1.0, "unit": "", "label": "Price difference"}
+    assert validate_visual(v, narr) is None
+    ok = validate_visual({**v, "value": 0.01}, narr)
+    assert ok is not None and ok["unit"] == "$"
