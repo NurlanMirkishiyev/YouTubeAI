@@ -112,7 +112,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti (2026-10-04):** açıq iş yoxdur — növbəti mövzunu gözlə. 334 test keçir (#45 analitik animasiyalar ~57–60%, #46 kart təkrarı, #47 thumbnail, #48 dedupe, #49 chart mətn/vahid).
+**Növbəti (2026-10-05):** `why-9-99-feels-cheaper-than-10` hazırdır, istifadəçi təsdiqi gözlənilir (addım 7). 347 test keçir (#50–#53 əlavə).
+**Əvvəlki (2026-10-04):** açıq iş yox idi. 334 test keçirdi (#45 analitik animasiyalar ~57–60%, #46 kart təkrarı, #47 thumbnail, #48 dedupe, #49 chart mətn/vahid).
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -319,6 +320,9 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | Shell işçi qovluğu `Episodes\<slug>\` içində qalanda `forget_episode.py` | Windows qovluğu kilidləyir (WinError 32). Əvvəl `cd /c/YouTubeAI`. |
 | Windows ffmpeg-ə `/tmp/...` yolu vermək | Açılmır. Müvəqqəti fayllar scratchpad qovluğuna. |
 | Şərhdə/testdə ölçülməmiş rəqəmi fakt kimi yazmaq | Data dürüstlüyü pozulur. Ölçülməyibsə "ölçülməyib/ehtiyat" yaz. |
+| Ssenari rəqəm yoxlamasında `grep … \| cut -c1-260` (2026-10-04, why-9-99) | Abzas kəsilir — sc54-ün "$99.90" hesabı ilk baxışda "ssenaridə yoxdur" göründü. Rəqəmli abzası tam oxu (`sed -n 'Np'`). |
+| if/elif zəncirində yeni xüsusi şərti ümumi şaxədən SONRA qoymaq (2026-10-04, `math_check._run`) | "nine ninety-nine" qaydası heç işləmədi (`UNITS/TENS` şaxəsi əvvəl tutdu); test tutdu. Xüsusi hal həmişə ümumidən əvvəl. |
+| Vizual yoxlamanı yalnız tam render-dən sonra etmək (2026-10-05, #53) | Boş chart 20 dəq yenidən render apardı. `build_episode` bitən kimi `remotion_props.json`-da hər animasiyanın `reveal[0]/frames` nisbətinə bax (> 0.35 → şübhəli). |
 | Skriptlə sənədə `\f` (məs. `Projects\forget`) yazmaq | Form feed (0x0C) olur — `progress.md`-də tapıldı. Guard test indi kod + `.md`-də bütün idarə simvollarını tutur. |
 
 **Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
@@ -327,6 +331,14 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-04/05 — `why-9-99-feels-cheaper-than-10` HAZIRDIR (təsdiq gözləyir)
+"Why $9.99 Feels Cheaper Than $10": 1575 söz, 68 səhnə (40 animasiya = 59%, 28 foto), narration 686 s → **11.44 dəq**,
+−14.3 LUFS, `final_video_problems=[]`, `math_check` `[]`, `duplicates: []`, owl 68/68 + intro/outro ok (ilk cəhddə),
+videoda −40 dB/0.4 s sükut yoxdur; kadrlar + thumbnail vizual ok. Run 4 dəfə yenidən başladıldı (~2 saat).
+**Qeyd olunan xətalar:** reyestr #50 ("just a dollar" qənaət iddiası audit-dən keçdi), #51 (counter "1" əvəzinə 1 sent),
+#52 (animasiya payı 44%/37% → 60%), #53 (chart 84% boş, yenidən render); iş üsulu — "Təkrarlanmamalı" cədvəlinə 3 sətir.
+347 test keçir. Kiçik qeyd (səhv deyil): ssenaridə "$10 … too close to that $50 limit" məntiqcə zəifdir.
 
 ### 2026-10-03/04 — analitik animasiyalar (#45), kart təkrarı (#46), thumbnail (#47), dedupe (#48)
 İstifadəçi 5 tələb verdi; model dəyişikliyi rədd edildi ("olduğu kimi qalsın"), animasiya payı ~60%. Kod + 34 yeni test
