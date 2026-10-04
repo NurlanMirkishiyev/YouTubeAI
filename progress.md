@@ -112,8 +112,8 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti (2026-10-05):** `why-9-99-feels-cheaper-than-10` hazırdır, istifadəçi təsdiqi gözlənilir (addım 7). 347 test keçir (#50–#53 əlavə).
-**Əvvəlki (2026-10-04):** açıq iş yox idi. 334 test keçirdi (#45 analitik animasiyalar ~57–60%, #46 kart təkrarı, #47 thumbnail, #48 dedupe, #49 chart mətn/vahid).
+**Növbəti (2026-10-05):** açıq iş yoxdur — növbəti mövzunu gözlə. 347 test keçir (#50–#53 əlavə).
+**Əvvəlki (2026-10-04):** 334 test keçirdi (#45 analitik animasiyalar ~57–60%, #46 kart təkrarı, #47 thumbnail, #48 dedupe, #49 chart mətn/vahid).
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
 
@@ -332,13 +332,8 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 
 ## İcra jurnalı (ən yeni yuxarıda)
 
-### 2026-10-04/05 — `why-9-99-feels-cheaper-than-10` HAZIRDIR (təsdiq gözləyir)
-"Why $9.99 Feels Cheaper Than $10": 1575 söz, 68 səhnə (40 animasiya = 59%, 28 foto), narration 686 s → **11.44 dəq**,
-−14.3 LUFS, `final_video_problems=[]`, `math_check` `[]`, `duplicates: []`, owl 68/68 + intro/outro ok (ilk cəhddə),
-videoda −40 dB/0.4 s sükut yoxdur; kadrlar + thumbnail vizual ok. Run 4 dəfə yenidən başladıldı (~2 saat).
-**Qeyd olunan xətalar:** reyestr #50 ("just a dollar" qənaət iddiası audit-dən keçdi), #51 (counter "1" əvəzinə 1 sent),
-#52 (animasiya payı 44%/37% → 60%), #53 (chart 84% boş, yenidən render); iş üsulu — "Təkrarlanmamalı" cədvəlinə 3 sətir.
-347 test keçir. Kiçik qeyd (səhv deyil): ssenaridə "$10 … too close to that $50 limit" məntiqcə zəifdir.
+### 2026-10-05 — pricing (why-9-99) videosu təsdiqləndi, epizod yaddaşı silindi
+Kod düzəlişləri qalır: reyestr #50–#53 (347 test).
 
 ### 2026-10-03/04 — analitik animasiyalar (#45), kart təkrarı (#46), thumbnail (#47), dedupe (#48)
 İstifadəçi 5 tələb verdi; model dəyişikliyi rədd edildi ("olduğu kimi qalsın"), animasiya payı ~60%. Kod + 34 yeni test
