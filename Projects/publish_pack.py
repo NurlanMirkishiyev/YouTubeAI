@@ -128,6 +128,22 @@ def description(summary: str, chaps: list[tuple[float, str]], hashtags: list, cr
     return "\n".join(lines).strip() + "\n"
 
 
+def source_line(src: dict) -> str:
+    """#58: ssenaride sitat olunan yoxlanmis menbe (research.json) - description-in sonunda."""
+    if not src.get("url"):
+        return ""
+    year = f" ({src['year']})" if src.get("year") else ""
+    return f"Source: {src.get('publisher') or src.get('cite_as') or 'official source'}{year} - {src['url']}"
+
+
+def load_source(ep: str) -> dict:
+    path = os.path.join(ep, "research.json")
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def pick_thumb_bg(paths: list[str]) -> str:
     """En kontrastli fon (parlaqliq standart kenarlasmasi en boyuk olan)."""
     def score(p: str) -> float:
@@ -212,7 +228,8 @@ def main() -> None:
                                                   chapters="\n".join(t for _, t in chaps),
                                                   hook=scenes[0]["narration"][:600]),
                          max_tokens=900, provider=a.provider, model=a.model, temperature=0.7)
-        ydir = write_pack(ep, meta["topic"], data, chaps, music_credit(a.music, load_credits()))
+        credit = "\n".join(x for x in (source_line(load_source(ep)), music_credit(a.music, load_credits())) if x)
+        ydir = write_pack(ep, meta["topic"], data, chaps, credit)
     except (LLMError, ValueError) as e:
         raise SystemExit("publish paketi xetasi: " + str(e)) from e
     problems = pack_problems(ydir)

@@ -10,7 +10,9 @@ export type Scene = {
   side: Side;
   flip?: boolean;          // fonu guzgule: bos yer solda qurulub, bayqus ise hemise sagdadir
   motion: Motion;
-  title: string | null;    // bolmenin ilk sehnesi -> lower-third
+  title: string | null;    // bolmenin ilk sehnesi (bolme kecidi)
+  lowerThird?: boolean;    // #55: lower-third yalniz foto sehnesinde
+  kicker?: string | null;  // #55: chart sehnesinde bolme adi chart basliginin ustunde
 };
 
 export type Word = {w: string; s: number; e: number};  // saniye, qlobal zaman xetti
@@ -18,6 +20,7 @@ export type Word = {w: string; s: number; e: number};  // saniye, qlobal zaman x
 export type EpisodeProps = {
   fps: number;
   topic: string;
+  hook?: string | null;    // #56: giris kartinda seslenen hook cumlesi (reqem/paradoks)
   brand: string;
   audio: string;
   introFrames: number;
@@ -46,4 +49,5 @@ export type Visual =
   | {kind: 'flow'; title: string; steps: string[]}
   | {kind: 'timeline'; title: string; events: {label: string; when: string}[]}
   | {kind: 'counter'; title: string; value: number; unit: Unit; label: string}
-  | {kind: 'keypoints'; title: string; points: string[]};
+  | {kind: 'keypoints'; title: string; points: string[]}
+  | {kind: 'stats'; title: string; cards: {value: number; unit: Unit; label: string}[]};   // #57 data kartlari

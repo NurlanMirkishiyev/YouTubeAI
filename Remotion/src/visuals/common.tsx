@@ -64,3 +64,13 @@ export const Body: React.FC<{children: React.ReactNode; style?: React.CSSPropert
 export const rise = (p: number, px = 40): React.CSSProperties => ({
   opacity: p, transform: `translateY(${interpolate(p, [0, 1], [px, 0])}px)`,
 });
+
+/** #55: chart sehnesinde bolme adi - AREA-nin ustunde (y 100-150), basliqdan 25 px yuxari, kicik ve sari. */
+export const KICKER_TOP = 100;
+export const Kicker: React.FC<{text: string}> = ({text}) => {
+  const p = useIn(0);
+  return (
+    <div style={{position: 'absolute', left: AREA.left + 34, top: KICKER_TOP, fontFamily: FONT, fontWeight: 700,
+      fontSize: 30, letterSpacing: 3, textTransform: 'uppercase', color: C.accent, ...rise(p, 12)}}>{text}</div>
+  );
+};

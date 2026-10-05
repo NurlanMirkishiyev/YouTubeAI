@@ -88,6 +88,8 @@ def visual_elements(v: dict) -> list[dict]:
         return [{"value": v.get("value"), "label": v.get("label", "")}]
     if k == "equation":
         return [*(v.get("terms") or []), v.get("result") or {}]
+    if k == "stats":                     # #57 data kartlari
+        return list(v.get("cards") or [])
     if k == "timeline":
         return [{"label": e.get("label", "")} for e in v.get("events") or []]
     return [{"label": t} for t in v.get("steps" if k == "flow" else "points") or []]
@@ -136,6 +138,16 @@ def reveal_frames(v: dict, words: list[dict], start_s: float, frames: int, fps: 
     return out
 
 
+def load_words(ep: str) -> list[dict]:
+    """#54: altyazi ssenaridən (captions.words.json, "$4,000"); kohne epizodda whisper sozleri."""
+    for name in ("captions.words.json", "narration.words.json"):
+        path = os.path.join(ep, name)
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+    raise SystemExit("altyazi sozleri yoxdur: captions.words.json / narration.words.json")
+
+
 def pose_table(sizes: dict[str, tuple[int, int]]) -> dict[str, dict]:
     return {name: {"name": name, "w": w, "h": h, "height": POSE_HEIGHT.get(name, DEFAULT_HEIGHT),
                    "flippable": name not in NOT_FLIPPABLE} for name, (w, h) in sizes.items()}
@@ -167,8 +179,15 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
                            # Bayqus hemise sagda sabit; fonu bos yeri solda qurulmus (kohne epizod)
                            # sehnelerde sekil guzgulenir - bos yer saga kecir, fonda yazi yoxdur
                            "side": "right", "flip": s.get("pos") == "left",
-                           "motion": MOTIONS[i % len(MOTIONS)], "title": s.get("spoken_title")})
+                           "motion": MOTIONS[i % len(MOTIONS)], "title": s.get("spoken_title"),
+                           # #55: chart sehnesinde bolme adi lower-third deyil, chart basliginin ustunde kicik
+                           # "kicker" - ikisi ust-uste dusmur
+                           "lowerThird": bool(s.get("spoken_title")) and not visual,
+                           "kicker": s.get("spoken_title") if visual else None})
+    hook = (data.get("card_texts") or {}).get("intro")
     return {"fps": FPS, "topic": topic, "brand": BRAND, "audio": "narration.wav",
+            # #56: giris kartinin seslendirdiyi hook cumlesi (reqem/paradoks) kartda da gorunur
+            "hook": hook if hook and hook.strip() != topic.strip() else None,
             "introFrames": frames[0], "outroFrames": frames[-1],
             "introOwl": "intro" if "intro" in card_owls else "front",
             "outroOwl": "outro" if "outro" in card_owls else "three_q",
@@ -279,8 +298,7 @@ def main() -> None:
         raise SystemExit("scenes.json-da intro_seconds yoxdur - tts_gen.py --force ile yeniden seslendir")
     with open(os.path.join(ep, "meta.json"), encoding="utf-8") as f:
         topic = json.load(f)["topic"]
-    with open(os.path.join(ep, "narration.words.json"), encoding="utf-8") as f:
-        words = json.load(f)
+    words = load_words(ep)
     if a.music and not os.path.isfile(a.music):
         raise SystemExit("musiqi tapilmadi: " + a.music)
 

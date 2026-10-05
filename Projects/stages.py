@@ -93,8 +93,15 @@ def qa_problems(ctx: Ctx) -> list[str]:
     if not os.path.isfile(path):
         return []
     with open(path, encoding="utf-8") as f:
-        pairs = json.load(f).get("duplicates") or []
-    return [f"tekrar kadrlar qalib: {pairs}"] if pairs else []
+        rep = json.load(f)
+    pairs = rep.get("duplicates") or []
+    problems = [f"tekrar kadrlar qalib: {pairs}"] if pairs else []
+    if float(rep.get("generic_share") or 0) > GENERIC_MAX:       # #60
+        problems.append(f"generik/metafor kadrlar {rep['generic_share']:.0%} > {GENERIC_MAX:.0%}: {rep.get('generic')}")
+    return problems
+
+
+GENERIC_MAX = 0.10
 
 
 OWL_OK_MIN = 0.8    # sehne bayquslarinin bu qederi oz sekli ile olmalidir (qalan - hakimden kecmeyen sprite)
@@ -125,8 +132,9 @@ def _read(path: str) -> str:
 def verify_script(ctx: Ctx) -> list[str]:
     from script_gen import check_headings
     from math_check import report_problems
+    import script_qa
     missing = check_headings(_read(ctx.p("script.md")))
-    return ([f"catismayan basliqlar: {', '.join(missing)}"] if missing else []) + report_problems(ctx.ep_dir)
+    return ([f"catismayan basliqlar: {', '.join(missing)}"] if missing else []) + report_problems(ctx.ep_dir)         + script_qa.report_problems(ctx.ep_dir)          # #59: B2B qerar, case, menbe, hook, recap, redaktor
 
 
 def verify_scenes(ctx: Ctx) -> list[str]:
@@ -158,9 +166,10 @@ _SPLIT_CENTS = re.compile(r"(\$\d[\d,]*) (\.\d\d)\b")
 
 
 def spoken_words(markdown: str) -> int:
-    """Skript sozleri (basliqsiz); qiymet bir sozdur."""
+    """Skript sozleri (basliqsiz); qiymet bir sozdur. #56: Cold Open giris kartinda seslenir (card_texts-de sayilir)."""
     from script_gen import word_count
-    return word_count(markdown)
+    from timeline import cold_open
+    return word_count(markdown) - len((cold_open(markdown) or "").split())
 
 
 def whisper_word_count(words: list[str]) -> int:
@@ -177,6 +186,14 @@ def verify_srt(ctx: Ctx) -> list[str]:
     if abs(got - want) > SRT_WORD_TOL * want:
         return [f"whisper {got} soz, skript {want} soz (>{SRT_WORD_TOL:.0%} ferq)"]
     return []
+
+
+def verify_captions(ctx: Ctx) -> list[str]:
+    """#54: ssenari altyazisi var ve her reqem seste duzgun esidilib (captions_qa.json)."""
+    path = ctx.p("captions_qa.json")
+    if not os.path.isfile(path):
+        return ["captions_qa.json yoxdur"]
+    return list(json.loads(_read(path)).get("problems") or [])
 
 
 def verify_video(ctx: Ctx) -> list[str]:
@@ -230,6 +247,9 @@ STAGES: tuple[Stage, ...] = (
                         c.p("narration.wav"), c.p("narration")],
           lambda c: os.path.isfile(c.p("narration.srt")) and os.path.isfile(c.p("narration.words.json")),
           verify_srt),
+    # #54: altyazi ssenaridən ("$4,000"), whisper yalniz vaxt; reqem sehv oxunubsa kecmir
+    Stage("captions", lambda c, f: _proj("captions.py", c.ep_dir),
+          lambda c: os.path.isfile(c.p("captions_qa.json")), verify_captions),
     # lisenziyasiz/pulsuz AI fon musiqisi (Stable Audio Open, lokal GPU); --music verilibse atlanir
     Stage("music_gen", lambda c, f: [PY["music"], os.path.join(PROJ, "music_gen.py"), c.ep_dir]
           + (["--force"] if f else []),

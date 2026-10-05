@@ -146,3 +146,30 @@ export const Counter: React.FC<{value: number; unit: Unit; label: string; reveal
     </Body>
   );
 };
+
+/** #57 (istifadeci 2026-10-05): "her reqem qrafik ve ya kartla" - sehnede deyilen 1-3 reqemin data karti. */
+export const Stats: React.FC<{cards: {value: number; unit: Unit; label: string}[]; reveal: number[]}> = (
+  {cards, reveal}) => (
+  <Body style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 40}}>
+    {cards.map((c, i) => <StatCard key={c.label + i} card={c} delay={at(reveal, i)} hero={i === 0} n={cards.length} />)}
+  </Body>
+);
+
+const StatCard: React.FC<{card: {value: number; unit: Unit; label: string}; delay: number; hero: boolean; n: number}> = (
+  {card, delay, hero, n}) => {
+  const p = useIn(delay);
+  const w = n === 1 ? 760 : n === 2 ? 540 : 360;
+  const color = hero ? C.accent : C.teal;
+  return (
+    <div style={{width: w, padding: '44px 36px', borderRadius: 28, background: C.card, border: `2px solid ${C.line}`,
+      boxShadow: `0 20px 60px rgba(0,0,0,0.35), inset 0 0 0 1px ${color}22`, textAlign: 'center', ...rise(p)}}>
+      <div style={{fontSize: n === 1 ? 170 : n === 2 ? 120 : 92, fontWeight: 800, color, lineHeight: 1,
+        textShadow: `0 0 50px ${color}44`}}>
+        <Count value={card.value} unit={card.unit} delay={delay} />
+      </div>
+      <div style={{width: 80, height: 6, borderRadius: 3, background: color, margin: '26px auto 22px',
+        transform: `scaleX(${p})`}} />
+      <div style={{fontSize: n === 3 ? 34 : 42, fontWeight: 600, color: C.text, lineHeight: 1.2}}>{card.label}</div>
+    </div>
+  );
+};

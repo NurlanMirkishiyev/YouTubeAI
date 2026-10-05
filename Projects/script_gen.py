@@ -30,19 +30,23 @@ EFFECTIVE_WPM = 150.0
 MIN_SECTION_WORDS = 110  # qisaldilan bolme bundan az olmur - analogiya + misal yerlesmelidir
 
 SYSTEM = """You write scripts for an ELI5 Business YouTube channel.
-The audience is ADULTS aged 25-45: employees, freelancers and small business owners. The host is an
-owl in a suit who explains business and money topics in plain, simple words - clear for a beginner,
-but always respectful and grown-up, never childish or talking down to the viewer.
+The audience is ADULT business owners and managers in the United States (B2B): owners of small and mid-sized
+companies - shops, restaurants, agencies, contractors, clinics, e-commerce brands, service firms. Every video
+helps a business owner make ONE concrete business decision. The host is an owl in a suit who explains in plain,
+simple words - clear for a beginner, but always respectful and grown-up, never childish or talking down.
 
 Voice and rules:
 - Second person, warm, conversational. Short sentences. Contractions are fine.
-- Every abstract idea gets a concrete example from adult life: a coffee shop, an online store,
-  a freelance project, rent, salary, a gym membership, a phone plan, a supermarket, a small restaurant.
+- One running case is followed from the first minute to the last: the business owner named in the plan. Each
+  section moves that story forward. Other examples are short analogies, and each one is used only once.
+- United States only: US cities and states, US dollars, US institutions (IRS, SBA), US spelling.
   Never examples from a child's world (toys, allowance, classmates, candy, playgrounds).
-- Introduce each English business term once, then define it in one short sentence.
+- Introduce each English business term once, then define it correctly in one short sentence.
+- Never repeat an example, a story beat or an explanation that was already told.
 - No filler, no "in today's video we will", no sponsor reads, no emojis, no stage directions.
-- Numbers and examples must be plausible and generic; never invent statistics,
-  studies, company figures or laws you are not certain about. Prefer "roughly" over fake precision.
+- Write every figure in digits: "$4,000", "$9.99", "15%", "2,500 customers" - never spell amounts out.
+- Never invent statistics, studies, company figures or laws. The ONLY research you may cite is the verified
+  fact given to you, with its source name. The case numbers are an illustration, not data.
 - Every calculation must be correct and easy to follow: use round numbers, say the inputs before
   the result, and do one step at a time. Name time conversions explicitly ("over four weeks",
   "over twelve months"). Check each result twice before writing it.
@@ -55,39 +59,50 @@ Voice and rules:
 
 OUTLINE_USER = """Topic: {topic}
 
-Plan a ~11 minute ELI5 explainer. Return JSON only:
+Plan a ~11 minute ELI5 explainer for US business owners. If the topic sounds like consumer or personal finance,
+reframe it as the decision a US small-business owner faces about it (B2B). Return JSON only:
 
-{{"sections": [
+{{"decision": "the ONE concrete decision the owner makes, as a question (e.g. Should I raise my menu prices
+by 10% this year?)",
+  "answer": "the rule of thumb the video ends with, one sentence",
+  "case": {{"owner": "first name", "business": "the business, e.g. a 30-seat taqueria",
+            "city": "a US city", "state": "its US state, full name",
+            "situation": "the owner's starting numbers in one sentence (round figures)"}},
+  "cold_open": "the first sentence of the video, max 12 words: a concrete number in the first 6 words, or a
+paradox with a number, from the case (e.g. A $9.99 price can earn you less than $10.)",
+  "fact_need": "which official statistic would help this decision, one short phrase",
+  "source_section": 2,
+  "sections": [
   {{"title": "short title, max 5 words",
     "idea": "the one core idea this section teaches, one sentence",
-    "domain": "the everyday world the analogy lives in, two or three words",
-    "analogy": "the everyday analogy used, one sentence",
-    "example": "a realistic mini-example, one sentence"}}
+    "term": "the key business term of this section", "definition": "its correct one-sentence definition",
+    "domain": "the everyday adult world the analogy lives in, two or three words",
+    "analogy": "the analogy used, one sentence",
+    "case_step": "what happens to the owner's business in this section, one sentence with round numbers"}}
 ]}}
 
-Exactly 4 sections. They must build on each other: the first establishes the
-foundation, the last is the one a viewer would act on. No overlap between sections.
+Exactly 4 sections. They build on each other: the first establishes the foundation, the last answers the
+decision for the owner. No overlap between sections.
 
-CRITICAL - variety: each section must use a DIFFERENT domain, and none of the four
-may share a domain. Pick four genuinely different everyday worlds, for example:
-cooking, sports, school, music, gardening, board games, building a treehouse,
-a road trip, a pet, a library, a toolbox, a wardrobe, a birthday party.
-Never use the same object or setting in two sections. Do not use a lemonade stand
-in more than one section."""
+CRITICAL - variety: each section's analogy uses a DIFFERENT domain, none shared. Pick four genuinely different
+adult worlds, for example: a commercial kitchen, a construction site, a trucking route, a gym, a farm, an
+airline, a dental office, a car dealership, a hotel front desk, a warehouse. Never the same object twice."""
 
-# (basliq, soz hedefi, telimat)
+# (basliq, soz hedefi, telimat) - {owner}, {business}, {city}, {state}, {decision}, {answer} plandan doldurulur
 BLOCKS: list[tuple[str, int, str]] = [
     ("Hook", 80,
-     "Open with a concrete situation or a question the viewer has felt. Then state the one "
-     "thing they will be able to do by the end. No greeting, no channel name, no 'in this video'."),
+     "Introduce {owner}, the owner of {business} in {city}, {state}, and the decision: {decision} Ask it as "
+     "a question. Then state what the viewer will be able to decide by the end. Do not repeat the opening "
+     "sentence of the video. No greeting, no channel name, no 'in this video'."),
     ("Common Mistakes", 170,
-     "Three mistakes real people make with this topic. For each: the mistake, why it feels "
-     "reasonable, and the fix. Do not repeat the earlier sections' wording."),
-    ("Recap", 110,
-     "The three things worth remembering, stated plainly, in the order they were taught. "
-     "No new information."),
+     "Three mistakes US business owners make with this decision. For each: the mistake, why it feels "
+     "reasonable, and the fix. Use NEW one-line situations - never {owner}'s case again, never an earlier "
+     "analogy, example or number."),
+    ("Recap", 60,
+     "Only the conclusions: the three rules worth remembering, stated plainly as rules the viewer can apply, "
+     "in the order they were taught. No examples, no stories, no names, no numbers, no new information."),
     ("Call to Action", 45,
-     "Invite a comment describing their own situation, and name one related next topic. Warm, not pushy."),
+     "Invite a comment describing their own business decision, and name one related next topic. Warm, not pushy."),
 ]
 
 WRITE_USER = """Topic: {topic}
@@ -129,7 +144,7 @@ def word_count(markdown: str) -> int:
 
 
 def check_headings(markdown: str) -> list[str]:
-    required = ["## Hook", "## Section 1", "## Section 2", "## Section 3", "## Section 4",
+    required = ["## Cold Open", "## Hook", "## Section 1", "## Section 2", "## Section 3", "## Section 4",
                 "## Common Mistakes", "## Recap", "## Call to Action"]
     return [h for h in required if h not in markdown]
 
@@ -182,12 +197,20 @@ def insert_before(markdown: str, anchor: str, block: str) -> str:
     return markdown[:idx].rstrip() + "\n\n" + block.strip() + "\n" + markdown[idx:]
 
 
-def outline(topic: str, **llm_kw) -> list[dict]:
-    data = chat_json(SYSTEM, OUTLINE_USER.format(topic=topic), max_tokens=1200, **llm_kw)
+def outline(topic: str, **llm_kw) -> dict:
+    """Plan (#59): biznes qerari + cavab + bir ABS case + Cold Open + 4 bolme. Sert sxem - pozulsa LLMError."""
+    data = chat_json(SYSTEM, OUTLINE_USER.format(topic=topic), max_tokens=2000, **llm_kw)
     sections = data.get("sections") or []
     if len(sections) != 4:
         raise LLMError(f"outline 4 bolme qaytarmalidir, qaytardi: {len(sections)}")
-    return sections
+    case = data.get("case") if isinstance(data.get("case"), dict) else {}
+    if not all(str(case.get(k) or "").strip() for k in ("owner", "business", "city", "state")):
+        raise LLMError(f"outline case natamamdir: {case}")
+    try:
+        src_sec = min(4, max(1, int(data.get("source_section") or 2)))
+    except (TypeError, ValueError):
+        src_sec = 2
+    return {**data, "case": case, "sections": sections, "source_section": src_sec}
 
 
 def _write_block(topic: str, outline_text: str, heading: str, words: int,
@@ -206,45 +229,92 @@ def _write_block(topic: str, outline_text: str, heading: str, words: int,
     return text.strip()
 
 
-def generate(topic: str, words: int, **llm_kw) -> tuple[str, list[str]]:
-    """Bolme-bolme generasiya: model uzun metnde soz hedefini tutmur, ona gore paralanir."""
-    secs = outline(topic, **llm_kw)
-    outline_text = "\n".join(
+def _fill(template: str, plan: dict) -> str:
+    case = plan["case"]
+    return template.format(owner=case["owner"], business=case["business"], city=case["city"],
+                           state=case["state"], decision=plan.get("decision", ""), answer=plan.get("answer", ""))
+
+
+def outline_text(plan: dict) -> str:
+    case = plan["case"]
+    head = (f"DECISION: {plan.get('decision')}\nANSWER: {plan.get('answer')}\n"
+            f"CASE: {case['owner']}, {case['business']} in {case['city']}, {case['state']}. "
+            f"{case.get('situation', '')}\n")
+    return head + "\n".join(
         f"{i + 1}. {s.get('title', '')} [{s.get('domain', '')}] - {s.get('idea', '')} "
-        f"Analogy: {s.get('analogy', '')} Example: {s.get('example', '')}"
-        for i, s in enumerate(secs))
+        f"Term: {s.get('term', '')} = {s.get('definition', '')} Analogy: {s.get('analogy', '')} "
+        f"Case: {s.get('case_step', '')}"
+        for i, s in enumerate(plan["sections"]))
+
+
+COLD_OPEN_USER = """Write the first sentence of a video for US business owners. Decision of the video: {decision}
+Case: {owner}, {business} in {city}, {state}. {situation}
+Rules: at most 12 words; a concrete number in digits within the first 6 words (or a paradox with a number);
+plain spoken English; no question about the channel. Earlier attempt (rejected: {why}): {previous}
+Return only the sentence."""
+
+
+def make_cold_open(plan: dict, attempts: int = 3, **llm_kw) -> str:
+    """#56: ilk 3 saniyede konkret reqem/paradoks - yoxlanir (cold_open_problems), olmasa yeniden yazdirilir."""
+    from script_qa import cold_open_problems
+    line = " ".join(str(plan.get("cold_open") or "").split())
+    for _ in range(attempts):
+        why = cold_open_problems(line)
+        if not why:
+            return line
+        case = plan["case"]
+        line = " ".join(chat(SYSTEM, COLD_OPEN_USER.format(
+            decision=plan.get("decision"), owner=case["owner"], business=case["business"], city=case["city"],
+            state=case["state"], situation=case.get("situation", ""), why="; ".join(why), previous=line or "-"),
+            max_tokens=80, **llm_kw).strip().strip('"').split())
+    if cold_open_problems(line):
+        raise LLMError(f"Cold Open qaydaya uygun yazilmadi: {line!r}")
+    return line
+
+
+def _section_guidance(plan: dict, s: dict, i: int, source: dict | None) -> str:
+    owner = plan["case"]["owner"]
+    g = (f"Core idea: {s.get('idea', '')}\n"
+         f"Key term: {s.get('term', '')} - define it exactly like this: {s.get('definition', '')}\n"
+         f"Use ONLY this analogy domain, once: {s.get('domain', '')} - {s.get('analogy', '')}\n"
+         f"Move the case forward: {s.get('case_step', '')} Mention {owner} by name.\n"
+         f"Do not restate the analogy - after introducing it, keep teaching the idea and the case.")
+    if source and i == plan["source_section"]:
+        g += (f"\nCite this verified fact ONCE, naming the source and the figure exactly: According to "
+              f"{source['cite_as']}, {source['claim']}")
+    if i == len(plan["sections"]):
+        g += f"\nEnd by answering the decision for {owner} with this rule: {plan.get('answer', '')}"
+    return g
+
+
+def generate(topic: str, words: int, plan: dict, source: dict | None, **llm_kw) -> tuple[str, list[str]]:
+    """Bolme-bolme generasiya: model uzun metnde soz hedefini tutmur, ona gore paralanir."""
+    secs = plan["sections"]
+    text_outline = outline_text(plan)
     domains = [str(s.get("domain", "")).strip() for s in secs]
+    print("  qerar:", plan.get("decision"), "| case:", plan["case"]["owner"], "-", plan["case"]["business"],
+          f"({plan['case']['city']}, {plan['case']['state']})")
     print("  analogiya saheleri:", ", ".join(d for d in domains if d))
-    if len({d.lower() for d in domains if d}) < len([d for d in domains if d]):
-        print("  DIQQET: outline tekrarlanan analogiya sahesi qaytardi")
 
     body_words = words - sum(w for _, w, _ in BLOCKS)
     per_section = max(150, round(body_words / len(secs)))
-    parts: list[str] = [f"# {topic}"]
+    parts: list[str] = [f"# {topic}", "## Cold Open", make_cold_open(plan, **llm_kw)]
 
     hook_h, hook_w, hook_g = BLOCKS[0]
     print(f"  [{hook_h}] {hook_w} soz")
     parts += [f"## {hook_h}",
-              _write_block(topic, outline_text, hook_h, hook_w, hook_g,
-                           "The teaching sections already use these analogy domains: "
-                           + ", ".join(d for d in domains if d)
-                           + ". Do NOT use any of them here - open with a different concrete situation.",
-                           **llm_kw)]
+              _write_block(topic, text_outline, hook_h, hook_w, _fill(hook_g, plan),
+                           f"The opening sentence already said: \"{parts[2]}\" - do not repeat it. The teaching "
+                           "sections use these analogy domains: " + ", ".join(d for d in domains if d)
+                           + ". Do NOT use any of them here.", **llm_kw)]
 
     for i, s in enumerate(secs, 1):
         title = str(s.get("title", f"Part {i}")).strip()
         heading = f"Section {i}: {title}"
         others = [d for j, d in enumerate(domains, 1) if d and j != i]
-        guidance = (f"Core idea: {s.get('idea', '')}\n"
-                    f"Use ONLY this analogy domain: {s.get('domain', '')}\n"
-                    f"The analogy: {s.get('analogy', '')}\n"
-                    f"The mini-example: {s.get('example', '')}\n"
-                    f"Stay inside that one domain for the whole section, but do not restate the "
-                    f"analogy more than twice - after introducing it, keep teaching the idea.\n"
-                    f"Teach the one idea, make it concrete, then hand off to the next section.")
         print(f"  [{heading}] {per_section} soz  <{s.get('domain', '')}>")
         parts += [f"## {heading}",
-                  _write_block(topic, outline_text, heading, per_section, guidance,
+                  _write_block(topic, text_outline, heading, per_section, _section_guidance(plan, s, i, source),
                                "Sections before this one are already written - do not repeat them. "
                                "These domains belong to OTHER sections and are forbidden here: "
                                + ", ".join(others) + ".",
@@ -253,29 +323,32 @@ def generate(topic: str, words: int, **llm_kw) -> tuple[str, list[str]]:
     for heading, w, guidance in BLOCKS[1:]:
         print(f"  [{heading}] {w} soz")
         parts += [f"## {heading}",
-                  _write_block(topic, outline_text, heading, w, guidance,
-                               "All four teaching sections are already written above. Refer to their "
-                               "analogies in at most a few words - never re-explain them.", **llm_kw)]
+                  _write_block(topic, text_outline, heading, w, _fill(guidance, plan),
+                               "All four teaching sections are already written above. Never re-explain their "
+                               "analogies, examples or numbers.", **llm_kw)]
 
     return "\n\n".join(parts), domains
 
 
-def extend(topic: str, markdown: str, words: int, domains: list[str], **llm_kw) -> tuple[str, str]:
-    """Movcud skripte Common Mistakes-den evvel yeni tedris bolmesi elave edir -> (skript, domain)."""
+def extend(topic: str, markdown: str, words: int, domains: list[str], plan: dict | None = None,
+           **llm_kw) -> tuple[str, str]:
+    """Movcud skripte Common Mistakes-den evvel yeni tedris bolmesi elave edir -> (skript, domain).
+    #59: yeni bolme de eyni case-i davam etdirir."""
     existing = teaching_headings(markdown)
     sec = chat_json(SYSTEM, EXTEND_USER.format(topic=topic, existing="\n".join(existing) or "(none)",
                                                domains=", ".join(domains) or "(unknown)"),
                     max_tokens=600, **llm_kw)
     heading = f"Section {len(existing) + 1}: {str(sec.get('title', 'One More Thing')).strip()}"
+    owner = ((plan or {}).get("case") or {}).get("owner")
     guidance = (f"Core idea: {sec.get('idea', '')}\n"
-                f"Use ONLY this analogy domain: {sec.get('domain', '')}\n"
-                f"The analogy: {sec.get('analogy', '')}\n"
-                f"The mini-example: {sec.get('example', '')}\n"
-                f"Teach the one idea, make it concrete, then hand off to the next section.")
+                f"Use ONLY this analogy domain, once: {sec.get('domain', '')} - {sec.get('analogy', '')}\n"
+                + (f"Continue the case of {owner}: what happens to {owner}'s business now. Mention {owner} by name.\n"
+                   if owner else "")
+                + "Teach the one idea, make it concrete, then hand off to the next section.")
     print(f"  [{heading}] {words} soz  <{sec.get('domain', '')}>")
-    body = _write_block(topic, "\n".join(existing + [heading]), heading, words, guidance,
-                        "Every other section is already written. Do not repeat their ideas or analogies.",
-                        **llm_kw)
+    body = _write_block(topic, outline_text(plan) if plan else "\n".join(existing + [heading]), heading, words,
+                        guidance, "Every other section is already written. Do not repeat their ideas, examples, "
+                        "analogies or numbers.", **llm_kw)
     return insert_before(markdown, "## Common Mistakes", f"## {heading}\n\n{body}"), \
         str(sec.get("domain", "")).strip()
 
@@ -283,7 +356,8 @@ def extend(topic: str, markdown: str, words: int, domains: list[str], **llm_kw) 
 SHORTEN_USER = """Topic: {topic}
 
 Rewrite this section of the video script ("{heading}") to about {words} words.
-Keep the core idea, the same analogy and the example; cut repetition and side remarks first.
+Keep the core idea, the same analogy, the case person and every sourced fact with its source name; cut
+repetition and side remarks first. Write figures in digits.
 Write flowing narration paragraphs separated by blank lines. No heading, no lists, no meta commentary.
 
 Current text:
@@ -298,6 +372,59 @@ def verify_math(a: argparse.Namespace, script_path: str) -> None:
         raise SystemExit("hesablama yoxlamasi xetasi: " + str(e)) from e
     if problems:
         raise SystemExit(f"{len(problems)} hesablama sehvi duzelmedi - bax: math_check.json")
+
+
+def _load_json(path: str) -> dict:
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def quality_gate(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
+    """#59: deterministik hekaye/menbe/hook duzelisleri -> gpt-4o redaktor -> reqem auditi -> son yoxlama.
+    script_qa.json (sha) yazilir; problem qalsa merhele dayanir."""
+    import script_qa as qa
+    plan = _load_json(os.path.join(out_dir, "meta.json")).get("plan") or {}
+    source = _load_json(os.path.join(out_dir, "research.json")) or None
+    if not plan:
+        raise SystemExit("meta.json-da plan yoxdur - skript --force ile yeniden yazilmalidir")
+    kw = {"provider": a.provider, "model": a.model, "temperature": a.temperature}
+    with open(script_path, encoding="utf-8") as f:
+        script = f.read()
+    src_head = next((h for h in teaching_headings(script) if h.startswith(f"Section {plan.get('source_section', 2)}:")),
+                    (teaching_headings(script) or ["Section 2"])[0])
+    try:
+        for _ in range(qa.REVIEW_ROUNDS):
+            fixes = qa.story_fixes(script, plan, source, src_head)
+            if not fixes:
+                break
+            script = qa.apply_fixes(script, plan, fixes, chat, **kw)
+        script, review = qa.review_loop(script, plan, source, a.topic, review=chat_json, rewrite=chat,
+                                        provider=a.provider)
+        for _ in range(qa.REVIEW_ROUNDS):            # redaktor hekaye xettini/menbeni poza biler
+            fixes = qa.story_fixes(script, plan, source, src_head)
+            if not fixes:
+                break
+            script = qa.apply_fixes(script, plan, fixes, chat, **kw)
+    except LLMError as e:
+        raise SystemExit("ssenari keyfiyyet yoxlamasi xetasi: " + str(e)) from e
+    with open(script_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(script.rstrip() + "\n")
+    verify_math(a, script_path)                      # reqem auditi abzaslari yeniden yaza biler -> sonra son yoxlama
+    with open(script_path, encoding="utf-8") as f:
+        script = f.read()
+    problems = check_headings_problems(script) + qa.story_problems(script, plan, source) + review
+    qa.write_report(out_dir, script, problems, decision=plan.get("decision"), case=plan.get("case"),
+                    source=(source or {}).get("url"))
+    print(f"  ssenari keyfiyyeti: {'OK' if not problems else problems}")
+    if problems:
+        raise SystemExit(f"{len(problems)} ssenari keyfiyyet problemi qaldi - bax: script_qa.json")
+
+
+def check_headings_problems(markdown: str) -> list[str]:
+    missing = check_headings(markdown)
+    return [f"catismayan basliqlar: {', '.join(missing)}"] if missing else []
 
 
 def run_shorten(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
@@ -321,22 +448,19 @@ def run_shorten(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
         f.write(script.rstrip() + "\n")
     n = word_count(script)
     print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
-    verify_math(a, script_path)
+    quality_gate(a, out_dir, script_path)
 
 
 def run_extend(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     if not os.path.isfile(script_path):
         raise SystemExit("uzatmaq ucun script.md yoxdur: " + script_path)
     meta_path = os.path.join(out_dir, "meta.json")
-    meta = {}
-    if os.path.isfile(meta_path):
-        with open(meta_path, encoding="utf-8") as f:
-            meta = json.load(f)
+    meta = _load_json(meta_path)
     print(f"[22+] skript uzadilir: +{a.extend} soz")
     with open(script_path, encoding="utf-8") as f:
         current = f.read()
     try:
-        script, domain = extend(a.topic, current, a.extend, meta.get("domains", []),
+        script, domain = extend(a.topic, current, a.extend, meta.get("domains", []), meta.get("plan"),
                                 provider=a.provider, model=a.model, temperature=a.temperature)
     except (LLMError, ValueError) as e:
         raise SystemExit("uzatma xetasi: " + str(e)) from e
@@ -346,9 +470,26 @@ def run_extend(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     meta = {**meta, "words": n, "est_minutes": round(n / EFFECTIVE_WPM, 1),
             "domains": [*meta.get("domains", []), domain]}
     with open(meta_path, "w", encoding="utf-8") as f:
-        json.dump(meta, f, indent=2)
+        json.dump(meta, f, indent=2, ensure_ascii=False)
     print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
-    verify_math(a, script_path)
+    quality_gate(a, out_dir, script_path)
+
+
+def find_source(a: argparse.Namespace, plan: dict, out_dir: str) -> dict:
+    """#58: yoxlanmis resmi/tedqiqat menbe - olmasa merhele dayanir (data uydurulmur)."""
+    from research import research
+    path = os.path.join(out_dir, "research.json")
+    cached = _load_json(path)
+    if cached:
+        return cached
+    print(f"  menbe axtarilir: {plan.get('fact_need', '')}")
+    src = research(a.topic, f"{plan.get('decision', '')} (useful statistic: {plan.get('fact_need', '')})")
+    if not src:
+        raise SystemExit("yoxlanmis resmi/tedqiqat menbe tapilmadi (#58) - run.py --resume ile yeniden cehd et")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(src, f, indent=2, ensure_ascii=False)
+    print(f"  menbe: {src['cite_as']} - {src['claim']} ({src['url']})")
+    return src
 
 
 def main() -> None:
@@ -379,28 +520,27 @@ def main() -> None:
         raise SystemExit(f"artiq movcuddur: {script_path}  (--force ile uzerine yaz)")
 
     print(f"[22] skript: {a.topic!r} -> {slug}")
+    os.makedirs(out_dir, exist_ok=True)
+    kw = {"provider": a.provider, "model": a.model, "temperature": a.temperature}
     try:
-        script, domains = generate(a.topic, a.words, provider=a.provider, model=a.model,
-                                   temperature=a.temperature)
+        plan = outline(a.topic, **kw)
+        source = find_source(a, plan, out_dir)
+        script, domains = generate(a.topic, a.words, plan, source, **kw)
     except LLMError as e:
         raise SystemExit("LLM xetasi: " + str(e)) from e
 
-    missing = check_headings(script)
     n = word_count(script)
-    os.makedirs(out_dir, exist_ok=True)
     with open(script_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(script.rstrip() + "\n")
     with open(os.path.join(out_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump({"topic": a.topic, "slug": slug, "words": n,
-                   "est_minutes": round(n / EFFECTIVE_WPM, 1), "domains": domains,
-                   "provider": a.provider, "model": a.model or "default"}, f, indent=2)
+                   "est_minutes": round(n / EFFECTIVE_WPM, 1), "domains": domains, "plan": plan,
+                   "provider": a.provider, "model": a.model or "default"}, f, indent=2, ensure_ascii=False)
 
     print(f"  {n} soz  ~{n / EFFECTIVE_WPM:.1f} deq video -> {script_path}")
-    if missing:
-        print("  DIQQET: catismayan basliqlar:", ", ".join(missing))
     if not WORDS_MIN <= n <= WORDS_MAX:
         print(f"  DIQQET: soz sayi {WORDS_MIN}-{WORDS_MAX} araliginda deyil")
-    verify_math(a, script_path)
+    quality_gate(a, out_dir, script_path)
 
 
 if __name__ == "__main__":

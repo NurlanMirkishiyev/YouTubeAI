@@ -3,7 +3,8 @@ LLM her sehne ucun chart spec teklif edir; burada deterministik yoxlanir:
 - spec sxemi (Remotion komponenti ne gozleyirse) ve qisa metn (ekranda oxunsun);
 - HER reqem (deyerler + etiketlerdeki reqemler) hemin sehnenin danisiginda deyilmelidir - hesab sehvi
   QETI olmur (#34/#40); equation-da hesab Python-da yoxlanir;
-- kecmeyen spec reqemsiz "keypoints"-e, o da alinmasa fotoya dusur (fail-closed).
+- kecmeyen spec fotoya dusur (fail-closed); #57: reqemli sehne hemise butun reqemlerini gosteren animasiyadir
+  (LLM bacarmasa deterministik data kartlari - stats_fallback), generik bullet (keypoints) yoxdur.
 """
 from __future__ import annotations
 
@@ -14,21 +15,20 @@ from typing import Callable
 from llm import LLMError, chat_json
 from math_check import find_numbers
 
-KINDS = ("bars", "line", "compare", "ring", "equation", "flow", "timeline", "counter", "keypoints")
-ANIM_SHARE = 0.6                # istifadeci 2026-10-03: ~60% animasiya
-MAX_RUN = 3                     # ardicil en cox 3 animasiya - arada foto nefes verir
-# E2E break-even (2026-10-04): 40 animasiyanin 22-si keypoints idi - "analitik" gorunmurdu
-KEYPOINTS_SHARE = 0.3
+# #57 (istifadeci 2026-10-05): "generik bullet-ler olmasin" - keypoints artiq teklif/qebul olunmur;
+# "her reqem qrafik ve ya kartla" - reqemli sehne hemise animasiyadir (stats = data kartlari)
+KINDS = ("bars", "line", "compare", "ring", "equation", "flow", "timeline", "counter", "stats")
+ANIM_SHARE = 0.6                # istifadeci 2026-10-03: ~60% animasiya (reqemli sehneler bundan asili deyil)
+MAX_RUN = 3                     # reqemsiz sehnelerde ardicil en cox 3 animasiya - arada foto nefes verir
 MIN_LETTERS = 3                 # LLM numuneni kocurub ".." yazirdi
 _LETTER = re.compile(r"[A-Za-z]")
 CHUNK = 12
 TITLE_MAX, LABEL_MAX, LINE_MAX = 40, 22, 32
 UNITS = ("$", "%", "")
 OPS = {"+": "+", "-": "-", "−": "-", "×": "×", "x": "×", "*": "×", "÷": "÷", "/": "÷"}
-LIMITS = {"bars": (2, 5), "line": (3, 6), "flow": (3, 5), "timeline": (3, 5), "keypoints": (2, 4),
-          "equation": (2, 3)}
+LIMITS = {"bars": (2, 5), "line": (3, 6), "flow": (3, 5), "timeline": (3, 5), "equation": (2, 3), "stats": (1, 4)}
 
-SYSTEM = """You are the motion designer of a premium business explainer video for adults (25-45).
+SYSTEM = """You are the motion designer of a premium business explainer video for US business owners.
 Most scenes get an ANALYTICAL ANIMATION (chart/diagram) drawn in code next to the host owl; the rest keep a photo.
 For each numbered scene propose the ONE animation that best explains what the narration says right now.
 
@@ -42,26 +42,26 @@ Kinds and JSON fields (labels <= 22 characters, titles <= 40, steps/points <= 32
 - flow: {"kind":"flow","title":..,"steps":[..] 3-5}   (a process / cause and effect chain)
 - timeline: {"kind":"timeline","title":..,"events":[{"label":..,"when":..}] 3-5}
 - counter: {"kind":"counter","title":..,"value":number,"unit":..,"label":..}   (one big number)
-- keypoints: {"kind":"keypoints","title":..,"points":[..] 2-4}
+- stats: {"kind":"stats","title":..,"cards":[{"value":number,"label":..}] 1-4}   (data cards: one card per figure)
 
 STRICT number rule: use ONLY numbers that are said in THAT scene's narration, exactly as said.
-Never compute, estimate, round or invent a number. If the narration has no numbers, use flow, compare,
-timeline, keypoints or equation WITHOUT values (value null). No digits inside labels unless said.
-Also give "points": 2-4 short phrases WITHOUT any numbers that summarise the scene (fallback),
-and "score": 0-10 how much an animation helps here (10 = numbers/comparison/process; 0 = pure emotion or
+Never compute, estimate, round or invent a number. EVERY figure said in the scene (dollar amounts, percentages,
+counts written in digits) must appear in the animation - if a chart cannot hold them all, use stats cards.
+If the narration has no numbers, use flow, compare, timeline or equation WITHOUT values (value null).
+Never use bullet lists. No digits inside labels unless said.
+Give "score": 0-10 how much an animation helps here (10 = numbers/comparison/process; 0 = pure emotion or
 a vivid object that a photo shows better)."""
 
 USER = """Video topic: {topic}
 
 Prefer real analysis: bars, line, compare, ring, equation, counter whenever the scene has numbers or a
-comparison; flow or timeline for processes. Use keypoints only when nothing else fits. Every animation title
-must be different from all other titles in the video.
+comparison; flow or timeline for processes; stats cards when the scene states several unrelated figures.
+Every animation title must be different from all other titles in the video.
 
 Return JSON exactly, e.g.:
 {{"scenes": [{{"n": 1, "score": 8, "visual": {{"kind": "compare", "title": "Rent vs coffee beans",
 "unit": "", "left": {{"label": "Fixed cost", "value": null, "note": "Same every month"}},
-"right": {{"label": "Variable cost", "value": null, "note": "Grows with each cup"}}}},
-"points": ["Fixed costs stay put", "Variable costs follow sales"]}}]}}
+"right": {{"label": "Variable cost", "value": null, "note": "Grows with each cup"}}}}}}]}}
 
 Scenes:
 {scenes}"""
@@ -209,9 +209,11 @@ def _build(kind: str, v: dict, narration: str) -> dict | None:
                                            and (not e["when"] or _text_ok(e["when"], LABEL_MAX, narration))
                                            for e in out)
         return {"events": out} if good else None
-    key = "steps" if kind == "flow" else "points"
-    lines = _lines(v.get(key), *LIMITS[kind], narration)
-    return lines and {key: lines}
+    if kind == "stats":
+        cards = _labelled(v.get("cards"), *LIMITS["stats"], narration)
+        return cards and {"cards": cards} if cards and all(c["value"] is not None for c in cards) else None
+    lines = _lines(v.get("steps"), *LIMITS[kind], narration)
+    return lines and {"steps": lines}
 
 
 def validate_visual(v: object, narration: str) -> dict | None:
@@ -225,16 +227,88 @@ def validate_visual(v: object, narration: str) -> dict | None:
     return {"kind": v["kind"], "title": title, **body} if body else None
 
 
-def to_keypoints(v: object, narration: str) -> dict | None:
-    """Reqemsiz ehtiyat: LLM-in "points"-inden reqem dasimayanlar (danisiqda deyilmeyen) saxlanir."""
-    if not isinstance(v, dict):
+_YEAR = re.compile(r"(?:19|20)\d\d")
+_STOP = {"and", "or", "but", "to", "that", "which", "so", "because", "if", "when", "while", "than", "then",
+         "with", "is", "are", "was", "were", "it", "this", "you", "your"}
+_LEAD = {"a", "an", "the", "in", "of", "per", "for", "on", "at", "dollars", "dollar", "percent", "cents"}
+_WORDS = re.compile(r"[A-Za-z][A-Za-z'-]*")
+_CLAUSE = re.compile(r"[.,;:!?]")
+
+
+def figures(narration: str) -> list[float]:
+    """#57: ekranda gorunmeli reqemler - reqemle yazilan, pul ve faiz; il (1994, 2023) ve kicik sozle sayilar
+    ("three months") yox. Tekrar deyer bir defe."""
+    out: list[float] = []
+    for start, end, v in find_numbers(narration):
+        span = narration[start:end]
+        if span.lower() in ("one", "a"):
+            continue
+        unit = unit_of(v, narration)
+        if _YEAR.fullmatch(span) and not unit:
+            continue
+        if (any(ch.isdigit() for ch in span) or unit) and not any(math.isclose(v, x) for x in out):
+            out.append(v)
+    return out
+
+
+def _context_label(narration: str, start: int, end: int) -> str:
+    """Kart etiketi danisiqdan: reqemden sonraki 1-3 soz ("$4,000 in rent" -> "Rent"), olmasa evvelki 2 soz."""
+    after = _WORDS.findall(_CLAUSE.split(narration[end:], maxsplit=1)[0])
+    while after and after[0].lower() in _LEAD:
+        after = after[1:]
+    words: list[str] = []
+    for w in after:
+        if w.lower() in _STOP or len(words) == 3:
+            break
+        words.append(w)
+    if len("".join(words)) < MIN_LETTERS:
+        before = _WORDS.findall(_CLAUSE.split(narration[:start])[-1])
+        words = [w for w in before if w.lower() not in _STOP][-2:]
+    label = " ".join(words)[:LABEL_MAX].strip()
+    return label[:1].upper() + label[1:] if label else ""
+
+
+def stats_fallback(narration: str, title: str = "") -> dict | None:
+    """Deterministik data kartlari: sehnedeki her reqem oz kartinda (LLM chart-i reqemi buraxanda)."""
+    wanted = figures(narration)
+    cards, seen = [], []
+    for start, end, v in find_numbers(narration):
+        if not any(math.isclose(v, x) for x in wanted) or any(math.isclose(v, x) for x in seen):
+            continue
+        seen.append(v)
+        cards.append({"value": v, "label": _context_label(narration, start, end) or "Key figure"})
+    if not cards:
         return None
-    pts = [_text(p) for p in (v.get("points") or []) if isinstance(p, str)]
-    pts = [p for p in pts if _text_ok(p, LINE_MAX, narration)][:LIMITS["keypoints"][1]]
-    title = _text(v.get("title"))
-    if len(pts) < LIMITS["keypoints"][0] or not _text_ok(title, TITLE_MAX, narration):
-        return None
-    return {"kind": "keypoints", "title": title, "points": pts}
+    cards = cards[:LIMITS["stats"][1]]
+    title = title if _text_ok(title, TITLE_MAX, narration) else (cards[0]["label"] or "Key figures")
+    return validate_visual({"kind": "stats", "title": title, "cards": cards}, narration)
+
+
+def shown_values(v: dict) -> list[float]:
+    """Chart-da gorunen reqemler (deyerler + etiketlerdeki reqemler)."""
+    vals: list[float] = []
+
+    def walk(o: object) -> None:
+        if isinstance(o, dict):
+            for k, x in o.items():
+                if k == "value" and isinstance(x, (int, float)) and not isinstance(x, bool):
+                    vals.append(float(x))
+                elif isinstance(x, str):
+                    vals.extend(val for _, _, val in find_numbers(x))
+                else:
+                    walk(x)
+        elif isinstance(o, list):
+            for x in o:
+                walk(x)
+    walk(v)
+    return vals
+
+
+def covers_figures(v: dict | None, narration: str) -> bool:
+    if not v:
+        return False
+    shown = shown_values(v)
+    return all(any(math.isclose(f, x, rel_tol=1e-9, abs_tol=1e-6) for x in shown) for f in figures(narration))
 
 
 def _run_ok(picked: set[int], i: int) -> bool:
@@ -255,22 +329,18 @@ _WORDCH = re.compile(r"[a-z0-9]")
 
 
 def choose_animated(scores: list[float], share: float = ANIM_SHARE, kinds: list[str] | None = None,
-                    titles: list[str] | None = None) -> set[int]:
-    """En yuksek balli sehneler (bal < 0 = kecerli spec yoxdur). Ilk sehne foto (intro-dan sonra canli kadr),
-    ardicil MAX_RUN-dan cox animasiya olmur, keypoints <= KEYPOINTS_SHARE, eyni basliq iki defe olmur."""
+                    titles: list[str] | None = None, forced: set[int] = frozenset()) -> set[int]:
+    """forced (#57: reqemli sehneler) hemise animasiyadir. Qalanlari: en yuksek balli sehneler (bal < 0 = kecerli
+    spec yoxdur), ilk sehne foto, ardicil MAX_RUN-dan cox animasiya olmur, eyni basliq iki defe olmur."""
     want = round(share * len(scores))
-    kinds = kinds or [""] * len(scores)
     titles = titles or [str(i) for i in range(len(scores))]
-    kp_cap = max(1, round(KEYPOINTS_SHARE * want))
-    picked: set[int] = set()
-    seen: set[str] = set()
+    picked = {i for i in forced if scores[i] >= 0}
+    seen = {_title_key(titles[i]) for i in picked}
     for i in sorted(range(1, len(scores)), key=lambda k: (-scores[k], k)):
         if len(picked) >= want:
             break
         key = _title_key(titles[i])
-        if scores[i] < 0 or not _run_ok(picked | {i}, i) or key in seen:
-            continue
-        if kinds[i] == "keypoints" and sum(1 for j in picked if kinds[j] == "keypoints") >= kp_cap:
+        if i in picked or scores[i] < 0 or not _run_ok(picked | {i}, i) or key in seen:
             continue
         picked.add(i)
         seen.add(key)
@@ -279,15 +349,16 @@ def choose_animated(scores: list[float], share: float = ANIM_SHARE, kinds: list[
 
 def _candidate(item: dict, narration: str) -> tuple[float, dict | None]:
     raw = item.get("visual") if isinstance(item.get("visual"), dict) else {}
-    spec = validate_visual(raw, narration) or to_keypoints(
-        {"title": raw.get("title"), "points": item.get("points") or raw.get("points")}, narration)
+    spec = validate_visual(raw, narration)
     score = _num(item.get("score"))
     return ((score if score is not None else 0.0) if spec else -1.0), spec
 
 
-# why-9-99 (2026-10-04): mucerred movzuda LLM 68 sehneden 33-e keypoints verdi -> limitden sonra pay 37%
-NO_KEYPOINTS = ("\n\nDo NOT use keypoints for these scenes: choose flow, compare, timeline or equation "
+# why-9-99 (2026-10-04): LLM mucerred movzuda cox bullet verirdi; #57-den bullet (keypoints) umumiyyetle yoxdur
+NO_KEYPOINTS = ("\n\nDo NOT use bullet lists for these scenes: choose flow, compare, timeline or equation "
                 "(value null when the narration says no number).")
+ALL_FIGURES = ("\n\nShow EVERY figure the narration says in these scenes (each dollar amount, percentage and "
+               "digit count) - use bars, compare, equation or stats cards so none is left out.")
 
 
 def _ask(scenes: list[dict], numbers: list[int], topic: str, chat: Callable, llm_kw: dict,
@@ -320,29 +391,45 @@ def _ask_all(scenes: list[dict], numbers: list[int], topic: str, chat: Callable,
     return got
 
 
-def _pick(scores: list[float], specs: list[dict | None], share: float) -> set[int]:
+def _pick(scores: list[float], specs: list[dict | None], share: float, forced: set[int]) -> set[int]:
     return choose_animated(scores, share, kinds=[sp["kind"] if sp else "" for sp in specs],
-                           titles=[sp["title"] if sp else "" for sp in specs])
+                           titles=[sp["title"] if sp else "" for sp in specs], forced=forced)
+
+
+def _cover_figures(scenes: list[dict], scores: list[float], specs: list[dict | None], topic: str,
+                   chat: Callable, llm_kw: dict) -> set[int]:
+    """#57: reqemli sehnenin spec-i butun reqemleri gostermelidir - yoxsa yeniden sorusulur, sonra data kartlari."""
+    numeric = [i for i, s in enumerate(scenes) if figures(s["narration"])]
+    retry = [i + 1 for i in numeric if not covers_figures(specs[i], scenes[i]["narration"])]
+    more = _ask_all(scenes, retry, topic, chat, llm_kw, ALL_FIGURES) if retry else {}
+    for n in retry:
+        narr = scenes[n - 1]["narration"]
+        score, spec = _candidate(more.get(n) or {}, narr)
+        if not covers_figures(spec, narr):
+            old = specs[n - 1]
+            spec, score = stats_fallback(narr, old["title"] if old else ""), max(score, 5.0)
+        scores[n - 1], specs[n - 1] = (score, spec) if spec else (-1.0, None)
+    return {i for i in numeric if specs[i] is not None}
 
 
 def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, share: float = ANIM_SHARE,
                  **llm_kw) -> list[dict | None]:
-    """Her sehne ucun animasiya spec-i ve ya None (foto). Pay catmasa keypoints/kecmeyen sehneler
-    keypoints-siz yeniden sorusulur."""
+    """Her sehne ucun animasiya spec-i ve ya None (foto). Reqemli sehneler hemise butun reqemleri gosteren
+    animasiyadir (#57); pay catmasa kecmeyen reqemsiz sehneler bullet-siz yeniden sorusulur."""
     got = _ask_all(scenes, list(range(1, len(scenes) + 1)), topic, chat, llm_kw)
     pairs = [_candidate(got.get(n) or {}, scenes[n - 1]["narration"]) for n in range(1, len(scenes) + 1)]
     scores, specs = [p[0] for p in pairs], [p[1] for p in pairs]
-    picked = _pick(scores, specs, share)
+    forced = _cover_figures(scenes, scores, specs, topic, chat, llm_kw)
+    picked = _pick(scores, specs, share, forced)
     if len(picked) < round(share * len(scenes)):
-        retry = [i + 1 for i in range(1, len(scenes))
-                 if i not in picked and (specs[i] is None or specs[i]["kind"] == "keypoints")]
+        retry = [i + 1 for i in range(1, len(scenes)) if i not in picked and specs[i] is None]
         more = _ask_all(scenes, retry, topic, chat, llm_kw, NO_KEYPOINTS) if retry else {}
         for n in retry:
             score, spec = _candidate(more.get(n) or {}, scenes[n - 1]["narration"])
-            if spec and spec["kind"] != "keypoints":
+            if spec:
                 scores[n - 1], specs[n - 1] = score, spec
-        picked = _pick(scores, specs, share)
-    print(f"  animasiya: {len(picked)}/{len(scenes)} sehne ("
+        picked = _pick(scores, specs, share, forced)
+    print(f"  animasiya: {len(picked)}/{len(scenes)} sehne, reqemli {len(forced)} ("
           + ", ".join(f"{k}x{sum(1 for i in picked if specs[i]['kind'] == k)}" for k in KINDS
                       if any(specs[i]["kind"] == k for i in picked)) + ")", flush=True)
     return [specs[i] if i in picked else None for i in range(len(scenes))]

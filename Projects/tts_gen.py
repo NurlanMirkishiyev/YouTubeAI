@@ -18,7 +18,8 @@ import numpy as np
 import soundfile as sf
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from timeline import spoken_titles  # noqa: E402
+from speech import to_speech  # noqa: E402
+from timeline import intro_text, spoken_titles  # noqa: E402
 
 CONFIG = r"C:\YouTubeAI\TTS\config\narrator.json"
 GAP_S = 0.25          # sehneler arasi qisa nefes
@@ -36,9 +37,10 @@ def load_config() -> dict:
 
 
 def synth(pipeline, text: str, voice: str, speed: float) -> np.ndarray:
-    """Kokoro metni oz-ozune parcalayir - butun parcalar birlesdirilir."""
+    """Kokoro metni oz-ozune parcalayir - butun parcalar birlesdirilir. #54: reqemler evvelce ingilis sozlerine
+    ("$4,000" -> "four thousand dollars", "2023" -> "twenty twenty-three") - Kokoro "$9.99", "1994-2020" sehv oxuyurdu."""
     chunks = [np.asarray(audio, dtype=np.float32)
-              for _, _, audio in pipeline(text, voice=voice, speed=speed)]
+              for _, _, audio in pipeline(to_speech(text), voice=voice, speed=speed)]
     if not chunks:
         raise RuntimeError("kokoro bos audio qaytardi")
     return np.concatenate(chunks)
@@ -53,6 +55,12 @@ def card_audio(wav: np.ndarray, sr: int, minimum: float) -> np.ndarray:
 def read_topic(ep_dir: str) -> str:
     with open(os.path.join(ep_dir, "meta.json"), encoding="utf-8") as f:
         return json.load(f)["topic"]
+
+
+def read_intro(ep_dir: str) -> str:
+    """#56: giris karti Cold Open-u (ilk 3 s-de konkret reqem) seslendirir; kohne skriptde movzu basligi."""
+    with open(os.path.join(ep_dir, "script.md"), encoding="utf-8") as f:
+        return intro_text(f.read(), read_topic(ep_dir))
 
 
 def main() -> None:
@@ -78,7 +86,7 @@ def main() -> None:
     todo = [i for i in range(len(scenes))
             if (not a.only or i + 1 in a.only)
             and (a.force or not os.path.isfile(os.path.join(audio_dir, f"sc{i + 1:02d}.wav")))]
-    cards = {"intro": (read_topic(a.episode_dir), INTRO_MIN_S), "outro": (OUTRO_TEXT, OUTRO_MIN_S)}
+    cards = {"intro": (read_intro(a.episode_dir), INTRO_MIN_S), "outro": (OUTRO_TEXT, OUTRO_MIN_S)}
     card_todo = [c for c in cards if a.force or not os.path.isfile(os.path.join(audio_dir, f"{c}.wav"))]
     print(f"[25] {len(todo)}/{len(scenes)} sehne + {len(card_todo)} kart seslendirilecek  ({cfg['voice']}, {sr} Hz)")
 

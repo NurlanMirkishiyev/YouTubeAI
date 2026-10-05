@@ -40,6 +40,9 @@ The host is a cartoon owl rendered separately in a lower corner - you never desc
 For every scene you choose one background picture and one owl pose.
 
 Picture rules:
+- LITERAL, not symbolic: show the real business, place, product, tool or machine the narration talks about -
+  above all the case business the video follows. NEVER a metaphor or generic stock object (piggy bank,
+  hourglass, chess piece, light bulb, compass, lighthouse, coins on a table, empty desk).
 - ONE clear hero subject that literally shows what the narration is talking about right now
   (the object, machine, place or result in the sentence), doing its action if it has one.
   Example: "an espresso machine pouring a shot in a busy modern cafe".
@@ -84,9 +87,10 @@ Scenes:
 {note}{scenes}"""
 # Yeniden istenen sehneler: evvelki sekil ya tekrar idi, ya da ekran/yazi/insan oldugu ucun silindi
 RETRY_NOTE = """These scenes are asked AGAIN: the first pictures repeated an earlier subject or needed
-screens, text, apps, people, price tags, prices or digits, which cannot be drawn. Show the idea with a PHYSICAL object or machine
-metaphor instead (e.g. reminders -> a brass bell ringing on a desk; email -> paper envelopes flying
-out of a small mail robot; calendar app -> a wooden desk clock beside a potted plant).
+screens, text, apps, people, price tags, prices or digits, which cannot be drawn. Show the idea LITERALLY with
+a real place, product, tool or machine of the business in the narration that carries no writing (e.g. pricing
+at a taqueria -> a steaming tray of tacos on the pass of a restaurant kitchen; shipping costs -> a delivery van
+at a loading dock). No symbolic metaphors.
 
 """
 
@@ -335,7 +339,7 @@ def split_scenes(markdown: str) -> list[dict]:
             flush()
             section = line.lstrip("#").strip()
             continue
-        if not line:
+        if not line or section == "Cold Open":     # #56: Cold Open giris kartinda seslenir, sehne deyil
             continue
         for sentence in re.split(r"(?<=[.!?])\s+", line):
             if not sentence:
@@ -388,11 +392,24 @@ def align(items: list[dict], numbers: list[int]) -> list[dict]:
     return [by_n.get(n, {}) for n in numbers]
 
 
+def case_note(plan: dict) -> str:
+    """#60: videonun izlediyi case biznesi - fonlar onun real yerlerini/mehsullarini gostersin."""
+    case = (plan or {}).get("case") or {}
+    if not case.get("business"):
+        return ""
+    return (f"The video follows {case.get('owner', 'an owner')}'s business: {case['business']} in "
+            f"{case.get('city', '')}, {case.get('state', '')}. Prefer literal pictures of this business's real "
+            "places, products, tools and machines.\n\n")
+
+
+CASE_NOTE = ""      # main() plandan doldurur; testlerde bos
+
+
 def _ask(scenes: list[dict], numbers: list[int], used: list[str], retry: bool = False,
          **llm_kw) -> list[dict]:
     listing = "\n".join(f"{n}. [{scenes[n - 1]['section']}] {scenes[n - 1]['narration']}" for n in numbers)
     data = chat_json(SYSTEM, USER.format(poses=", ".join(VIDEO_POSES), used=", ".join(used) or "none",
-                                         note=RETRY_NOTE if retry else "",
+                                         note=CASE_NOTE + (RETRY_NOTE if retry else ""),
                                          scenes=listing), max_tokens=4000, **llm_kw)
     items = align(data.get("scenes") or [], numbers)
     lost = sum(1 for it in items if not it)
@@ -423,7 +440,7 @@ def _fields(it: dict) -> tuple[str, str, str, str]:
 def topic_pool(topic: str, used_heroes: set[str], n: int, **llm_kw) -> list[str]:
     """Sehne metni verilmeden movzuya aid tekrarsiz fonlar (metnde "$9.99" olanda LLM her defe yene
     qiymet etiketi cekirdi). Eyni filtrlerden kecir; esas ismi artiq islenenler atilir."""
-    data = chat_json(SYSTEM, TOPIC_POOL.format(n=n, topic=topic, used=", ".join(sorted(used_heroes)) or "none"),
+    data = chat_json(SYSTEM, CASE_NOTE + TOPIC_POOL.format(n=n, topic=topic, used=", ".join(sorted(used_heroes)) or "none"),
                      max_tokens=4000, **llm_kw)
     out: list[str] = []
     seen = set(used_heroes)
@@ -509,6 +526,14 @@ def episode_topic(episode_dir: str) -> str:
         return ""
 
 
+def episode_plan(episode_dir: str) -> dict:
+    try:
+        with open(os.path.join(episode_dir, "meta.json"), encoding="utf-8") as f:
+            return json.load(f).get("plan") or {}
+    except (OSError, ValueError):
+        return {}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("episode_dir", help=r"mes. Episodes\trademark-copyright-patent")
@@ -530,6 +555,8 @@ def main() -> None:
     print(f"[23] {len(scenes)} sehne bolundu -> fon promptu + sprite secilir")
 
     topic = episode_topic(a.episode_dir)
+    global CASE_NOTE
+    CASE_NOTE = case_note(episode_plan(a.episode_dir))
     llm_kw = {"provider": a.provider, "model": a.model, "temperature": a.temperature}
     try:
         # #45: evvelce hansi sehnelerin animasiya olacagi - fon yalniz qalan foto sehnelerine planlanir

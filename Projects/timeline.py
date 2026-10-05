@@ -7,6 +7,20 @@ INTRO_S = 4.0    # scenes.json-da intro_seconds yoxdursa (kohne epizod)
 OUTRO_S = 6.0    # scenes.json-da outro_seconds yoxdursa
 
 
+COLD_OPEN = "Cold Open"   # #56: ilk 3 saniyenin hook cumlesi - giris kartinda seslenir, sehne deyil
+
+
+def cold_open(markdown: str) -> str | None:
+    m = re.search(r"^## Cold Open\s*\n(.*?)(?=^## |\Z)", markdown, re.M | re.S)
+    text = " ".join(m.group(1).split()) if m else ""
+    return text or None
+
+
+def intro_text(markdown: str, topic: str) -> str:
+    """Giris kartinin seslendirdiyi metn: Cold Open (ilk 3 s-de reqem), kohne skriptde movzu basligi."""
+    return cold_open(markdown) or topic
+
+
 def display_title(section: str) -> str:
     return re.sub(r"^Section\s+\d+\s*:\s*", "", section).strip()
 

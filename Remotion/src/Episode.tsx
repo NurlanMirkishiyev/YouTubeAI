@@ -36,9 +36,9 @@ export const Episode: React.FC<EpisodeProps> = (p) => {
   };
   const clips = [
     {key: 'intro', frames: p.introFrames, section: '__intro__',
-      node: <IntroCard title={p.topic} brand={p.brand} bg={p.introBg} owl={p.poses[p.introOwl]} />},
+      node: <IntroCard title={p.topic} hook={p.hook} brand={p.brand} bg={p.introBg} owl={p.poses[p.introOwl]} />},
     ...p.scenes.map((s, i) => ({key: `sc${i}`, frames: s.frames, section: s.side + (s.title ?? i),
-      node: s.visual ? <AnalyticsScene visual={s.visual} reveal={s.reveal ?? []} />
+      node: s.visual ? <AnalyticsScene visual={s.visual} reveal={s.reveal ?? []} kicker={s.kicker ?? null} />
         : <KenBurns src={s.bg as string} motion={s.motion} flip={s.flip} />})),
     {key: 'outro', frames: p.outroFrames, section: '__outro__',
       node: <OutroCard brand={p.brand} bg={p.outroBg} owl={p.poses[p.outroOwl]} />},
@@ -60,7 +60,7 @@ export const Episode: React.FC<EpisodeProps> = (p) => {
         })}
       </TransitionSeries>
       <OwlLayer scenes={placed} poses={p.poses} endFrame={scenesEnd} />
-      {placed.filter((s) => s.title).map((s) => (
+      {placed.filter((s) => s.title && s.lowerThird !== false).map((s) => (
         <Sequence key={s.start} from={s.start} durationInFrames={Math.min(s.frames, LOWER_THIRD_S * p.fps)}
           layout="none">
           <LowerThird text={s.title as string} />

@@ -49,11 +49,12 @@ const Bar: React.FC<{delay: number}> = ({delay}) => {
   return <div style={{width: 14, height: 190 * sp, background: ACCENT, borderRadius: 7, marginRight: 36}} />;
 };
 
-export const IntroCard: React.FC<{title: string; brand: string; bg: string | null; owl?: OwlPose}> = (
-  {title, brand, bg, owl}) => {
+export const IntroCard: React.FC<{title: string; brand: string; bg: string | null; owl?: OwlPose;
+  hook?: string | null}> = ({title, brand, bg, owl, hook}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const brandIn = spring({frame, fps, delay: 18, config: {damping: 200}});
+  const hookIn = spring({frame, fps, delay: 10, config: {damping: 200}});
   return (
     <AbsoluteFill>
       {bg ? <KenBurns src={bg} motion="zoom_in" blur={12} dim={0.45} /> : <StudioBackdrop />}
@@ -61,6 +62,12 @@ export const IntroCard: React.FC<{title: string; brand: string; bg: string | nul
         <Bar delay={2} />
         <div>
           <Words text={title} size={96} delay={4} stagger={3} />
+          {hook ? (
+            /* #56: ilk saniyelerde seslenen hook (konkret reqem/paradoks) ekranda da */
+            <div style={{fontFamily: FONT, fontWeight: 700, fontSize: 46, color: '#fff', marginTop: 26,
+              maxWidth: 1080, lineHeight: 1.2, opacity: hookIn, borderLeft: `6px solid ${ACCENT}`, paddingLeft: 22,
+              transform: `translateY(${interpolate(hookIn, [0, 1], [24, 0])}px)`}}>{hook}</div>
+          ) : null}
           <div style={{fontFamily: FONT, fontWeight: 600, fontSize: 42, color: ACCENT, marginTop: 18,
             opacity: brandIn}}>{brand}</div>
         </div>

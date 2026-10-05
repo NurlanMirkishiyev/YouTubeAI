@@ -1,6 +1,6 @@
 """Reyestr #45 (2026-10-03): sehnelerin ~60%-i analitik animasiya. Chart-daki her reqem sehne danisiginda
 olmalidir (hesab sehvi QETI olmur) - olmasa reqemsiz keypoints-e, o da alinmasa fotoya dusur."""
-from visuals import ANIM_SHARE, choose_animated, plan_visuals, to_keypoints, validate_visual
+from visuals import ANIM_SHARE, choose_animated, figures, plan_visuals, stats_fallback, validate_visual
 
 NARR = "A $10 lunch drops to $9.99 and sales jump 40% in three months."
 
@@ -53,11 +53,10 @@ def test_unknown_kind_and_long_text_are_rejected():
     assert validate_visual(v, NARR) is None
 
 
-def test_keypoints_fallback_drops_numbers():
-    v = {"kind": "bars", "title": "Sales", "points": ["Charm prices", "Left digit wins", "Costs 7 cents"]}
-    out = to_keypoints(v, NARR)
-    assert out["kind"] == "keypoints" and out["points"] == ["Charm prices", "Left digit wins"]
-    assert to_keypoints({"kind": "bars", "title": "x", "points": ["only one"]}, NARR) is None
+def test_generic_bullets_are_not_accepted_any_more():
+    """#57 (istifadeci 2026-10-05): generik bullet-ler olmasin - keypoints artiq kecerli deyil."""
+    assert validate_visual({"kind": "keypoints", "title": "Charm prices", "points": ["Left digit", "Cheap feel"]},
+                           NARR) is None
 
 
 def test_choose_animated_takes_share_and_keeps_first_scene_photo():
@@ -93,9 +92,10 @@ def test_plan_visuals_validates_llm_output_and_falls_back():
              "points": ["Fees add up", "Costs grow"]}]}
 
     out = plan_visuals(scenes, "Why prices", chat=fake_chat, share=ANIM_SHARE)
-    assert out[0] is None                       # ilk sehne foto
-    assert out[1]["kind"] == "ring"
-    assert out[2]["kind"] == "keypoints"        # 70/90 danisiqda yoxdur -> reqemsiz
+    assert out[0] is None                       # ilk sehne foto (reqemi yoxdur, keypoints kecmir)
+    # #57: ring yalniz 40%-i gosterir, $10 ve $9.99 gorunmurdu -> butun reqemler data kartinda
+    assert out[1]["kind"] == "stats" and [c["value"] for c in out[1]["cards"]] == [10, 9.99, 40]
+    assert out[2] is None                       # 70/90 danisiqda yoxdur -> foto
 
 
 def test_plan_visuals_survives_llm_error():
@@ -104,7 +104,11 @@ def test_plan_visuals_survives_llm_error():
     def broken(*a, **k):
         raise LLMError("down")
 
-    assert plan_visuals([{"section": "S", "narration": NARR}] * 3, "t", chat=broken) == [None] * 3
+    plain = {"section": "S", "narration": "Shoppers trust a store that explains its prices."}
+    assert plan_visuals([plain] * 3, "t", chat=broken) == [None] * 3
+    # #57: reqemli sehne LLM-siz de data kartini alir (deterministik)
+    out = plan_visuals([plain, {"section": "S", "narration": NARR}], "t", chat=broken)
+    assert out[0] is None and out[1]["kind"] == "stats"
 
 
 # --- scene_plan / stages inteqrasiyasi ---------------------------------------------------------
@@ -241,18 +245,10 @@ def test_props_include_reveal_for_animated_scenes():
 
 def test_placeholder_text_is_rejected():
     assert validate_visual({"kind": "keypoints", "title": "Break-Even Point", "points": ["..", ".."]}, NARR) is None
-    assert to_keypoints({"title": "Break-Even", "points": ["..", "...", "-"]}, NARR) is None
     assert validate_visual({"kind": "flow", "title": "..", "steps": ["Plan it", "Build it", "Ship it"]}, NARR) is None
 
 
-def test_keypoints_are_capped_and_titles_never_repeat():
-    from visuals import KEYPOINTS_SHARE
-    n = 20
-    scores = [0.0] + [9.0] * (n - 1)
-    kinds = ["photo"] + ["keypoints"] * (n - 1)
-    titles = [""] + [f"T{k}" for k in range(1, n)]
-    picked = choose_animated(scores, 0.6, kinds=kinds, titles=titles)
-    assert len(picked) <= round(KEYPOINTS_SHARE * round(0.6 * n)) + 1
+def test_titles_never_repeat():
     picked = choose_animated([0.0, 9, 9, 9, 9], 1.0, kinds=["photo", "bars"] * 2 + ["flow"],
                              titles=["", "Common Mistakes", "common mistakes", "Costs", "Costs!"])
     assert picked == {1, 3}
@@ -309,7 +305,7 @@ def test_plan_visuals_asks_again_without_keypoints_when_share_is_short():
 
     def fake_chat(system, user, **kw):
         calls.append(user)
-        if "Do NOT use keypoints" in user:
+        if "Do NOT use bullet lists" in user:
             return {"scenes": [{"n": n, "score": 6, "visual": {"kind": "flow", "title": f"Reaction path {chr(64 + n)}",
                     "steps": ["See the price", "Feel the deal", "Decide to buy"]}} for n in _numbered(user)]}
         return {"scenes": [{"n": n, "score": 5, "visual": {"kind": "keypoints", "title": f"Idea {chr(64 + n)}",
@@ -317,7 +313,7 @@ def test_plan_visuals_asks_again_without_keypoints_when_share_is_short():
 
     out = plan_visuals(scenes, "Why prices", chat=fake_chat, share=ANIM_SHARE)
     assert sum(v is not None for v in out) == round(ANIM_SHARE * len(scenes))
-    assert any("Do NOT use keypoints" in u for u in calls)
+    assert any("Do NOT use bullet lists" in u for u in calls)
 
 
 def test_plan_visuals_re_asks_scenes_the_llm_skipped():
@@ -347,3 +343,45 @@ def test_first_element_never_waits_until_the_end_of_the_scene():
     r = rb.reveal_frames(eq, words, 0.0, 410)
     assert r[0] <= round(rb.FIRST_REVEAL_MAX * 410)
     assert r == sorted(r) and r[-1] <= 410 - rb.REVEAL_TAIL
+
+
+# --- #57 (istifadeci 2026-10-05): her reqem qrafik ve ya kartla, generik bullet yox ------------------
+
+def test_figures_are_digits_money_and_percent_but_not_years_or_small_words():
+    narr = "In 2023 Rosa paid $4,000 rent, about fifteen percent of 26,000 in sales, over three months."
+    assert figures(narr) == [4000, 15, 26000]
+
+
+def test_stats_fallback_puts_every_figure_on_a_card():
+    narr = "Rosa pays $4,000 in rent and keeps a 12% margin."
+    v = stats_fallback(narr)
+    assert v["kind"] == "stats" and [(c["value"], c["unit"]) for c in v["cards"]] == [(4000, "$"), (12, "%")]
+    assert all(len(c["label"]) >= 3 for c in v["cards"])
+    assert validate_visual(v, narr) is not None
+
+
+def test_scene_with_figures_is_always_animated_even_beyond_the_share():
+    scenes = [{"section": "S", "narration": f"Store {w} sells $1{k},000 a month."} for k, w in enumerate("abcde")]
+
+    def fake_chat(system, user, **kw):
+        return {"scenes": [{"n": n, "score": 1, "visual": {"kind": "counter", "title": f"Sales {chr(64 + n)}",
+                "value": int(f"1{n - 1}000"), "unit": "$", "label": "Monthly sales"}} for n in _numbered(user)]}
+
+    out = plan_visuals(scenes, "Sales", chat=fake_chat, share=0.2)
+    assert all(v is not None for v in out)          # 5/5 - pay 20% olsa da
+
+
+def test_llm_is_asked_again_when_a_figure_is_missing_from_its_chart():
+    narr = "Rosa pays $4,000 rent and $1,500 for staff each month."
+    calls = []
+
+    def fake_chat(system, user, **kw):
+        calls.append(user)
+        if "Show EVERY figure" in user:
+            return {"scenes": [{"n": 1, "score": 9, "visual": {"kind": "bars", "title": "Monthly costs", "unit": "$",
+                    "items": [{"label": "Rent", "value": 4000}, {"label": "Staff", "value": 1500}]}}]}
+        return {"scenes": [{"n": 1, "score": 9, "visual": {"kind": "counter", "title": "Rent", "value": 4000,
+                "unit": "$", "label": "Rent"}}]}
+
+    out = plan_visuals([{"section": "S", "narration": narr}], "Costs", chat=fake_chat)
+    assert out[0]["kind"] == "bars" and any("Show EVERY figure" in u for u in calls)

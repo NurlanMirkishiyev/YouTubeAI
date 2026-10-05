@@ -14,7 +14,7 @@ def _ctx(tmp_path, **kw):
 
 def test_stage_order():
     assert [s.name for s in st.STAGES] == ["script_gen", "scene_plan", "render_bgs", "check_bgs",
-                                           "render_owls", "upscale_bgs", "tts_gen", "make_srt", "music_gen",
+                                           "render_owls", "upscale_bgs", "tts_gen", "make_srt", "captions", "music_gen",
                                            "build_episode", "publish"]
     assert [s.name for s in st.STAGES if s.needs_comfy] == ["upscale_bgs"]    # fonlar OpenAI-de, ComfyUI yalniz upscale ucun
 
@@ -259,3 +259,25 @@ def test_deliver_replaces_an_older_copy(tmp_path):
     (ep / "cash.mp4").write_bytes(b"new video")
     pl.deliver(str(ep), "cash", str(out))
     assert (out / "cash" / "cash.mp4").read_bytes() == b"new video"
+
+
+def test_captions_stage_builds_subtitles_from_the_script(tmp_path):
+    """#54: altyazi ssenaridən; whisper yalniz vaxt. Reqem sehv oxunubsa merhele kecmir."""
+    ctx = _ctx(tmp_path)
+    stage = st.STAGES[st.stage_index("captions")]
+    assert stage.command(ctx, False)[1].endswith("captions.py")
+    (tmp_path / "captions_qa.json").write_text('{"problems": ["sc03: 9.99 esidilmedi"]}', encoding="utf-8")
+    assert stage.verify(ctx) == ["sc03: 9.99 esidilmedi"]
+
+
+def test_deliver_prefers_script_captions(tmp_path):
+    ep, out = tmp_path / "ep", tmp_path / "out"
+    (ep / "youtube").mkdir(parents=True)
+    (ep / "cash.mp4").write_bytes(b"v")
+    (ep / "youtube" / "thumbnail.png").write_bytes(b"p")
+    for name in ("title.txt", "description.txt", "tags.txt"):
+        (ep / "youtube" / name).write_text("x", encoding="utf-8")
+    (ep / "narration.srt").write_text("whisper", encoding="utf-8")
+    (ep / "captions.srt").write_text("script $4,000", encoding="utf-8")
+    pl.deliver(str(ep), "cash", str(out))
+    assert (out / "cash" / "subtitles.srt").read_text(encoding="utf-8") == "script $4,000"

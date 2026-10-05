@@ -34,7 +34,8 @@ MAX_EXTENSIONS = 2
 DELIVERY_DIR = os.path.join(ROOT, "Hazir_Videolar")   # butun hazir videolar bir yerde (istifadeci 2026-09-27)
 INVALIDATE_DIRS = ("bg", "bg_hd", "owl", "audio", "cards", "remotion", "youtube")
 INVALIDATE_FILES = ("scenes.json", "narration.wav", "narration.srt", "narration.words.json",
-                    "narration.shifted.srt", "bg_qa.json", "owl_qa.json")
+                    "narration.shifted.srt", "bg_qa.json", "owl_qa.json",
+                    "captions.words.json", "captions.srt", "captions_qa.json")
 
 
 @dataclass(frozen=True)
@@ -209,7 +210,8 @@ def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None 
     return 0
 
 
-DELIVER_OPTIONAL = (("narration.srt", "subtitles.srt"), ("script.md", "script.md"))
+# #54: ssenari altyazisi (captions.srt) varsa o, yoxdursa whisper-inki
+DELIVER_OPTIONAL = (("narration.srt", "subtitles.srt"), ("captions.srt", "subtitles.srt"), ("script.md", "script.md"))
 
 
 def deliver(ep_dir: str, slug: str, out_dir: str) -> str:

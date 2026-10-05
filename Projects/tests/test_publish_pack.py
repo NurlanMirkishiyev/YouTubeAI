@@ -63,3 +63,13 @@ def test_music_credit_empty_for_unknown_or_missing_track():
 def test_description_appends_credit():
     d = pp.description("Sum.", [(0.0, "Hook")], ["eli5"], credit="Music: X")
     assert d.rstrip().endswith("Music: X") and "00:00 Hook" in d
+
+
+def test_description_names_the_verified_source():
+    """#58: tedqiqat menbeyi YouTube description-da da gorunur."""
+    import publish_pack as pp
+    src = {"publisher": "Federal Reserve Banks", "year": 2025, "url": "https://www.fedsmallbusiness.org/r.pdf"}
+    line = pp.source_line(src)
+    assert line == "Source: Federal Reserve Banks (2025) - https://www.fedsmallbusiness.org/r.pdf"
+    assert pp.source_line({}) == ""
+    assert line in pp.description("Summary.", [(0.0, "Intro")], [], line)

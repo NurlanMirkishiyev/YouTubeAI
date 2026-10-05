@@ -42,7 +42,8 @@ REPORT = "bg_qa.json"
 # "you"-dan insan "gorurdu" (97 fonun 84-u "human" cixmisdi)
 CHECKS = (("people", "human"), ("writing", "text"), ("collage", "collage"),
           ("no_subject", "empty"), ("deformed", "deformed"), ("off_topic", "mismatch"),
-          ("childish", "childish"))
+          ("childish", "childish"), ("generic", "generic"))
+GENERIC_MAX = 0.10          # #60 (istifadeci 2026-10-05): generik/metafor kadrlar 10%-den az
 
 SYSTEM = """You check background images of an explainer video. A cartoon owl is added later, so the image
 itself must not contain people. First write "description": one factual sentence of what is ACTUALLY
@@ -59,14 +60,17 @@ talks to the viewer ("you") - never infer people or writing from it.
   alcohol or medicine.
 - "childish": it looks like a children's video - toys, candy, carnival or playground things, cartoonish
   plastic toy-like objects, or a cute kids-show look. The video is for adult professionals.
+- "generic": a generic stock picture or a symbolic metaphor (piggy bank, hourglass, chess piece, light bulb,
+  compass, lighthouse, coins on a table, empty desk) instead of the LITERAL business, place, product, tool or
+  machine the narration is about.
 Also give "fix_prompts": if any check is true, a list of 3 DIFFERENT new image prompts of 8-20 words each -
-ONE clear real-world adult object or place (office, shop, cafe, warehouse, tool, product) that illustrates
-the narration as a photo. Each main object must differ from every object already used in other scenes.
+ONE clear real-world place, product, tool or machine of the business in the narration, shown literally as a
+photo (never a symbolic metaphor). Each main object must differ from every object already used in other scenes.
 Nothing that carries writing: no price tags, menus, receipts, labels, packaging brands, signs, screens,
 papers, books or cards - show the idea through the physical thing itself. No people, hands or toys.
 Otherwise [].
 Answer ONLY JSON with keys: description, people, writing, collage, no_subject, deformed, off_topic, childish,
-fix_prompts."""
+generic, fix_prompts."""
 
 
 @dataclass(frozen=True)
@@ -188,6 +192,13 @@ def judge_all(nums: list[int], judge_fn, workers: int = WORKERS, sleep=time.slee
         for n in failed:
             res[n] = judge_fn(n)
     return res
+
+
+def generic_share(report: dict) -> tuple[list[int], float]:
+    """#60: generik/metafor say - hakim "generic" dedi ve ya ehtiyat hovuz fonu (terife gore generikdir)."""
+    nums = sorted(int(n) for n, r in report.items()
+                  if "generic" in (r.get("problems") or []) or r.get("prompt") in FALLBACK_POOL)
+    return nums, (round(len(nums) / len(report), 3) if report else 0.0)
 
 
 def judge_text(scene: dict) -> str:
@@ -346,10 +357,11 @@ def main() -> None:
 
     duplicates = [] if clean else find_duplicates(ep, a.provider)["pairs"]     # bos deyilse check_bgs merhelesi kecmir
     with open(os.path.join(ep, REPORT), "w", encoding="utf-8") as f:
-        json.dump({"passed": not duplicates, "scenes": report, "duplicates": duplicates}, f, indent=2,
-                  ensure_ascii=False)
+        generic, share = generic_share(report)
+        json.dump({"passed": not duplicates and share <= GENERIC_MAX, "scenes": report, "duplicates": duplicates,
+                   "generic": generic, "generic_share": share}, f, indent=2, ensure_ascii=False)
     redone = sorted(int(n) for n, r in report.items() if r["attempts"])
-    print(f"[qa] bitdi: {len(redone)} fon yeniden cekildi {redone or ''}")
+    print(f"[qa] bitdi: {len(redone)} fon yeniden cekildi {redone or ''}; generik {generic} ({share:.0%})")
 
 
 if __name__ == "__main__":

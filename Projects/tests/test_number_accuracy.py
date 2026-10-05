@@ -156,12 +156,14 @@ def test_report_is_bound_to_exact_script_text(tmp_path):
 
 def test_verify_script_stage_fails_without_math_report(tmp_path):
     import stages
-    md = REAL_BUG.replace("## Recap", "## Hook\n\nx\n\n## Section 1: a\n\nx\n\n## Section 2: b\n\nx\n\n"
-                                      "## Section 3: c\n\nx\n\n## Common Mistakes\n\nx\n\n## Call to Action\n\n"
-                                      "x\n\n## Recap")
+    import script_qa
+    md = REAL_BUG.replace("## Recap", "## Cold Open\n\nx\n\n## Hook\n\nx\n\n## Section 1: a\n\nx\n\n"
+                                      "## Section 2: b\n\nx\n\n## Section 3: c\n\nx\n\n## Common Mistakes\n\nx\n\n"
+                                      "## Call to Action\n\nx\n\n## Recap")
     (tmp_path / "script.md").write_text(md, encoding="utf-8")
     ctx = stages.Ctx(topic="t", slug="s", ep_dir=str(tmp_path), words=1230, music=None,
                      min_seconds=480, max_seconds=600, provider="openai")
+    script_qa.write_report(str(tmp_path), md, [])      # #59 hesabati ayrica yoxlanir (test_script_story.py)
     assert any("hesab" in p for p in stages.verify_script(ctx))
     mc.write_report(str(tmp_path), md, [])
     assert stages.verify_script(ctx) == []
