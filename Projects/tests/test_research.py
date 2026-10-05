@@ -91,3 +91,18 @@ def test_chart_text_blob_is_not_a_quote():
     """Probe 2026-10-05: PDF qrafikinin 500 simvolluq reqem yigini 'sitat' secildi."""
     blob = "Survey N=7,837 " + " ".join(f"{k}%" for k in range(40, 90)) + " raised prices 48% employer firms " * 8
     assert rs.page_quote(48, "48% of employer firms raised prices", blob) is None
+
+
+def test_judge_sees_the_decision_not_the_narrow_search_hint():
+    """E2E 2026-10-05: hakim 'digital services rates' ipucu ile 48% qiymet artimi statistikasini redd etdi."""
+    seen = {}
+
+    def judge(src, topic, decision):
+        seen["decision"] = decision
+        return True
+
+    prompts = []
+    rs.research("T", "Should I raise prices?", search=lambda p: prompts.append(p) or json.dumps({"sources": [GOOD]}),
+                fetch=lambda url: PAGE, judge=judge, fact_need="market rates for digital services")
+    assert seen["decision"] == "Should I raise prices?"
+    assert "market rates for digital services" in prompts[0]

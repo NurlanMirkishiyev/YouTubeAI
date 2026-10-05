@@ -258,3 +258,12 @@ def test_youtube_metadata_prompt_forbids_numbers_and_calculations():
     """Description/basliq/thumbnail yoxlanmir - ona gore orada hesab/reqem ümumiyyetle olmur."""
     import publish_pack as pp
     assert "no numbers" in pp.SYSTEM.lower()
+
+
+def test_loss_stated_as_positive_amount_matches_negative_difference():
+    """E2E raise-your-prices (2026-10-05): "losing $250 for each client" - 750 - 1000 = -250; itki musbet deyilir."""
+    s = {"id": 1, "section": "S", "paragraph": "p", "sentence": "If Laura keeps $750 instead of $1,000, she's "
+         "losing $250 for each client.", "context": "If Laura keeps $750 instead of $1,000, she's losing $250 for "
+         "each client."}
+    assert mc._check_one(s, {"claimed_text": "$250", "expr": "750 - 1000"}) is None
+    assert mc._check_one(s, {"claimed_text": "$250", "expr": "750 + 1000"}) is not None

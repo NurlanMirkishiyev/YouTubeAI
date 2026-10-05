@@ -28,6 +28,7 @@ LENGTH_MARGIN = 1.05  # TTS bosluqlarina ve tehmin xetasina ehtiyat
 # 2364 soz -> 967 s. Xalis 199 wpm ile hesablananda video 16 deq cixirdi (hedef 8-10 deq).
 EFFECTIVE_WPM = 150.0
 MIN_SECTION_WORDS = 110  # qisaldilan bolme bundan az olmur - analogiya + misal yerlesmelidir
+OUTLINE_ATTEMPTS = 3      # #59: plan qaydalari pozulsa (qeyri-mueyyen cavab, ABS-dan kenar case) yeniden
 
 SYSTEM = """You write scripts for an ELI5 Business YouTube channel.
 The audience is ADULT business owners and managers in the United States (B2B): owners of small and mid-sized
@@ -64,7 +65,9 @@ reframe it as the decision a US small-business owner faces about it (B2B). Retur
 
 {{"decision": "the ONE concrete decision the owner makes, as a question (e.g. Should I raise my menu prices
 by 10% this year?)",
-  "answer": "the rule of thumb the video ends with, one sentence",
+  "answer": "the rule the video ends with: a condition with a threshold the owner can check, one sentence with a
+number (e.g. Raise prices if your costs rose more than 5% and fewer than 1 in 10 clients would leave) - never
+vague advice like 'find a balance'",
   "case": {{"owner": "first name", "business": "the business, e.g. a 30-seat taqueria",
             "city": "a US city", "state": "its US state, full name",
             "situation": "the owner's starting numbers in one sentence (round figures)"}},
@@ -198,8 +201,20 @@ def insert_before(markdown: str, anchor: str, block: str) -> str:
 
 
 def outline(topic: str, **llm_kw) -> dict:
-    """Plan (#59): biznes qerari + cavab + bir ABS case + Cold Open + 4 bolme. Sert sxem - pozulsa LLMError."""
-    data = chat_json(SYSTEM, OUTLINE_USER.format(topic=topic), max_tokens=2000, **llm_kw)
+    """Plan (#59): biznes qerari + cavab + bir ABS case + Cold Open + 4 bolme. Sert sxem - pozulsa LLMError.
+    Plan qaydalari (sual-qerar, ABS, sertli cavab) pozulsa sebebi ile yeniden istenir (OUTLINE_ATTEMPTS)."""
+    from script_qa import plan_problems
+    user = OUTLINE_USER.format(topic=topic)
+    for _ in range(OUTLINE_ATTEMPTS):
+        data = chat_json(SYSTEM, user, max_tokens=2000, **llm_kw)
+        why = plan_problems(data)
+        if not why:
+            break
+        print(f"  plan redd: {why}")
+        user = (OUTLINE_USER.format(topic=topic) + "\n\nYour previous plan was rejected: " + "; ".join(why)
+                + "\nPrevious plan: " + json.dumps(data, ensure_ascii=False)[:1500])
+    else:
+        raise LLMError(f"plan qaydalara uygun gelmedi: {why}")
     sections = data.get("sections") or []
     if len(sections) != 4:
         raise LLMError(f"outline 4 bolme qaytarmalidir, qaytardi: {len(sections)}")
@@ -278,6 +293,8 @@ def _section_guidance(plan: dict, s: dict, i: int, source: dict | None) -> str:
          f"Key term: {s.get('term', '')} - define it exactly like this: {s.get('definition', '')}\n"
          f"Use ONLY this analogy domain, once: {s.get('domain', '')} - {s.get('analogy', '')}\n"
          f"Move the case forward: {s.get('case_step', '')} Mention {owner} by name.\n"
+         f"Do not re-introduce {owner} or the business and do not restate figures already given - the viewer "
+         f"knows them; only add what is new in this section.\n"
          f"Do not restate the analogy - after introducing it, keep teaching the idea and the case.")
     if source and i == plan["source_section"]:
         g += (f"\nCite this verified fact ONCE, naming the source and the figure exactly: According to "
@@ -344,13 +361,24 @@ def extend(topic: str, markdown: str, words: int, domains: list[str], plan: dict
                 f"Use ONLY this analogy domain, once: {sec.get('domain', '')} - {sec.get('analogy', '')}\n"
                 + (f"Continue the case of {owner}: what happens to {owner}'s business now. Mention {owner} by name.\n"
                    if owner else "")
+                + "This section comes BEFORE the final decision section: do not make or announce the final "
+                  "decision, and keep every fact consistent with the sections already written.\n"
                 + "Teach the one idea, make it concrete, then hand off to the next section.")
     print(f"  [{heading}] {words} soz  <{sec.get('domain', '')}>")
-    body = _write_block(topic, outline_text(plan) if plan else "\n".join(existing + [heading]), heading, words,
+    body = _write_block(topic, (outline_text(plan) + "\n\nSCRIPT SO FAR:\n" + markdown) if plan
+                        else "\n".join(existing + [heading]), heading, words,
                         guidance, "Every other section is already written. Do not repeat their ideas, examples, "
                         "analogies or numbers.", **llm_kw)
-    return insert_before(markdown, "## Common Mistakes", f"## {heading}\n\n{body}"), \
+    # E2E 2026-10-05: qerardan SONRA elave olunan bolme ziddiyyet yaratdi - son (qerar) bolmesinden evvele
+    anchor = f"## {existing[-1]}" if existing else "## Common Mistakes"
+    return renumber_sections(insert_before(markdown, anchor, f"## {heading}\n\n{body}")), \
         str(sec.get("domain", "")).strip()
+
+
+def renumber_sections(markdown: str) -> str:
+    """'## Section N: ...' basliqlari sira ile 1..n."""
+    counter = iter(range(1, 1000))
+    return re.sub(r"^## Section \d+:", lambda m: f"## Section {next(counter)}:", markdown, flags=re.M)
 
 
 SHORTEN_USER = """Topic: {topic}
@@ -483,13 +511,21 @@ def find_source(a: argparse.Namespace, plan: dict, out_dir: str) -> dict:
     if cached:
         return cached
     print(f"  menbe axtarilir: {plan.get('fact_need', '')}")
-    src = research(a.topic, f"{plan.get('decision', '')} (useful statistic: {plan.get('fact_need', '')})")
+    # hakim QERARA gore baxir; dar fact_need yalniz axtaris ipucudur (E2E: 48% qiymet artimi redd olunmusdu)
+    src = research(a.topic, str(plan.get("decision", "")), fact_need=str(plan.get("fact_need", "")))
     if not src:
         raise SystemExit("yoxlanmis resmi/tedqiqat menbe tapilmadi (#58) - run.py --resume ile yeniden cehd et")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(src, f, indent=2, ensure_ascii=False)
     print(f"  menbe: {src['cite_as']} - {src['claim']} ({src['url']})")
     return src
+
+
+def needs_regeneration(out_dir: str) -> bool:
+    """Movcud script.md keyfiyyet/hesab qapisindan kecmeyibse (merhele retry-i --force-suz gelir) yeniden yazilir."""
+    import script_qa
+    from math_check import report_problems
+    return bool(script_qa.report_problems(out_dir) or report_problems(out_dir))
 
 
 def main() -> None:
@@ -517,7 +553,9 @@ def main() -> None:
         run_shorten(a, out_dir, script_path)
         return
     if os.path.isfile(script_path) and not a.force:
-        raise SystemExit(f"artiq movcuddur: {script_path}  (--force ile uzerine yaz)")
+        if not needs_regeneration(out_dir):
+            raise SystemExit(f"artiq movcuddur: {script_path}  (--force ile uzerine yaz)")
+        print("  evvelki skript yoxlamalardan kecmeyib - yeniden yazilir")
 
     print(f"[22] skript: {a.topic!r} -> {slug}")
     os.makedirs(out_dir, exist_ok=True)

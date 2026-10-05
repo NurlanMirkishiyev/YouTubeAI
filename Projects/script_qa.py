@@ -65,7 +65,37 @@ def _owner(plan: dict) -> str:
     return str((plan.get("case") or {}).get("owner") or "").strip().split(" ")[0]
 
 
-def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
+_RULE = re.compile(r"\b(if|when|unless|once|as long as|only)\b", re.I)
+MAX_FIGURE_SECTIONS = 2     # eyni reqem: bir defe deyilir, bir defe hesabda islenir - qalani tekrardir
+
+
+def _label(v: float, text: str) -> str:
+    from visuals import unit_of
+    unit = unit_of(v, text)
+    s = f"{int(v):,}" if float(v).is_integer() else f"{v:,.2f}".rstrip("0").rstrip(".")
+    return f"${s}" if unit == "$" else f"{s}%" if unit == "%" else s
+
+
+def repeated_figures(secs: dict[str, str], exempt: list[float] = ()) -> list[str]:
+    """E2E 2026-10-05: "$2,000 per project" 4 bolmede tekrarlandi. Ilk ve son deyilis qalir, ortadakilar tekrardir.
+    exempt: qerarin/cavabin oz reqemleri ("raise by 10%?") - onlar tebii olaraq tekrarlanir."""
+    body = [h for h in secs if h == "Hook" or h.startswith("Section ") or h == "Common Mistakes"]
+    where: dict[float, list[str]] = {}
+    for h in body:
+        for v in _figures(secs[h]):
+            if any(abs(v - x) < 1e-9 for x in exempt):
+                continue
+            where.setdefault(v, []).append(h)
+    probs = []
+    for v, heads in where.items():
+        if len(heads) > MAX_FIGURE_SECTIONS:
+            lbl = _label(v, secs[heads[0]])
+            probs += [f"{h}: reqem {lbl} {len(heads)} bolmede tekrarlanir" for h in heads[1:-1]]
+    return probs
+
+
+def plan_problems(plan: dict) -> list[str]:
+    """Plan seviyyesi (#59): ssenari yazilmazdan evvel - pozulsa outline yeniden istenir."""
     probs: list[str] = []
     decision = str(plan.get("decision") or "").strip()
     if not _QUESTION.match(decision):
@@ -73,6 +103,14 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
     case = plan.get("case") or {}
     if str(case.get("state") or "").strip().lower() not in US_STATES:
         probs.append(f"case ABS-da deyil: {case.get('city')}, {case.get('state')}")
+    answer = str(plan.get("answer") or "")
+    if not (_RULE.search(answer) and _figures(answer)):
+        probs.append(f"qerarin cavabi konkret sertli qayda deyil (sert + reqem lazimdir): {answer!r}")
+    return probs
+
+
+def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
+    probs = plan_problems(plan)
     secs = sections(markdown)
     probs += cold_open_problems(secs.get("Cold Open", ""))
     owner = _owner(plan)
@@ -87,6 +125,7 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
         probs.append("Recap: reqem var - yalniz neticeler deyilmelidir")
     if owner and owner.lower() in recap.lower():
         probs.append(f"Recap: case ({owner}) yeniden danisilir - yalniz neticeler")
+    probs += repeated_figures(secs, _figures(f"{plan.get('decision', '')} {plan.get('answer', '')}"))
     if source is None:
         probs.append("yoxlanmis menbe yoxdur")
     else:
@@ -97,13 +136,21 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
 REVIEW_SYSTEM = """You are the fact-checking editor of a business explainer video for US small-business owners.
 Read the whole script and judge it strictly. Answer ONLY JSON:
 {"definitions_ok": bool, "analogies_ok": bool, "answers_decision": bool, "repeats": ["..."],
- "recap_only_conclusions": bool,
+ "recap_only_conclusions": bool, "consistent": bool, "source_faithful": bool,
  "fixes": [{"section": "exact heading without ##", "problem": "...", "instruction": "what to change"}]}
 - definitions_ok: every business term is defined correctly (as an accountant or the SBA would define it).
 - analogies_ok: every analogy maps correctly onto the concept (no misleading comparison).
-- answers_decision: the script clearly answers the promised decision question with a usable rule.
-- repeats: any example, story beat, analogy or explanation that is told more than once (empty if none).
+- answers_decision: the script answers the promised decision with a concrete rule that has a condition and a
+  threshold the viewer can check (e.g. "raise prices if your costs rose more than 5% and fewer than 1 in 10
+  clients would leave"). A vague answer ("find a balance", "it depends", "consider your value") is false.
+- repeats: any example, story beat, analogy or explanation told more than once - including restating facts
+  already given (re-introducing who the owner is or what the business is, repeating the same price or figure
+  without new meaning). Empty if none.
 - recap_only_conclusions: the Recap only states conclusions/rules - no examples, stories, names or numbers.
+- consistent: the case story never contradicts itself (same prices, decision and facts throughout; the case stays
+  in third person about the owner; a figure is not used before it was introduced).
+- source_faithful: the verified fact is stated as given in VERIFIED FACT, and nothing more is attributed to the
+  source (no added conclusions such as "without losing customers").
 - fixes: one item per section that must change (exact heading). Empty when everything is fine."""
 
 
@@ -118,6 +165,10 @@ def review_problems(r: dict) -> list[str]:
     reps = [str(x) for x in (r.get("repeats") or []) if str(x).strip()]
     if reps:
         probs.append("tekrar: " + "; ".join(reps)[:200])
+    if r.get("consistent") is not True:
+        probs.append("hekaye ziddiyyetlidir (case faktlari/qerar uygun gelmir)")
+    if r.get("source_faithful") is not True:
+        probs.append("menbe tehrif olunub (fakta elave iddia yazilib)")
     if r.get("recap_only_conclusions") is not True:
         probs.append("Recap yalniz neticeleri demir")
     return probs
@@ -128,9 +179,10 @@ length (within 10%), the same case person and numbers unless the instruction say
 paragraphs only - no heading, no lists, no meta commentary. Write figures as digits ("$4,000", "15%")."""
 
 
-def _review_user(markdown: str, plan: dict, topic: str) -> str:
-    return (f"Video topic: {topic}\nPromised decision: {plan.get('decision')}\nIntended answer: {plan.get('answer')}\n\n"
-            f"SCRIPT:\n{markdown}")
+def _review_user(markdown: str, plan: dict, topic: str, source: dict | None = None) -> str:
+    fact = f"VERIFIED FACT ({source.get('cite_as')}): {source.get('claim')}\n" if source else ""
+    return (f"Video topic: {topic}\nPromised decision: {plan.get('decision')}\nIntended answer: {plan.get('answer')}\n"
+            f"{fact}\nSCRIPT:\n{markdown}")
 
 
 def _rewrite_user(markdown: str, plan: dict, heading: str, body: str, instruction: str) -> str:
@@ -159,7 +211,7 @@ def review_loop(markdown: str, plan: dict, source: dict | None, topic: str, revi
                 rewrite: Callable, rounds: int = REVIEW_ROUNDS, **kw) -> tuple[str, list[str]]:
     """gpt-4o redaktor -> problemli bolmeler yeniden yazilir -> yeniden yoxlama. Son hokmun problemleri qaytarilir."""
     for k in range(rounds + 1):
-        r = review(REVIEW_SYSTEM, _review_user(markdown, plan, topic), model=REVIEW_MODEL, temperature=0,
+        r = review(REVIEW_SYSTEM, _review_user(markdown, plan, topic, source), model=REVIEW_MODEL, temperature=0,
                    max_tokens=1500)
         probs = review_problems(r)
         print(f"  [qa] redaktor raund {k + 1}: {probs or 'OK'}", flush=True)
@@ -183,12 +235,20 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
     """Deterministik problemler -> bolme duzelis gosterisleri (apply_fixes formati)."""
     owner = _owner(plan)
     fixes = []
+    heads = sorted(sections(markdown), key=len, reverse=True)
     for p in story_problems(markdown, plan, source):
-        head = p.split(":", 1)[0]
+        # basliqda ozu ":" var ("Section 3: Testing") - problem metni real basliqla tutusdurulur
+        head = next((h for h in heads if p.startswith(h + ":")), p.split(":", 1)[0])
         if "case sahibi" in p:
             fixes.append({"section": head, "problem": "the case is missing", "instruction": STORY_FIX["owner"].format(owner=owner)})
         elif p.startswith("Recap"):
             fixes.append({"section": "Recap", "problem": "recap repeats examples", "instruction": STORY_FIX["recap"]})
+        elif ": reqem " in p and "tekrarlanir" in p:
+            lbl = p.split(": reqem ", 1)[1].split(" ", 1)[0]
+            fixes.append({"section": head, "problem": f"{lbl} is restated",
+                          "instruction": f"Do not restate {lbl} - it was already said earlier; refer to it in words "
+                                         "(e.g. 'the current price') without the number, and do not re-introduce "
+                                         "the business."})
         elif p.startswith("menbe") and source:
             fixes.append({"section": source_section, "problem": "the research source is missing",
                           "instruction": STORY_FIX["source"].format(**source)})

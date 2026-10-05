@@ -13,6 +13,9 @@
    `Start-Process "C:\YouTubeAI\Projects\.venv\Scripts\python.exe" -ArgumentList 'run.py','"<Mövzu>"' -WorkingDirectory C:\YouTubeAI -RedirectStandardOutput Episodes\_run_<slug>.log -RedirectStandardError Episodes\_run_<slug>.log.err`
 3. Loqu Monitor ilə izlə (`[N/11]` mərhələ sətirləri + error/traceback). Ölsə: `run.py --resume <slug>`.
 4. Bitəndə özün yoxla (istifadəçidən soruşma):
+   - `script_qa.json` → `"problems": []` (B2B qərar, case, mənbə, Cold Open, Recap, redaktor); `captions_qa.json`
+     → `"problems": []`; `bg_qa.json` → `generic_share` ≤ 0.10; giriş kartında hook rəqəmi görünür; chart
+     səhnələrində bölmə adı başlığın üstündə (lower-third yox); altyazıda rəqəmlər "$4,000" formatında;
    - `owl_qa.json` (hamısı ok, `cards.intro/outro` ok), giriş/çıxış kartı kadrı — mövzuya uyğun bayquş, tərpənmir, bir neçə kadr + `thumbnail.png` vizual — bayquş eyni personaj, sağda, yazı/insan yox;
    - `checks.final_video_problems(mp4) == []`, müddət 10–12 dəq, −14 LUFS;
    - `math_check.json` → `"problems": []`;
@@ -55,6 +58,20 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
   qalanı foto. Chart-dakı HƏR rəqəm səhnə danışığında deyilməlidir (fail-closed). Giriş/çıxış kartı səhnə fotosunu
   təkrar etmir. Thumbnail fonu ayrıca (gpt-image-2 high + hakim). Mətn modeli dəyişmir (gpt-4o-mini, istifadəçi qərarı).
   Test: `test_visuals.py`, `test_thumbnail.py`.
+- **Məzmun standartı — HƏR yeni videoda** (istifadəçi 2026-10-05, 12 addım; reyestr #54–#60):
+  1) yalnız B2B — hər video ABŞ biznes sahibinin bir konkret qərarına cavab verir (plan: `decision`/`answer`);
+  2) terif/analogiya düzgündür, vəd olunan suala cavab verilir (`script_qa.review_loop`, gpt-4o redaktor);
+  3) ən azı 1 **yoxlanmış** rəsmi/tədqiqat mənbəyi (`research.py`: URL yüklənir, rəqəm + cümlə səhifədə, hakim
+  "statistika + aidiyyət"; tapılmasa script_gen dayanır, uydurma yox), description-da link;
+  4) ilk 3 saniyədə konkret rəqəm — `## Cold Open` cümləsi (ilk 9 sözdə rəqəm) giriş kartında səslənir/görünür;
+  5) bir ABŞ case (sahibi adı ilə) Hook-dan son bölməyə qədər hər bölmədə; 6) təkrar yox, Recap yalnız nəticələr
+  (rəqəm/ad/misal yox); 7) hər rəqəm chart və ya data kartında (`stats`), generik bullet (keypoints) yox;
+  8) fonlar case biznesinin literal kadrları, generik/metafor ≤ 10% (`bg_qa.json generic_share`);
+  9) chart səhnəsində bölmə adı lower-third deyil, başlığın üstündə kicker; 10) −14 LUFS + rəqəmlər TTS-ə
+  ingiliscə sözlə (`speech.to_speech`), whisper hər rəqəmi eşitməlidir; 11) altyazı ssenaridən
+  (`captions.py`, "$4,000"); 12) ABŞ nümunələri (şəhər/ştat, USD, IRS/SBA).
+  Test: `test_script_story.py`, `test_research.py`, `test_speech.py`, `test_captions.py`, `test_literal_frames.py`,
+  `test_visuals.py`, `test_remotion_build.py`.
 - Bayquş sabit (animasiya yox) — **giriş/çıxış kartında da** (2026-09-30): orada hər mövzuya ayrıca yaradılmış
   `owl/intro.png` (açılış) və `owl/outro.png` (qapanış, sağollaşır), eyni mövzu əşyası ilə. Test: `test_card_owls.py`.
 - Bayquş modeli **gpt-image-2** (istifadəçi 2026-09-30; başqa modelə keçmə). Şəffaf fon vermir → magenta fonda çəkilir,

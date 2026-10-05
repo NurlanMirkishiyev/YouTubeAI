@@ -95,11 +95,11 @@ def test_review_rewrites_only_the_flagged_sections():
         calls.append("review")
         if len(calls) == 1:
             return {"definitions_ok": False, "analogies_ok": True, "answers_decision": True, "repeats": [],
-                    "recap_only_conclusions": True,
+                    "recap_only_conclusions": True, "consistent": True, "source_faithful": True,
                     "fixes": [{"section": "Section 1: Margin", "problem": "margin defined as profit",
                                "instruction": "Define margin as the share of each sale kept as profit."}]}
         return {"definitions_ok": True, "analogies_ok": True, "answers_decision": True, "repeats": [],
-                "recap_only_conclusions": True, "fixes": []}
+                "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "fixes": []}
 
     def fake_rewrite(system, user, **kw):
         assert "share of each sale" in user
@@ -113,7 +113,7 @@ def test_review_rewrites_only_the_flagged_sections():
 
 def test_review_problems_remain_when_rewrites_do_not_help():
     bad = {"definitions_ok": True, "analogies_ok": True, "answers_decision": False, "repeats": [],
-           "recap_only_conclusions": True, "fixes": [{"section": "Section 4: Decision", "problem": "no clear answer",
+           "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "fixes": [{"section": "Section 4: Decision", "problem": "no clear answer",
                                                       "instruction": "Answer the decision."}]}
     _, problems = qa.review_loop(_script(), PLAN, SOURCE, "T", review=lambda *a, **k: bad,
                                  rewrite=lambda *a, **k: "Rosa raises prices because her margin was too thin.")
@@ -147,3 +147,98 @@ def test_cold_open_is_spoken_on_the_intro_card_not_as_a_scene():
     md = _script()
     assert cold_open(md) == "A 10% price rise can lose you fewer customers than you fear."
     assert all(s["section"] != "Cold Open" for s in scene_plan.split_scenes(md))
+
+
+# --- E2E raise-your-prices (2026-10-05): redaktor "OK" dedi, amma cavab qeyri-muəyyen idi ("Aim for a balance
+#     between value and profitability"), "$2,000 per project" 4 bolmede, agentlik 2 defe yeniden tanidildi ---
+
+def test_answer_must_be_a_concrete_conditional_rule():
+    vague = {**PLAN, "answer": "Aim for a balance between value and profitability."}
+    assert any("cavab" in p for p in qa.story_problems(_script(), vague, SOURCE))
+    assert not any("cavab" in p for p in qa.story_problems(_script(), PLAN, SOURCE))
+
+
+def test_same_figure_in_more_than_two_sections_is_a_repeat():
+    md = _script(**{"Section 1: Margin": "Rosa charges $14 a plate and keeps $8 of every $100 in sales.",
+                    "Section 3: Testing": "Rosa still charges $14 a plate while she tests two dishes.",
+                    "Section 4: Decision": "Rosa raises the $14 plate because her margin was too thin."})
+    probs = qa.story_problems(md, PLAN, SOURCE)
+    assert any("$14" in p and "Section 3" in p for p in probs)
+    fixes = qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand")
+    assert [f["section"] for f in fixes if "$14" in f["instruction"]] == ["Section 3: Testing"]
+
+
+def test_review_prompt_demands_concrete_answer_and_counts_restated_facts():
+    low = qa.REVIEW_SYSTEM.lower()
+    assert "condition" in low and "vague" in low and "restat" in low
+
+
+def test_owner_fix_targets_the_full_section_heading():
+    md = _script(**{"Section 3: Testing": "Testing a higher price on two dishes helps."})
+    assert [f["section"] for f in qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand")] == ["Section 3: Testing"]
+
+
+def test_outline_and_sections_ask_for_a_concrete_rule_and_no_reintroductions():
+    assert "threshold" in sg.OUTLINE_USER.lower()
+    g = sg._section_guidance({**PLAN, "sections": [{}] * 4, "source_section": 2}, {}, 3, SOURCE)
+    assert "do not re-introduce" in g.lower()
+
+
+def test_outline_is_asked_again_until_the_plan_is_valid(monkeypatch):
+    plans = [{**PLAN, "answer": "Find a balance.", "sections": [{}] * 4},
+             {**PLAN, "sections": [{}] * 4}]
+    calls = []
+    monkeypatch.setattr(sg, "chat_json", lambda system, user, **kw: calls.append(user) or plans[len(calls) - 1])
+    plan = sg.outline("T")
+    assert plan["answer"] == PLAN["answer"] and len(calls) == 2 and "Find a balance." in calls[1]
+    assert qa.plan_problems(plan) == []
+
+
+def test_failed_script_is_regenerated_on_stage_retry(tmp_path):
+    """Keyfiyyet qapisinda dusen skript yazilib qalir - retry (--force-suz) onu yeniden yazmalidir."""
+    (tmp_path / "script.md").write_text(_script(), encoding="utf-8")
+    assert sg.needs_regeneration(str(tmp_path)) is True              # hesabat yoxdur
+    qa.write_report(str(tmp_path), _script(), ["Recap: reqem var"])
+    assert sg.needs_regeneration(str(tmp_path)) is True
+    qa.write_report(str(tmp_path), _script(), [])
+    import math_check as mc
+    mc.write_report(str(tmp_path), _script(), [])
+    assert sg.needs_regeneration(str(tmp_path)) is False
+
+
+# --- E2E raise-your-prices run 2: uzatma bolmesi qerardan SONRA dusdu ve ziddiyyet yaratdi ($3.30 vs $3.10);
+#     menbe tehrif olundu ("61% raised prices" -> "...without losing their customer base") ---
+
+def test_extension_goes_before_the_decision_section_and_sections_are_renumbered(monkeypatch):
+    md = _script()
+    monkeypatch.setattr(sg, "chat_json", lambda *a, **k: {"title": "Pilot Test", "idea": "Test first",
+                                                          "domain": "a farm", "analogy": "Trial plots."})
+    seen = {}
+
+    def fake_chat(system, user, **kw):
+        seen["user"] = user
+        return "Rosa tests the new price on two dishes before deciding."
+    monkeypatch.setattr(sg, "chat", fake_chat)
+    out, _ = sg.extend("T", md, 150, [], {**PLAN, "sections": [{}] * 4, "source_section": 2})
+    heads = sg.teaching_headings(out)
+    assert heads == ["Section 1: Margin", "Section 2: Demand", "Section 3: Testing", "Section 4: Pilot Test",
+                     "Section 5: Decision"]
+    assert "do not make or announce the final decision" in seen["user"].lower()
+
+
+def test_review_checks_story_consistency_and_source_faithfulness():
+    low = qa.REVIEW_SYSTEM.lower()
+    assert "consistent" in low and "source_faithful" in low
+    r = {"definitions_ok": True, "analogies_ok": True, "answers_decision": True, "repeats": [],
+         "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "consistent": False, "source_faithful": False}
+    probs = qa.review_problems(r)
+    assert any("ziddiyyet" in p for p in probs) and any("menbe" in p for p in probs)
+    assert "61%" in qa._review_user("x", PLAN, "T", {**SOURCE, "claim": "61% raised prices."})
+
+
+def test_decision_figure_may_recur():
+    """Run 2: '10%' (qerarin ozu: 'raise prices by 10%?') tekrar sayilib silinirdi."""
+    md = _script(**{"Section 1: Margin": "Rosa wonders about a 10% rise.",
+                    "Section 3: Testing": "Rosa tests the 10% rise on two dishes.",
+                    "Section 4: Decision": "Rosa raises prices by 10% because her margin was too thin."})
+    assert not any("10%" in p for p in qa.story_problems(md, PLAN, SOURCE))

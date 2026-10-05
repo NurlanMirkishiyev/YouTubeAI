@@ -264,6 +264,8 @@ def _check_one(s: dict, it: dict) -> dict | None:
     approx = bool(it.get("approx")) and bool(HEDGES.search(s["sentence"]))
     tol = APPROX_TOL if approx else EXACT_TOL
     targets = [correct]
+    if "-" in expr and correct < 0:        # ferq/itki musbet deyilir: "losing $250" = 750 - 1000 (E2E 2026-10-05)
+        targets.append(-correct)
     if "percent" in claimed_text.lower() or "%" in claimed_text:
         targets.append(correct * 100)
     if "cent" in claimed_text.lower() or re.search(r"\bcents?\b", s["context"].lower()):

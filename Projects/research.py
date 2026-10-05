@@ -34,6 +34,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 SEARCH_PROMPT = """Find {n} facts for a YouTube video for US small-business owners.
 Video topic: {topic}
 The decision the video helps the owner make: {decision}
+Statistic that would help: {fact_need}
 
 Each fact must come from an OFFICIAL US source (a .gov agency such as SBA, BLS, Census Bureau, IRS, Federal Reserve,
 FTC) or a published research study (.edu university, NBER, peer-reviewed journal). No blogs, no vendors, no news.
@@ -154,7 +155,9 @@ JUDGE_SYSTEM = """You check one fact before it goes into a business video for US
 Answer ONLY JSON: {"statistic": true/false, "relevant": true/false, "reason": "..."}
 - "statistic": the fact is a measured figure from a survey, dataset or study (a share, rate, average, count) -
   NOT an anecdote, a single person's report, a forecast or a quote from one business.
-- "relevant": the figure directly helps an owner make the decision of the video."""
+- "relevant": the figure is about the same business question as the decision (e.g. a pricing statistic for a
+  pricing decision, a cash statistic for a cash decision) so an owner can use it as context or a benchmark.
+  It does NOT have to answer the decision by itself."""
 
 
 def relevance_judge(src: dict, topic: str, decision: str) -> bool:
@@ -177,11 +180,11 @@ RETRY_HINT = "\nLook for DIFFERENT sources than usual; prefer government PDFs wi
 
 def research(topic: str, decision: str, search: Callable[[str], str] = web_search,
              fetch: Callable[[str], str] = fetch_text, attempts: int = 3, n: int = 4,
-             judge: Callable[[dict, str, str], bool] = relevance_judge) -> dict | None:
+             judge: Callable[[dict, str, str], bool] = relevance_judge, fact_need: str = "") -> dict | None:
     """Ilk yoxlanmis (sehifede var) VE hakimden kecen (statistika, qerara aid) menbe ve ya None."""
     for k in range(attempts):
         try:
-            text = search(SEARCH_PROMPT.format(n=n, topic=topic, decision=decision)
+            text = search(SEARCH_PROMPT.format(n=n, topic=topic, decision=decision, fact_need=fact_need or "any")
                           + ("" if not k else RETRY_HINT))
         except LLMError as e:
             print(f"  menbe axtarisi xetasi: {str(e)[:120]}", flush=True)

@@ -7,7 +7,7 @@
 
 **Layihə:** `C:\YouTubeAI` — həftədə 2 ədəd 10–12 dəq "ELI5 Business" YouTube videosu üçün lokal pipeline
 **Master plan:** `plan.md` (addım 01–36)
-**Son yenilənmə:** 2026-10-03
+**Son yenilənmə:** 2026-10-06
 
 ---
 
@@ -104,6 +104,16 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 51 | Planda counter "Cents Add Up" = **1** (vahidsiz, etiket "Price difference"); danışıq: "One common mistake … a price difference of one cent" (why-9-99, 2026-10-04; `render_bgs` 10/38-də dayandırıldı, `--from scene_plan`) | `visuals.grounded_values` cümlə əvvəlindəki "One" (= bir səhv) sözünü 1 kimi "deyilmiş" sayırdı | tək "one" sözü chart rəqəmini əsaslandırmır (0.01 "one cent"-dən keçir, vahid `$`). Test: `test_visuals.py::test_bare_word_one_does_not_ground_a_chart_number` |
 | 52 | Animasiya payı 44% → yenidən planda 37% (hədəf ~60%) (why-9-99, 2026-10-04; `render_bgs` dayandırıldı) | mücərrəd mövzuda LLM 68 səhnədən 33-ə keypoints verdi, limit (12) qalanını atdı; keçərli qeyri-keypoints cəmi 12; son chunk-da LLM 64–68-i qaytarmadı | `plan_visuals`: buraxılan səhnələr bir dəfə yenidən soruşulur (`_ask_all`); pay çatmasa seçilməmiş keypoints/keçməyən səhnələr "Do NOT use keypoints" ilə yenidən soruşulur, yalnız keçərli qeyri-keypoints spec qəbul olunur. Real ölçü: 25/68 → 41/68 (60%). Test: `test_visuals.py` (2) |
 | 53 | Hazır videoda "Price Difference Impact" (sc53) chart-ı 13.7 s-lik səhnənin 11 s-i boş idi (yalnız başlıq) (why-9-99, 2026-10-05, son vizual yoxlamada tapıldı) | `reveal_frames`: ilk element ("Cents") danışıqda yalnız sonda səslənir ("those cents add up"), qalanlar ondan sonra sıralanır | ilk element ən gec səhnənin 35%-ində açılır (`FIRST_REVEAL_MAX`); video `--from build_episode` ilə yenidən render. Test: `test_visuals.py::test_first_element_never_waits_until_the_end_of_the_scene` |
+| 54 | İstifadəçi (2026-10-05, addım 10–11): rəqəmlər düzgün ingilis tələffüzü ilə; altyazı ssenaridən, "$4,000" formatı. Köhnə videoda altyazı whisper-in idi ("$9 .99", "Marketing Strategy Retailers are…") | TTS mətni xam gedirdi ("$9.99", "1994-2020" Kokoro-nun öz oxunuşu); SRT whisper transkripsiyası idi | `speech.py`: `to_speech` (pul/faiz/il/aralıq/ordinal → ingilis sözləri, `tts_gen.synth`), `to_display` ("four thousand dollars" → "$4,000"); `captions.py` mərhələsi (make_srt-dən sonra): hər seslenen hissənin pəncərəsində ssenari sözləri whisper vaxtlarına uyğunlaşdırılır → `captions.words.json` (Remotion), `captions.srt` (təhvil); ssenaridəki hər rəqəm həmin pəncərədə whisper-də eşidilməlidir, yoxsa mərhələ keçmir. Test: `test_speech.py`, `test_captions.py` |
+| 55 | İstifadəçi (addım 9): bölmə etiketi slayd başlığının üstünə düşür (why-9-99 276 s: "Marketing Strategy" lower-third + chart başlığı üst-üstə) | lower-third (y 60–150) chart başlığı ilə (y 175) eyni sol küncdə | chart səhnəsində lower-third yox, bölmə adı başlığın üstündə kiçik sarı `Kicker` (y 100); `episode_props` `lowerThird`/`kicker`. Test: `test_remotion_build.py` |
+| 56 | İstifadəçi (addım 4): ilk 3 saniyədə konkret rəqəm və ya paradoks | giriş kartı yalnız mövzu başlığını oxuyurdu | ssenaridə `## Cold Open` (≤16 söz, rəqəm ilk 9 sözdə — `cold_open_problems`, olmasa yenidən yazılır); giriş kartı onu səsləndirir və başlığın altında göstərir (`IntroCard hook`); səhnələrə düşmür. Test: `test_script_story.py`, `test_speech.py` |
+| 57 | İstifadəçi (addım 7): hər rəqəm qrafik/kartla, generik bullet-lər olmasın | rəqəmli səhnə foto ola bilərdi, chart rəqəmlərin bir hissəsini göstərirdi; keypoints = bullet | `keypoints` ləğv; yeni `stats` (data kartları, Remotion `Stats`); rəqəmli səhnə həmişə animasiya, chart bütün rəqəmləri göstərmirsə "Show EVERY figure" ilə yenidən soruşulur, sonra deterministik `stats_fallback`. Test: `test_visuals.py` (5 yeni) |
+| 58 | İstifadəçi (addım 3): hər videoda ən azı 1 tədqiqat/rəsmi mənbə | ssenari mənbəsiz idi (uydurma statistika qadağan idi) | `research.py`: gpt-4o web_search namizədləri → domen .gov/.edu/tədqiqat → URL yüklənir (HTML/PDF) → rəqəm + iddia sözləri olan cümlə SƏHİFƏDƏN götürülür (≤350 simvol) → gpt-4o hakimi "statistika + qərara aid". Probe: mini 12 namizəddən 0 (404 URL, parafraz, Beige Book anekdotu, bls/census 403) → gpt-4o axtarış. Skriptdə mənbə adı + rəqəm eyni abzasda, description-da link. Tapılmasa script_gen dayanır. Test: `test_research.py` (19) |
+| 59 | İstifadəçi (addım 1,2,5,6,12): yalnız B2B qərar, anlayış yoxlaması, bir case, təkrar yox / Recap yalnız nəticələr, ABŞ | plan yalnız 4 bölmə + analogiya idi, auditoriya "işçilər/freelancer", case yox | plan: `decision`/`answer`/ABŞ `case`/`cold_open`/`fact_need`; `script_qa.py`: deterministik (sual-qərar, ABŞ ştatı, case sahibi Hook + hər bölmədə, Recap-da rəqəm/ad yox, mənbə) + gpt-4o redaktor (terif, analogiya, qərara cavab, təkrar, Recap) → problemli bölmə yenidən yazılır; `script_qa.json` (sha) olmadan `script_gen` keçmir. Test: `test_script_story.py` (17) |
+| 60 | İstifadəçi (addım 8): kadrlar mövzuya uyğun, generik/metafor < 10% | art director "physical metaphor" istəyirdi (donuz qumbarası, qum saatı), ehtiyat hovuz generik | scene_plan: LITERAL qayda + case biznesi qeydi (`case_note`), RETRY_NOTE metaforsuz; hakimə `generic` yoxlaması (yenidən çəkilir); `bg_qa.json generic_share` (hakim + hovuz fonu) > 10% → check_bgs keçmir. Test: `test_literal_frames.py` |
+| 61 | E2E raise-your-prices (2026-10-05) run 1–2: redaktor "OK" dedi, amma cavab qeyri-müəyyən ("Aim for a balance…"), "$2,000 per project" 4 bölmədə, case iki dəfə yenidən tanıdıldı; uzatma bölməsi qərardan SONRA düşüb ziddiyyət yaratdı ($3.30 vs $3.10); mənbə təhrif olundu ("61% raised prices" → "…without losing their customer base"); `story_fixes` "Section 3: Testing" başlığını ":" ilə kəsib "Section 3" edirdi | redaktor meyarları yumşaq; plan cavabı yoxlanmırdı; `extend` "Common Mistakes"-dən əvvələ yazırdı; başlıqda ":" | `plan_problems` (sual-qərar, ABŞ, **şərtli cavab + rəqəm**) — pozulsa outline səbəblə yenidən (3); `repeated_figures` (eyni rəqəm > 2 bölmə → orta bölmələr yenidən, qərar/cavab rəqəmi istisna); redaktora `consistent`, `source_faithful`, sərt `answers_decision`/`repeats`; bölmə qaydası "case-i yenidən tanıtma"; `extend` son (qərar) bölməsindən əvvəl + `renumber_sections`; başlıq real başlıqla tutuşdurulur. Test: `test_script_story.py` (+9) |
+| 62 | Keyfiyyət qapısında düşən `script.md` qalırdı → pipeline retry (`--force`-suz) "artıq mövcuddur" ilə boşuna yıxılardı | retry eyni əmri `--force`-suz təkrarlayır | `needs_regeneration`: `script_qa.json`/`math_check.json` təmiz deyilsə skript yenidən yazılır. Run 3-də 2 retry məhz bununla keçdi. Test: `test_failed_script_is_regenerated_on_stage_retry` |
+| 63 | Rəqəm auditi "losing $250 for each client" cümləsini səhv saydı (750 − 1000 = −250) | itki/fərq müsbət deyilir, yoxlama işarəni müqayisə edirdi | `-` olan ifadədə mənfi nəticənin modulu da qəbul (`_check_one`). Test: `test_loss_stated_as_positive_amount_matches_negative_difference` |
 | 48 | İstifadəçi: yenə "eyni/təkrar şəkillər" | (#46-dan əlavə) CLIP namizəd pəncərəsi dar ola bilərdi — ölçülməyib | `DUP_SIM` 0.85 → 0.80 (hakim təsdiqi qalır); foto sayı ~60% azaldığı üçün təkrar ehtimalı da azalır |
 
 **Açıq qalan:** yoxdur.
@@ -112,7 +122,30 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Növbəti (2026-10-05):** açıq iş yoxdur — növbəti mövzunu gözlə. 347 test keçir (#50–#53 əlavə).
+**AÇIQ İŞ (2026-10-06, istifadəçi "yaddaşa yaz, sonra davam edəcəyik" dedi — burada dayandı):**
+İstifadəçinin 12 addımlıq məzmun standartı (`/goal`) ümumi pipeline-a tətbiq olunub (reyestr #54–#63, CLAUDE.md
+"Məzmun standartı"), 442 test keçir, Remotion `tsc` təmiz. Checkpoint commit `f968179` + sonrakı düzəlişlər (bu commit).
+E2E test videosu `should-you-raise-your-prices` (run 3, `Episodes\_run_should-you-raise-your-prices.3.log`):
+script_gen ✅ (Lisa, Austin TX agentlik; Fed SBCS 61% mənbəyi yoxlanıb; script_qa OK), scene_plan ✅ (40/66 animasiya,
+12 rəqəmli səhnənin hamısı chart/kartda, keypoints 0), render_bgs ✅, **check_bgs gedirdi**: raund 1-də 26 fotodan
+18-i pis (çoxu yeni `generic` hakimi — konfrans otağı/ofis də "generic" sayılır); yenidən çəkmədə **OpenAI BALANSI
+BİTDİ** (18 fon çəkilmədi) → run dayandırıldı (proses öldürüldü, retry-lar boşuna idi).
+**Növbəti dəqiq addım:**
+0. **İstifadəçi OpenAI balansını artırmalıdır** (https://platform.openai.com/settings/organization/billing) — həqiqi bloker.
+   Açıq xəta (#64, hələ düzəldilməyib): balans bitəndə `check_bgs` "UGURSUZ ... BALANSI BITIB" görüb yenə
+   `render_bgs`-i çağırır → `CalledProcessError` traceback + pipeline 2 dəfə boşuna retry edir; #23 qaydası
+   (balans xətası = dərhal dayan, retry yox) check_bgs/render_bgs zəncirinə də tətbiq olunmalıdır (TDD).
+1. Balans gələndən sonra: `python run.py --resume should-you-raise-your-prices` (check_bgs-dən davam).
+   Sonra `logs\check_bgs.log` + `bg_qa.json`: `generic_share` ≤ 0.10 alındımı?
+2. Əgər generik pay düşmürsə (gözlənti: hovuz fonu da generikdir) — planlaşdırılan düzəliş (TDD): 3 cəhddən sonra
+   hələ generik qalan foto səhnəni ehtiyat hovuza deyil, **animasiyaya** çevir (`visuals._ask_all` + NO_KEYPOINTS,
+   keçərli spec → `visual`, `bg_prompt` boş); və/və ya hakimin `generic` tərifini dəqiqləşdir (case biznesinin real
+   yeri — məs. agentliyin iş otağı — generik sayılmasın, yalnız simvolik metafor/stok obyekt).
+3. Qalan mərhələlər: render_owls → upscale → tts (to_speech) → make_srt → **captions** (rəqəm eşidilmə qapısı) →
+   music → build → publish. Sonra CLAUDE.md addım 4 yoxlamaları (yeni: script_qa/captions_qa/generic_share, giriş
+   kartında hook, chart-da kicker, altyazıda "$4,000").
+4. Hazır olanda: xəta qeydi (reyestr/yanlış yollar), təhvil, AskUserQuestion ilə təsdiq + `forget_episode.py`.
+**Əvvəlki (2026-10-05):** açıq iş yox idi. 347 test keçirdi (#50–#53 əlavə).
 **Əvvəlki (2026-10-04):** 334 test keçirdi (#45 analitik animasiyalar ~57–60%, #46 kart təkrarı, #47 thumbnail, #48 dedupe, #49 chart mətn/vahid).
 
 **2026-09-30:** ilk tam E2E yeni kodla (#29–#33) KEÇDİ — 53 səhnə, hovuza 0, `duplicates: []`, owl 53/53, 8.85 dəq, ~77 dəq run, xətasız. Açıq yoxlama bağlandı. Video təsdiqləndi, epizod yaddaşı silindi.
@@ -323,6 +356,10 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | Ssenari rəqəm yoxlamasında `grep … \| cut -c1-260` (2026-10-04, why-9-99) | Abzas kəsilir — sc54-ün "$99.90" hesabı ilk baxışda "ssenaridə yoxdur" göründü. Rəqəmli abzası tam oxu (`sed -n 'Np'`). |
 | if/elif zəncirində yeni xüsusi şərti ümumi şaxədən SONRA qoymaq (2026-10-04, `math_check._run`) | "nine ninety-nine" qaydası heç işləmədi (`UNITS/TENS` şaxəsi əvvəl tutdu); test tutdu. Xüsusi hal həmişə ümumidən əvvəl. |
 | Vizual yoxlamanı yalnız tam render-dən sonra etmək (2026-10-05, #53) | Boş chart 20 dəq yenidən render apardı. `build_episode` bitən kimi `remotion_props.json`-da hər animasiyanın `reveal[0]/frames` nisbətinə bax (> 0.35 → şübhəli). |
+| Python skripti ilə `open(..., newline='\n')` yazıb CRLF faylı LF-ə çevirmək (2026-10-05) | `git diff` bütün faylı dəyişmiş göstərir. Edit tool üslubu saxlayır; skriptlə yazanda orijinal sonluğu saxla (bax scratchpad `restore_eol.py` məntiqi: HEAD blob-da `\r\n` varsa CRLF). |
+| Bir Bash çağırışında iki heredoc + `'''` Python mətni (2026-10-05) | Bash ikinci heredoc-da "unexpected EOF" verdi, AMMA birinci Python bloku artıq icra olunmuşdu — fayl yarımçıq dəyişdi. Böyük kod blokunu Write ilə scratchpad-a yaz, kiçik splice skripti ilə yapışdır; splice idempotent olsun. |
+| LLM-in verdiyi mənbə URL/sitatına güvənmək (2026-10-05 probe) | gpt-4o-mini URL-ləri uydurdu (404), sitatları parafraz etdi. Mənbə yalnız səhifə yüklənib rəqəm + cümlə orada tapılanda qəbul olunur. |
+| Mənbə hakiminə dar axtarış ipucunu (`fact_need`) "qərar" kimi vermək (E2E 2026-10-05) | Hakim əlaqəli statistikanı (48% firma qiymət artırdı) "aid deyil" dedi. Hakim yalnız video qərarına baxır; `fact_need` yalnız axtarış ipucudur. |
 | Skriptlə sənədə `\f` (məs. `Projects\forget`) yazmaq | Form feed (0x0C) olur — `progress.md`-də tapıldı. Guard test indi kod + `.md`-də bütün idarə simvollarını tutur. |
 
 **Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
@@ -331,6 +368,16 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-05/06 — 12 addımlıq məzmun standartı (#54–#63), E2E davam edir
+- Yeni modullar: `speech.py`, `captions.py` (yeni `captions` mərhələsi), `research.py`, `script_qa.py`; dəyişən:
+  `script_gen` (plan → mənbə → yazı → hekayə/redaktor qapısı → rəqəm auditi → `script_qa.json`), `visuals` (`stats`,
+  keypoints yox), `scene_plan`/`check_bgs` (literal kadr, `generic` ≤10%), `tts_gen` (Cold Open + to_speech),
+  `remotion_build` + Remotion (`Kicker`, intro `hook`, `Stats`), `publish_pack` (mənbə linki). 442 test.
+- Quraşdırıldı: `Projects\.venv`-ə `pypdf`, `num2words` (uv pip).
+- E2E xətaları (hamısı qeydə alındı): #61 (yumşaq redaktor, ziddiyyətli uzatma, mənbə təhrifi, başlıq ":" bug),
+  #62 (retry `--force`-suz), #63 (itki işarəsi); mənbə hakimi `fact_need`-lə səhv müqayisə (yanlış yollar cədvəli);
+  mənim alət səhvlərim: CRLF→LF, ikiqat heredoc, heredoc-da `\n` qaçışı (yanlış yollar cədvəli).
 
 ### 2026-10-05 — pricing (why-9-99) videosu təsdiqləndi, epizod yaddaşı silindi
 Kod düzəlişləri qalır: reyestr #50–#53 (347 test).
