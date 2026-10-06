@@ -281,3 +281,21 @@ def test_deliver_prefers_script_captions(tmp_path):
     (ep / "captions.srt").write_text("script $4,000", encoding="utf-8")
     pl.deliver(str(ep), "cash", str(out))
     assert (out / "cash" / "subtitles.srt").read_text(encoding="utf-8") == "script $4,000"
+
+
+def test_length_gate_counts_spoken_words_with_numbers_expanded():
+    """#68: TTS reqemleri soze acir ("$4,000" -> "four thousand dollars"); skript sozu ile hesab 10.9 deq
+    dedi, sesi 12.1 deq cixdi."""
+    md = "# Title\n\n## Section\nShe charges $4,000 a month.\n"
+    assert pl.word_count(md) == 5
+    assert pl.spoken_words(md) == 7          # She charges four thousand dollars a month.
+
+
+def test_word_gate_uses_spoken_words(tmp_path, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(pl, "words_to_add", lambda n, *a, **k: seen.setdefault("n", n) and 0)
+    monkeypatch.setattr(pl, "words_to_cut", lambda n, *a, **k: 0)
+    ctx = _ctx(tmp_path)
+    open(ctx.p("script.md"), "w", encoding="utf-8").write("## A\nIt costs $4,000.\n")
+    pl.word_gate(ctx, str(tmp_path), 0)
+    assert seen["n"] == pl.spoken_words("## A\nIt costs $4,000.\n")

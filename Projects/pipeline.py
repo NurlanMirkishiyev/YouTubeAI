@@ -22,6 +22,7 @@ from checks import duration  # noqa: E402
 from comfy import ComfyGuard  # noqa: E402
 from script_gen import (EFFECTIVE_WPM, EPISODES, slugify, word_count, words_for_seconds,  # noqa: E402
                         words_to_add, words_to_cut)
+from speech import to_speech  # noqa: E402
 from stages import PROJ, PY, ROOT, STAGES, Ctx, stage_index  # noqa: E402
 from state import new_state, now_iso, read_state, with_stage, write_state  # noqa: E402
 
@@ -94,12 +95,18 @@ def shorten_script(ctx: Ctx, words: int, log_dir: str) -> list[str]:
     return [f"skript qisaldilmadi (exit {rc}) - bax: {log}"] if rc else []
 
 
+def spoken_words(markdown: str) -> int:
+    """#68: TTS-in oxudugu soz sayi - reqemler soze acilir ("$4,000" -> "four thousand dollars", ~+6%)."""
+    body = "\n".join(ln for ln in markdown.splitlines() if not ln.lstrip().startswith("#"))
+    return len(to_speech(body).split())
+
+
 def word_gate(ctx: Ctx, log_dir: str, attempt: int) -> Gate:
     """Skriptin tehmini video uzunlugu [min, max] araligina salinir (uzat / qisalt)."""
     n = 0
     for k in range(MAX_EXTENSIONS + 1):
         with open(ctx.p("script.md"), encoding="utf-8") as f:
-            n = word_count(f.read())
+            n = spoken_words(f.read())
         add, cut = words_to_add(n, ctx.min_seconds), words_to_cut(n, ctx.max_seconds)
         if not add and not cut:
             return Gate("ok", f"skript {n} soz ~{n / EFFECTIVE_WPM:.1f} deq")
