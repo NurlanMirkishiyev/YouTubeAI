@@ -62,3 +62,13 @@ def test_scene_given_a_generic_pool_photo_is_animated_at_plan_time():
     assert asked["nums"] == [2]
     assert out[1]["visual"]["kind"] == "compare" and out[0]["visual"] is None
     assert planned[1]["visual"] is None          # giris deyismir
+
+
+def test_plan_time_pool_animation_respects_the_cap():
+    import scene_plan
+    pool = scene_plan.FALLBACK_POOL[0]
+    planned = [{"narration": "a", "bg_prompt": "", "visual": {"kind": "flow"}}] * 7 + \
+              [{"narration": "b", "bg_prompt": pool, "visual": None}] * 3
+    asked = {}
+    scene_plan.animate_pool_scenes(planned, lambda sc, nums: asked.setdefault("nums", nums) and {})
+    assert asked.get("nums") is None          # 7/10 = tavan - hec biri animasiyaya getmir

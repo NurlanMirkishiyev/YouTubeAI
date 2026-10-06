@@ -19,7 +19,8 @@ from math_check import find_numbers
 # "her reqem qrafik ve ya kartla" - reqemli sehne hemise animasiyadir (stats = data kartlari)
 KINDS = ("bars", "line", "compare", "ring", "equation", "flow", "timeline", "counter", "stats")
 ANIM_SHARE = 0.6                # istifadeci 2026-10-03: ~60% animasiya (reqemli sehneler bundan asili deyil)
-MAX_RUN = 3                     # reqemsiz sehnelerde ardicil en cox 3 animasiya - arada foto nefes verir
+ANIM_MAX = 0.70                # istifadeci 2026-10-07 (hibrid): generik foto animasiyaya yalniz bu tavana qeder
+MAX_RUN = 3                    # reqemsiz sehnelerde ardicil en cox 3 animasiya - arada foto nefes verir
 MIN_LETTERS = 3                 # LLM numuneni kocurub ".." yazirdi
 _LETTER = re.compile(r"[A-Za-z]")
 CHUNK = 12
@@ -531,6 +532,11 @@ def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, sha
           + ", ".join(f"{k}x{sum(1 for i in picked if specs[i]['kind'] == k)}" for k in KINDS
                       if any(specs[i]["kind"] == k for i in picked)) + ")", flush=True)
     return fix_card_labels([specs[i] if i in picked else None for i in range(len(scenes))], scenes, chat, llm_kw)
+
+
+def animation_room(scenes: list[dict], cap: float = ANIM_MAX) -> int:
+    """Tavana qeder nece foto sehne daha animasiyaya kece biler (reqemli sehneler artiq sayilir)."""
+    return max(0, math.floor(cap * len(scenes) + 1e-9) - sum(1 for s in scenes if s.get("visual")))
 
 
 def animate_abstract(scenes: list[dict], numbers: list[int], topic: str, chat: Callable = chat_json,

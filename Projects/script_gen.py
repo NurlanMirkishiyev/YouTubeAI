@@ -39,7 +39,10 @@ simple words - clear for a beginner, but always respectful and grown-up, never c
 Voice and rules:
 - Second person, warm, conversational. Short sentences. Contractions are fine.
 - One running case is followed from the first minute to the last: the business owner named in the plan. Each
-  section moves that story forward. Other examples are short analogies, and each one is used only once.
+  section moves that story forward. Every example, number and story is about that business. An analogy is ONE
+  short sentence from everyday life (a thermostat, a GPS route), without numbers - never another business,
+  company, owner or industry (no "a chef", "a trucking company", "a car dealer"), and each is used only once.
+- Say each figure at most twice in the whole script; after that refer to it in words ("the new price").
 - United States only: US cities and states, US dollars, US institutions (IRS, SBA), US spelling.
   Never examples from a child's world (toys, allowance, classmates, candy, playgrounds).
 - Introduce each English business term once, then define it correctly in one short sentence.
@@ -87,9 +90,10 @@ paradox with a number, from the case (e.g. A $9.99 price can earn you less than 
 Exactly 4 sections. They build on each other: the first establishes the foundation, the last answers the
 decision for the owner. No overlap between sections.
 
-CRITICAL - variety: each section's analogy uses a DIFFERENT domain, none shared. Pick four genuinely different
-adult worlds, for example: a commercial kitchen, a construction site, a trucking route, a gym, a farm, an
-airline, a dental office, a car dealership, a hotel front desk, a warehouse. Never the same object twice."""
+CRITICAL - variety: each section's analogy uses a DIFFERENT everyday domain, none shared - never another business
+or industry (the case is the only business in the video). Pick four genuinely different everyday adult images,
+for example: a home thermostat, a car's fuel gauge, a GPS route, a household budget, a fitness tracker, a weather
+forecast, a hiking trail map, a home renovation. Never the same object twice."""
 
 # (basliq, soz hedefi, telimat) - {owner}, {business}, {city}, {state}, {decision}, {answer} plandan doldurulur
 BLOCKS: list[tuple[str, int, str]] = [
@@ -127,12 +131,12 @@ The video already has these teaching sections:
 {existing}
 
 Plan ONE additional teaching section that deepens the topic without repeating any of them.
-Its analogy must live in an everyday domain different from all of these: {domains}.
+Its analogy must live in an everyday domain different from all of these: {domains} - never another business or
+industry; the case business is the only example.
 Return JSON only:
 {{"title": "short title, max 5 words", "idea": "the one core idea, one sentence",
   "domain": "the everyday world the analogy lives in, two or three words",
-  "analogy": "the everyday analogy used, one sentence",
-  "example": "a realistic mini-example, one sentence"}}"""
+  "analogy": "the everyday analogy used, one sentence"}}"""
 
 
 def slugify(text: str) -> str:

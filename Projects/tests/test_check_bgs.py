@@ -245,3 +245,16 @@ def test_animated_scenes_leave_the_generic_report():
     report = {"1": {"problems": ["generic"], "prompt": "a"}, "2": {"problems": [], "prompt": "b"}}
     left = cb.drop_animated(report, {1})
     assert set(left) == {"2"} and cb.generic_share(left)[1] == 0.0
+
+
+def test_generic_photos_beyond_the_cap_stay_photos(tmp_path, monkeypatch):
+    """Hibrid (2026-10-07): tavan dolubsa generik foto animasiyaya kecmir - case kadri ile yeniden cekilir."""
+    p = tmp_path / "scenes.json"
+    sc = [{"visual": {"kind": "flow"}, "narration": "x", "bg_prompt": ""}] * 6 + \
+         [{"visual": None, "narration": "y", "bg_prompt": "z"}] * 4
+    p.write_text(json.dumps({"scenes": sc}), encoding="utf-8")
+    asked = {}
+    monkeypatch.setattr(cb, "animate_abstract", lambda scenes, nums, topic, **k: asked.setdefault("nums", nums) and {})
+    monkeypatch.setattr(cb, "episode_topic", lambda ep: "t")
+    cb.animate(str(tmp_path), str(p), [7, 8, 9], "openai")
+    assert asked["nums"] == [7]

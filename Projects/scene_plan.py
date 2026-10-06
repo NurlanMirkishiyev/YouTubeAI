@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from llm import LLMError, add_provider_arg, chat_json  # noqa: E402
-from visuals import animate_abstract, plan_visuals  # noqa: E402
+from visuals import animate_abstract, animation_room, plan_visuals  # noqa: E402
 
 SPRITES_JSON = r"C:\YouTubeAI\Character\ELI5_Owl\sprites\sprites.json"
 WPM = 199.0   # olculmus; hər halda add. 25-de gercek audio uzunlugu ile evez olunur
@@ -522,6 +522,7 @@ def animate_pool_scenes(planned: list[dict], animate) -> list[dict]:
     """#69: generik hovuz fonu alan foto sehne (case biznesine aid deyil) planda animasiya olur -
     check_bgs-de 2 raund bos sekil cekilmesin. animate(scenes, nums) -> {nomre: spec}; alinmasa foto qalir."""
     nums = [n for n, s in enumerate(planned, 1) if not s.get("visual") and s.get("bg_prompt") in FALLBACK_POOL]
+    nums = nums[:animation_room(planned)]         # hibrid (2026-10-07): tavandan sonra check_bgs case kadri cekir
     specs = animate(planned, nums) if nums else {}
     print(f"  hovuz fonu -> animasiya: {sorted(specs) or 'yoxdur'} (cehd: {nums or 'yoxdur'})")
     return [{**s, "visual": specs[n]} if n in specs else s for n, s in enumerate(planned, 1)]

@@ -66,7 +66,7 @@ def _owner(plan: dict) -> str:
 
 
 _RULE = re.compile(r"\b(if|when|unless|once|as long as|only)\b", re.I)
-MAX_FIGURE_SECTIONS = 2     # eyni reqem: bir defe deyilir, bir defe hesabda islenir - qalani tekrardir
+MAX_FIGURE_MENTIONS = 2     # eyni reqem: bir defe deyilir, bir defe hesabda islenir - qalani tekrardir
 
 
 def _label(v: float, text: str) -> str:
@@ -76,21 +76,28 @@ def _label(v: float, text: str) -> str:
     return f"${s}" if unit == "$" else f"{s}%" if unit == "%" else s
 
 
-def repeated_figures(secs: dict[str, str], exempt: list[float] = ()) -> list[str]:
-    """E2E 2026-10-05: "$2,000 per project" 4 bolmede tekrarlandi. Ilk ve son deyilis qalir, ortadakilar tekrardir.
-    exempt: qerarin/cavabin oz reqemleri ("raise by 10%?") - onlar tebii olaraq tekrarlanir."""
+def _mentions(text: str) -> list[float]:
+    """Her deyilis ayrica (figures() tekrari bir defe sayir): "$1,150 ... $1,150" -> [1150, 1150]."""
+    from math_check import find_numbers
+    shown = _figures(text)
+    return [v for _, _, v in find_numbers(text) if any(abs(v - x) < 1e-9 for x in shown)]
+
+
+def repeated_figures(secs: dict[str, str]) -> list[str]:
+    """E2E 2026-10-05: "$2,000 per project" 4 bolmede; 2026-10-07: "$1,150" bir bolmede 3 sehnede. Istifadeci
+    (2026-10-07): her reqem en cox MAX_FIGURE_MENTIONS defe, qerar reqemi de. Ilk ve son deyilis qalir,
+    ortadakilarin bolmeleri yeniden yazilir."""
     body = [h for h in secs if h == "Hook" or h.startswith("Section ") or h == "Common Mistakes"]
     where: dict[float, list[str]] = {}
     for h in body:
-        for v in _figures(secs[h]):
-            if any(abs(v - x) < 1e-9 for x in exempt):
-                continue
-            where.setdefault(v, []).append(h)
+        for v in _mentions(secs[h]):
+            key = next((k for k in where if abs(k - v) < 1e-9), v)
+            where.setdefault(key, []).append(h)
     probs = []
     for v, heads in where.items():
-        if len(heads) > MAX_FIGURE_SECTIONS:
+        if len(heads) > MAX_FIGURE_MENTIONS:
             lbl = _label(v, secs[heads[0]])
-            probs += [f"{h}: reqem {lbl} {len(heads)} bolmede tekrarlanir" for h in heads[1:-1]]
+            probs += [f"{h}: reqem {lbl} {len(heads)} defe tekrarlanir" for h in dict.fromkeys(heads[1:-1])]
     return probs
 
 
@@ -125,7 +132,7 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
         probs.append("Recap: reqem var - yalniz neticeler deyilmelidir")
     if owner and owner.lower() in recap.lower():
         probs.append(f"Recap: case ({owner}) yeniden danisilir - yalniz neticeler")
-    probs += repeated_figures(secs, _figures(f"{plan.get('decision', '')} {plan.get('answer', '')}"))
+    probs += repeated_figures(secs)
     if source is None:
         probs.append("yoxlanmis menbe yoxdur")
     else:
@@ -136,7 +143,7 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
 REVIEW_SYSTEM = """You are the fact-checking editor of a business explainer video for US small-business owners.
 Read the whole script and judge it strictly. Answer ONLY JSON:
 {"definitions_ok": bool, "analogies_ok": bool, "answers_decision": bool, "repeats": ["..."],
- "recap_only_conclusions": bool, "consistent": bool, "source_faithful": bool,
+ "recap_only_conclusions": bool, "consistent": bool, "source_faithful": bool, "single_case": bool,
  "fixes": [{"section": "exact heading without ##", "problem": "...", "instruction": "what to change"}]}
 - definitions_ok: every business term is defined correctly (as an accountant or the SBA would define it).
 - analogies_ok: every analogy maps correctly onto the concept (no misleading comparison).
@@ -151,6 +158,9 @@ Read the whole script and judge it strictly. Answer ONLY JSON:
   in third person about the owner; a figure is not used before it was introduced).
 - source_faithful: the verified fact is stated as given in VERIFIED FACT, and nothing more is attributed to the
   source (no added conclusions such as "without losing customers").
+- single_case: every example is about the case owner's business; analogies are one-sentence everyday images
+  without numbers. False if any example, story or calculation is about another business, company or industry
+  (e.g. "a chef pricing a recipe", "a trucking company raising rates").
 - fixes: one item per section that must change (exact heading). Empty when everything is fine."""
 
 
@@ -169,6 +179,8 @@ def review_problems(r: dict) -> list[str]:
         probs.append("hekaye ziddiyyetlidir (case faktlari/qerar uygun gelmir)")
     if r.get("source_faithful") is not True:
         probs.append("menbe tehrif olunub (fakta elave iddia yazilib)")
+    if r.get("single_case") is not True:
+        probs.append("basqa biznes misali var - yalniz case izlenmelidir")
     if r.get("recap_only_conclusions") is not True:
         probs.append("Recap yalniz neticeleri demir")
     return probs

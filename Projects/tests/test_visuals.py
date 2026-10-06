@@ -550,3 +550,11 @@ def test_namer_and_checker_separate_a_share_from_a_change():
     """#70: '61 percent of employer small businesses raised prices' kartda 'Price Increase' yazilmisdi."""
     for prompt in (visuals.LABEL_SYSTEM, visuals.VERIFY_SYSTEM):
         assert "share" in prompt and "change" in prompt
+
+
+def test_animation_room_respects_the_70_percent_cap():
+    """Istifadeci 2026-10-07 (hibrid): animasiya ~60-70%, generik foto animasiyaya yalniz tavana qeder kecir."""
+    assert visuals.ANIM_MAX == 0.70
+    scenes = [{"visual": {"kind": "flow"}}] * 6 + [{"visual": None}] * 4      # 10 sehne, 6 animasiya
+    assert visuals.animation_room(scenes) == 1
+    assert visuals.animation_room([{"visual": {"kind": "flow"}}] * 8 + [{"visual": None}] * 2) == 0

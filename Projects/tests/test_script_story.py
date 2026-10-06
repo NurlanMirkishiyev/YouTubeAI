@@ -95,11 +95,11 @@ def test_review_rewrites_only_the_flagged_sections():
         calls.append("review")
         if len(calls) == 1:
             return {"definitions_ok": False, "analogies_ok": True, "answers_decision": True, "repeats": [],
-                    "recap_only_conclusions": True, "consistent": True, "source_faithful": True,
+                    "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "single_case": True,
                     "fixes": [{"section": "Section 1: Margin", "problem": "margin defined as profit",
                                "instruction": "Define margin as the share of each sale kept as profit."}]}
         return {"definitions_ok": True, "analogies_ok": True, "answers_decision": True, "repeats": [],
-                "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "fixes": []}
+                "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "single_case": True, "fixes": []}
 
     def fake_rewrite(system, user, **kw):
         assert "share of each sale" in user
@@ -113,7 +113,7 @@ def test_review_rewrites_only_the_flagged_sections():
 
 def test_review_problems_remain_when_rewrites_do_not_help():
     bad = {"definitions_ok": True, "analogies_ok": True, "answers_decision": False, "repeats": [],
-           "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "fixes": [{"section": "Section 4: Decision", "problem": "no clear answer",
+           "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "single_case": True, "fixes": [{"section": "Section 4: Decision", "problem": "no clear answer",
                                                       "instruction": "Answer the decision."}]}
     _, problems = qa.review_loop(_script(), PLAN, SOURCE, "T", review=lambda *a, **k: bad,
                                  rewrite=lambda *a, **k: "Rosa raises prices because her margin was too thin.")
@@ -230,15 +230,45 @@ def test_review_checks_story_consistency_and_source_faithfulness():
     low = qa.REVIEW_SYSTEM.lower()
     assert "consistent" in low and "source_faithful" in low
     r = {"definitions_ok": True, "analogies_ok": True, "answers_decision": True, "repeats": [],
-         "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "consistent": False, "source_faithful": False}
+         "recap_only_conclusions": True, "consistent": True, "source_faithful": True, "single_case": True, "consistent": False, "source_faithful": False}
     probs = qa.review_problems(r)
     assert any("ziddiyyet" in p for p in probs) and any("menbe" in p for p in probs)
     assert "61%" in qa._review_user("x", PLAN, "T", {**SOURCE, "claim": "61% raised prices."})
 
 
-def test_decision_figure_may_recur():
-    """Run 2: '10%' (qerarin ozu: 'raise prices by 10%?') tekrar sayilib silinirdi."""
+def test_decision_figure_is_limited_to_two_mentions_too():
+    """Istifadeci 2026-10-07: her reqem en cox 2 defe - qerar reqemi de ('$1,150' 3 sehnede gorunurdu)."""
     md = _script(**{"Section 1: Margin": "Rosa wonders about a 10% rise.",
                     "Section 3: Testing": "Rosa tests the 10% rise on two dishes.",
                     "Section 4: Decision": "Rosa raises prices by 10% because her margin was too thin."})
-    assert not any("10%" in p for p in qa.story_problems(md, PLAN, SOURCE))
+    assert any("10%" in p and "Section 3" in p for p in qa.story_problems(md, PLAN, SOURCE))
+
+
+def test_same_figure_three_times_in_one_section_is_a_repeat():
+    md = _script(**{"Section 4: Decision": "Her new price is $1,150. At $1,150 she keeps 9 of 10 clients. "
+                                           "So $1,150 it is."})
+    probs = qa.story_problems(md, PLAN, SOURCE)
+    assert any("$1,150" in p and p.startswith("Section 4") for p in probs)
+    fixes = qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand")
+    assert any(f["section"] == "Section 4: Decision" and "$1,150" in f["instruction"] for f in fixes)
+
+
+def test_a_figure_said_twice_is_fine():
+    md = _script(**{"Section 1: Margin": "Rosa charges $14 a plate.",
+                    "Section 4: Decision": "Rosa raises the $14 plate."})
+    assert not any("$14" in p for p in qa.story_problems(md, PLAN, SOURCE))
+
+
+
+def test_analogies_are_everyday_images_never_another_business():
+    """Istifadeci 2026-10-07: case-den basqa biznes misali yox (asbaz, yuk dasima sirketi kadri). Analogiya qalir."""
+    import script_gen as sg
+    low = (sg.SYSTEM + sg.OUTLINE_USER + sg.EXTEND_USER).lower()
+    assert "never another business" in low
+    for biz in ("commercial kitchen", "trucking route", "car dealership", "dental office", "a warehouse."):
+        assert biz not in low, biz
+
+
+def test_reviewer_flags_examples_from_other_businesses():
+    assert "single_case" in qa.REVIEW_SYSTEM
+    assert any("basqa biznes" in p for p in qa.review_problems({"single_case": False}))

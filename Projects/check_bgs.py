@@ -28,7 +28,7 @@ sys.path.insert(0, HERE)
 from llm import DEFAULT_PROVIDER, LLMError, chat_json  # noqa: E402
 from scene_plan import (FALLBACK_BG, FALLBACK_POOL, case_note, clean_bg_prompt, episode_plan,  # noqa: E402
                         episode_topic, hero)
-from visuals import animate_abstract  # noqa: E402
+from visuals import ANIM_MAX, animate_abstract, animation_room  # noqa: E402
 import render_bgs  # noqa: E402
 
 MAX_ATTEMPTS = 3
@@ -192,6 +192,12 @@ def drop_animated(report: dict, animated: set[int]) -> dict:
 def animate(ep: str, scenes_path: str, nums: list[int], provider: str) -> set[int]:
     with open(scenes_path, encoding="utf-8") as f:
         scenes = json.load(f)["scenes"]
+    room = animation_room(scenes)          # hibrid (2026-10-07): tavandan sonra foto qalir, case kadri cekilir
+    if len(nums) > room:
+        print(f"[qa] animasiya tavani ({ANIM_MAX:.0%}): {nums[room:]} foto qalir", flush=True)
+        nums = nums[:room]
+    if not nums:
+        return set()
     specs = animate_abstract(scenes, nums, episode_topic(ep), provider=provider)
     apply_visuals(scenes_path, specs)
     print(f"[qa] generik foto -> animasiya: {sorted(specs) or 'yoxdur'} (cehd: {nums})", flush=True)

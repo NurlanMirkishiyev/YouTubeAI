@@ -55,7 +55,9 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
   yazılır (bayraqsız rəqəmlər dəyişə bilməz) → yenə keçməsə cümlə rəqəmsiz yazılır/silinir. Yoxlanmamış hesab
   videoya düşmür. Test: `Projects/tests/test_number_audit.py`.
 - **Analitik animasiyalar** (2026-10-03): səhnələrin ~60%-i Remotion chart/diaqram (`visuals.py` + `Remotion/src/visuals/`),
-  qalanı foto. Chart-dakı HƏR rəqəm səhnə danışığında deyilməlidir (fail-closed). Giriş/çıxış kartı səhnə fotosunu
+  qalanı foto. **Hibrid (istifadəçi 2026-10-07):** generik foto animasiyaya yalnız `ANIM_MAX` = 70% tavanına qədər
+  keçir; tavandan sonra case biznesinin literal kadrı ilə yenidən çəkilir, generik <10% qapısı qalır.
+  Test: `test_visuals.py::test_animation_room_respects_the_70_percent_cap`. Chart-dakı HƏR rəqəm səhnə danışığında deyilməlidir (fail-closed). Giriş/çıxış kartı səhnə fotosunu
   təkrar etmir. Thumbnail fonu ayrıca (gpt-image-2 high + hakim). Mətn modeli dəyişmir (gpt-4o-mini, istifadəçi qərarı).
   Test: `test_visuals.py`, `test_thumbnail.py`.
 - **Məzmun standartı — HƏR yeni videoda** (istifadəçi 2026-10-05, 12 addım; reyestr #54–#60):
@@ -64,7 +66,9 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
   3) ən azı 1 **yoxlanmış** rəsmi/tədqiqat mənbəyi (`research.py`: URL yüklənir, rəqəm + cümlə səhifədə, hakim
   "statistika + aidiyyət"; tapılmasa script_gen dayanır, uydurma yox), description-da link;
   4) ilk 3 saniyədə konkret rəqəm — `## Cold Open` cümləsi (ilk 9 sözdə rəqəm) giriş kartında səslənir/görünür;
-  5) bir ABŞ case (sahibi adı ilə) Hook-dan son bölməyə qədər hər bölmədə; 6) təkrar yox, Recap yalnız nəticələr
+  5) bir ABŞ case (sahibi adı ilə) Hook-dan son bölməyə qədər hər bölmədə — başqa biznes misalı YOX, analogiya
+  yalnız bir cümləlik rəqəmsiz gündəlik təsvir (redaktor `single_case`, 2026-10-07); 6) təkrar yox — hər rəqəm
+  skriptdə ən çox 2 dəfə deyilir, qərar rəqəmi də (`repeated_figures`, 2026-10-07), Recap yalnız nəticələr
   (rəqəm/ad/misal yox); 7) hər rəqəm chart və ya data kartında (`stats`), generik bullet (keypoints) yox;
   8) fonlar case biznesinin literal kadrları, generik/metafor ≤ 10% (`bg_qa.json generic_share`);
   9) chart səhnəsində bölmə adı lower-third deyil, başlığın üstündə kicker; 10) −14 LUFS + rəqəmlər TTS-ə
