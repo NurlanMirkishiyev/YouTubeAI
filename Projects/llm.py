@@ -140,6 +140,8 @@ def chat(system: str, user: str | list, *, provider: str = DEFAULT_PROVIDER, mod
         text = res["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as e:
         raise LLMError("gozlenilmeyen cavab formati: " + json.dumps(res)[:500]) from e
+    if not isinstance(text, str):      # #66: refusal - content=null (cagiran LLMError-u tutur)
+        raise LLMError("bos cavab (refusal): " + str(res["choices"][0]["message"].get("refusal"))[:200])
     usage = res.get("usage", {})
     cost = (usage.get("prompt_tokens", 0) * prov.usd_in
             + usage.get("completion_tokens", 0) * prov.usd_out) / 1_000_000

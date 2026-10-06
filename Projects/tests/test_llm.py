@@ -80,3 +80,12 @@ def test_retry_after_parses_milliseconds():
     assert llm.retry_after("Please try again in 950ms.") == pytest.approx(0.95)
     assert llm.retry_after("Please try again in 2.272s.") == pytest.approx(2.272)
     assert llm.retry_after("other") is None
+
+
+def test_chat_null_content_is_an_llm_error_not_a_crash(monkeypatch):
+    """#66: model sekli redd edende content=null gelir - check_bgs AttributeError ile cokurdu."""
+    monkeypatch.setattr(llm, "_api_key", lambda prov: "k")
+    monkeypatch.setattr(llm, "_post", lambda url, key, payload: {
+        "choices": [{"message": {"content": None, "refusal": "I can't help with that."}}], "usage": {}})
+    with pytest.raises(llm.LLMError, match="bos cavab"):
+        llm.chat("s", "u", provider="openai")
