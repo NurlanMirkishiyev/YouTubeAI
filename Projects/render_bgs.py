@@ -129,6 +129,15 @@ def save_bg_paths(scenes_path: str, bg_dir: str) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
+EXIT_NO_BALANCE = 3        # check_bgs bunu "BALANSI BITIB" mesajina cevirir (#64: retry yox)
+
+
+def exit_code(errors: list[str]) -> int:
+    if not errors:
+        return 0
+    return EXIT_NO_BALANCE if any("BALANSI BITIB" in e for e in errors) else 1
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("episode_dir")
@@ -180,6 +189,9 @@ def main() -> None:
     if errors:
         for e in errors:
             print("  UGURSUZ " + e, flush=True)
+        if exit_code(errors) == EXIT_NO_BALANCE:
+            print(f"  {len(errors)} fon cekilmedi: OpenAI BALANSI BITIB", flush=True)
+            raise SystemExit(EXIT_NO_BALANCE)
         raise SystemExit(f"{len(errors)} fon cekilmedi")
 
 

@@ -26,7 +26,8 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from llm import DEFAULT_PROVIDER, LLMError, chat_json  # noqa: E402
-from scene_plan import FALLBACK_BG, FALLBACK_POOL, clean_bg_prompt, hero  # noqa: E402
+from scene_plan import FALLBACK_BG, FALLBACK_POOL, case_note, clean_bg_prompt, episode_plan, hero  # noqa: E402
+import render_bgs  # noqa: E402
 
 MAX_ATTEMPTS = 3
 # Tekrar kadr (CLIP oxsarligi) ucun elave raundlar - her raundda tekrar olan sonraki sehneler yeniden cekilir
@@ -62,9 +63,11 @@ talks to the viewer ("you") - never infer people or writing from it.
   plastic toy-like objects, or a cute kids-show look. The video is for adult professionals.
 - "generic": a generic stock picture or a symbolic metaphor (piggy bank, hourglass, chess piece, light bulb,
   compass, lighthouse, coins on a table, empty desk) instead of the LITERAL business, place, product, tool or
-  machine the narration is about.
+  machine the narration is about. A real place, room, tool, machine or product of the case business named
+  in the message (e.g. the agency's own workroom or meeting room) is NOT generic, even if it looks ordinary.
 Also give "fix_prompts": if any check is true, a list of 3 DIFFERENT new image prompts of 8-20 words each -
-ONE clear real-world place, product, tool or machine of the business in the narration, shown literally as a
+ONE clear real-world place, product, tool or machine of the case business (or the business in the narration
+when no case is given), shown literally as a
 photo (never a symbolic metaphor). Each main object must differ from every object already used in other scenes.
 Nothing that carries writing: no price tags, menus, receipts, labels, packaging brands, signs, screens,
 papers, books or cards - show the idea through the physical thing itself. No people, hands or toys.
@@ -125,15 +128,16 @@ def rejection_reason(option: str, used: set[str]) -> str | None:
 
 SUGGEST_SYSTEM = """You write background image prompts for one scene of an explainer video for adults.
 Your earlier suggestions were rejected for the reasons given. Give 5 NEW prompts of 8-20 words: ONE clear
-real-world object or place shown as a realistic photo that fits the narration. Every main object must be
+real-world object or place of the case business (when one is given) shown as a realistic photo that fits
+the narration - never another kind of business. Every main object must be
 different from the objects already used. Nothing that carries writing or numbers: no price tags, menus,
 receipts, labels, signs, screens, registers' displays, papers, books or cards. No people, hands or toys.
 Answer ONLY JSON: {"fix_prompts": [...]}"""
 
 
-def suggest_again(scene: dict, feedback: str, used: set[str], provider: str) -> tuple[str, ...]:
+def suggest_again(scene: dict, feedback: str, used: set[str], provider: str, case: str = "") -> tuple[str, ...]:
     """Butun teklifler redd olunanda sebebleri bildirib yeni teklifler (yalniz metn, sekil yoxdur)."""
-    text = (f"Narration: {scene.get('narration', '')}\nRejected: {feedback}\n"
+    text = (f"{case}Narration: {scene.get('narration', '')}\nRejected: {feedback}\n"
             f"Objects already used: {'; '.join(sorted(used))}")
     try:
         return parse_verdict(chat_json(SUGGEST_SYSTEM, text, provider=provider,
@@ -201,10 +205,11 @@ def generic_share(report: dict) -> tuple[list[int], float]:
     return nums, (round(len(nums) / len(report), 3) if report else 0.0)
 
 
-def judge_text(scene: dict) -> str:
+def judge_text(scene: dict, case: str = "") -> str:
     """Kicik saxlanilir: istifade olunmus obyektler siyahisi burada DEYIL (56 paralel sorgu gpt-4o TPM
     limitini asirdi, #32) - onu yalniz redd olunan sehneler ucun suggest_again alir."""
-    return f"Narration: {scene.get('narration', '')}\nImage prompt used: {scene.get('bg_prompt', '')}"
+    # #65: case biznesi - onun real yerleri generik sayilmir, teklifler bu biznesden olur
+    return f"{case}Narration: {scene.get('narration', '')}\nImage prompt used: {scene.get('bg_prompt', '')}"
 
 
 def needs_redo(v: Verdict, prompt: str, tries: int) -> bool:
@@ -229,8 +234,8 @@ def load_tries(ep: str, scenes: list[dict]) -> dict[int, int]:
             and scenes[int(n) - 1].get("bg_prompt") == r.get("prompt")}
 
 
-def judge(path: str, scene: dict, provider: str) -> Verdict:
-    text = judge_text(scene)
+def judge(path: str, scene: dict, provider: str, case: str = "") -> Verdict:
+    text = judge_text(scene, case)
     try:
         return parse_verdict(chat_json(SYSTEM, [{"type": "text", "text": text}, _image_part(path)],
                                        provider=provider, model=JUDGE_MODEL if provider == "openai" else None,
@@ -246,7 +251,12 @@ def rerender(ep: str, nums: list[int]) -> None:
         if os.path.isfile(hd):
             os.remove(hd)
     cmd = [sys.executable, os.path.join(HERE, "render_bgs.py"), ep, "--only", *map(str, nums), "--force"]
-    subprocess.run(cmd, check=True)
+    code = subprocess.run(cmd).returncode
+    if code == render_bgs.EXIT_NO_BALANCE:      # #64: pipeline NO_RETRY gorsun, bos retry olmasin
+        raise SystemExit("OpenAI BALANSI BITIB - fonlar yeniden cekilmedi; kredit elave et, sonra: "
+                         "python run.py --resume <slug>")
+    if code:
+        raise SystemExit(f"render_bgs ugursuz (exit {code})")
 
 
 SAME_SYSTEM = """You compare two background images of one explainer video. The rule is: the same object or
@@ -310,6 +320,7 @@ def main() -> None:
     a = ap.parse_args()
     ep = os.path.abspath(a.episode_dir)
     scenes_path = os.path.join(ep, "scenes.json")
+    case = case_note(episode_plan(ep))
 
     report: dict[str, dict] = {}
     with open(scenes_path, encoding="utf-8") as f:
@@ -321,7 +332,7 @@ def main() -> None:
         with open(scenes_path, encoding="utf-8") as f:
             scenes = json.load(f)["scenes"]
         paths = {n: os.path.join(ep, "bg", f"sc{n:02d}.png") for n in pending}
-        verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider))
+        verdicts = judge_all(pending, lambda n: judge(paths[n], scenes[n - 1], a.provider, case))
         # MAX_ATTEMPTS defe yeniden cekilib hele pisdirse sonuncu (ehtiyat) fon qalir - pipeline ilismir
         bad = [n for n in pending if needs_redo(verdicts[n], scenes[n - 1]["bg_prompt"], tries.get(n, 0))]
         for n in pending:
@@ -345,7 +356,7 @@ def main() -> None:
             if n in bad:        # oz pis promptunun obyekti basqa sehnede yoxdursa, teklifde qala biler
                 others = used - {scenes[n - 1]["bg_prompt"]}
                 p = choose_prompt(verdicts[n], tries[n], others,
-                                  lambda fb, s=scenes[n - 1], o=others: suggest_again(s, fb, o, a.provider))
+                                  lambda fb, s=scenes[n - 1], o=others: suggest_again(s, fb, o, a.provider, case))
             else:               # tekrar kadr: epizodda olmayan ehtiyat obyekt
                 p = next_prompt("", MAX_ATTEMPTS, used)
             used.add(p)

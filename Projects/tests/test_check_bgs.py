@@ -177,3 +177,49 @@ def test_choose_prompt_does_not_ask_again_when_an_option_is_fine():
     v = cb.Verdict(ok=False, problems=("mismatch",), fix_prompt="", fix_options=("a pasta box on a counter",))
     p = cb.choose_prompt(v, attempt=1, used=set(), suggest=lambda fb: pytest.fail("lazim deyil"))
     assert p == "a pasta box on a counter"
+
+
+def test_rerender_turns_balance_exit_into_no_retry_message(monkeypatch, tmp_path):
+    """#64: balans bitende check_bgs traceback yox, pipeline-in NO_RETRY mesajini vermelidir."""
+    import subprocess
+    import pipeline
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, render_bgs.EXIT_NO_BALANCE))
+    with pytest.raises(SystemExit) as e:
+        cb.rerender(str(tmp_path), [1, 2])
+    assert pipeline.NO_RETRY in str(e.value.code)
+
+
+def test_rerender_other_failure_still_raises(monkeypatch, tmp_path):
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 1))
+    with pytest.raises(SystemExit) as e:
+        cb.rerender(str(tmp_path), [1])
+    assert "BALANSI" not in str(e.value.code)
+
+
+def test_render_bgs_exit_code_for_balance_errors():
+    assert render_bgs.exit_code(["sc01: OpenAI BALANSI BITIB - ..."]) == render_bgs.EXIT_NO_BALANCE
+    assert render_bgs.exit_code(["sc01: timeout"]) == 1
+    assert render_bgs.exit_code([]) == 0
+
+
+CASE = "The video follows Lisa's business: a marketing agency in Austin, TX."
+
+
+def test_judge_text_carries_the_case_business():
+    """#65: hakim case biznesini bilmeyende agentliyin oz otagini 'generic' sayir, teklifler cörekxanaya qacir."""
+    t = cb.judge_text({"narration": "Lisa checks her rates.", "bg_prompt": "agency workroom"}, CASE)
+    assert "marketing agency in Austin" in t
+    assert "Narration: Lisa checks her rates." in t
+
+
+def test_suggest_again_sends_the_case_business(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(cb, "chat_json", lambda system, text, **k: seen.update(text=text) or {"fix_prompts": []})
+    cb.suggest_again({"narration": "x"}, "rejected", set(), "openai", CASE)
+    assert "marketing agency in Austin" in seen["text"]
+
+
+def test_generic_rule_keeps_the_case_business_own_places():
+    assert "NOT generic" in cb.SYSTEM and "case business" in cb.SYSTEM
+    assert "case business" in cb.SUGGEST_SYSTEM
