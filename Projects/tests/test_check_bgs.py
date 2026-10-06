@@ -223,3 +223,25 @@ def test_suggest_again_sends_the_case_business(monkeypatch):
 def test_generic_rule_keeps_the_case_business_own_places():
     assert "NOT generic" in cb.SYSTEM and "case business" in cb.SYSTEM
     assert "case business" in cb.SUGGEST_SYSTEM
+
+
+def test_scene_still_generic_after_a_redraw_is_animated():
+    """#67: bir defe yeniden cekilib hele generik qalan foto - yeniden cekilmir, animasiyaya gedir."""
+    gen = cb.Verdict(ok=False, problems=("generic",), fix_prompt="", fix_options=())
+    mis = cb.Verdict(ok=False, problems=("mismatch",), fix_prompt="", fix_options=())
+    verdicts = {1: gen, 2: gen, 3: mis}
+    assert cb.to_animate([1, 2, 3], verdicts, {1: 1, 3: 2}) == [1]
+
+
+def test_apply_visuals_marks_scenes_animated(tmp_path):
+    p = tmp_path / "scenes.json"
+    p.write_text(json.dumps({"scenes": [{"bg_prompt": "x"}, {"bg_prompt": "y", "extra": 1}]}), encoding="utf-8")
+    cb.apply_visuals(str(p), {2: {"kind": "flow", "title": "T", "steps": ["a", "b", "c"]}})
+    sc = json.loads(p.read_text(encoding="utf-8"))["scenes"]
+    assert sc[0].get("visual") is None and sc[1]["visual"]["kind"] == "flow" and sc[1]["extra"] == 1
+
+
+def test_animated_scenes_leave_the_generic_report():
+    report = {"1": {"problems": ["generic"], "prompt": "a"}, "2": {"problems": [], "prompt": "b"}}
+    left = cb.drop_animated(report, {1})
+    assert set(left) == {"2"} and cb.generic_share(left)[1] == 0.0

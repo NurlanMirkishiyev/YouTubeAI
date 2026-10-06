@@ -26,7 +26,9 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from llm import DEFAULT_PROVIDER, LLMError, chat_json  # noqa: E402
-from scene_plan import FALLBACK_BG, FALLBACK_POOL, case_note, clean_bg_prompt, episode_plan, hero  # noqa: E402
+from scene_plan import (FALLBACK_BG, FALLBACK_POOL, case_note, clean_bg_prompt, episode_plan,  # noqa: E402
+                        episode_topic, hero)
+from visuals import animate_abstract  # noqa: E402
 import render_bgs  # noqa: E402
 
 MAX_ATTEMPTS = 3
@@ -166,6 +168,34 @@ def apply_changes(scenes_path: str, changes: dict[int, str]) -> None:
         data["scenes"][n - 1]["bg_prompt"] = prompt
     with open(scenes_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def apply_visuals(scenes_path: str, specs: dict[int, dict]) -> None:
+    """#67: {sehne nomresi: animasiya spec-i} - sehne fotodan animasiyaya kecir (fayl tezeden oxunur)."""
+    with open(scenes_path, encoding="utf-8") as f:
+        data = json.load(f)
+    for n, spec in specs.items():
+        data["scenes"][n - 1]["visual"] = spec
+    with open(scenes_path, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def to_animate(nums: list[int], verdicts: dict, tries: dict[int, int]) -> list[int]:
+    """#67: bir defe yeniden cekilib hele generik qalan foto - abstrakt mezmundur, foto onu literal gostermir."""
+    return [n for n in nums if "generic" in verdicts[n].problems and tries.get(n, 0) >= 1]
+
+
+def drop_animated(report: dict, animated: set[int]) -> dict:
+    return {k: v for k, v in report.items() if int(k) not in animated}
+
+
+def animate(ep: str, scenes_path: str, nums: list[int], provider: str) -> set[int]:
+    with open(scenes_path, encoding="utf-8") as f:
+        scenes = json.load(f)["scenes"]
+    specs = animate_abstract(scenes, nums, episode_topic(ep), provider=provider)
+    apply_visuals(scenes_path, specs)
+    print(f"[qa] generik foto -> animasiya: {sorted(specs) or 'yoxdur'} (cehd: {nums})", flush=True)
+    return set(specs)
 
 
 def _image_part(path: str) -> dict:
@@ -341,6 +371,10 @@ def main() -> None:
                               + (0 if v.ok else 1), "prompt": scenes[n - 1]["bg_prompt"]}
         print(f"[qa] raund {rnd}: {len(pending)} yoxlandi, {len(bad)} pis: "
               + ", ".join(f"sc{n:02d}({'/'.join(verdicts[n].problems)})" for n in bad), flush=True)
+        if to_animate(bad, verdicts, tries):
+            done = animate(ep, scenes_path, to_animate(bad, verdicts, tries), a.provider)
+            report = drop_animated(report, done)
+            bad = [n for n in bad if n not in done]
         # hakim temiz olanda tekrar kadr yoxlamasi: eyni gorunen fonlarin sonrakilari yeniden cekilir
         dups = [] if bad else find_duplicates(ep, a.provider)["redo"]
         if dups:
@@ -361,11 +395,14 @@ def main() -> None:
                 p = next_prompt("", MAX_ATTEMPTS, used)
             used.add(p)
             changes[n] = p
-            print(f"  sc{n:02d} -> {p}")
+            print(f"  sc{n:02d} -> {p}", flush=True)
         apply_changes(scenes_path, changes)
         rerender(ep, redo)
         pending = redo
 
+    generic, _ = generic_share(report)      # #67: son cehdden sonra da generik (ve ya hovuz) - animasiya
+    if generic:
+        report = drop_animated(report, animate(ep, scenes_path, generic, a.provider))
     duplicates = [] if clean else find_duplicates(ep, a.provider)["pairs"]     # bos deyilse check_bgs merhelesi kecmir
     with open(os.path.join(ep, REPORT), "w", encoding="utf-8") as f:
         generic, share = generic_share(report)

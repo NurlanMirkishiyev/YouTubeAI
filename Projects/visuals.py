@@ -433,3 +433,23 @@ def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, sha
           + ", ".join(f"{k}x{sum(1 for i in picked if specs[i]['kind'] == k)}" for k in KINDS
                       if any(specs[i]["kind"] == k for i in picked)) + ")", flush=True)
     return [specs[i] if i in picked else None for i in range(len(scenes))]
+
+
+def animate_abstract(scenes: list[dict], numbers: list[int], topic: str, chat: Callable = chat_json,
+                     **llm_kw) -> dict[int, dict]:
+    """#67: foto ile literal gosterile bilmeyen (yeniden cekilib hele generik qalan) sehneler bullet-siz
+    animasiya olur. Kecersiz, reqemi ortmeyen ve ya basligi tekrarlanan spec qebul olunmur - sehne foto qalir."""
+    titles = [s["visual"]["title"] for s in scenes if isinstance(s.get("visual"), dict) and s["visual"].get("title")]
+    note = NO_KEYPOINTS + ("\nTitles already used in the video (do not repeat): " + "; ".join(titles)
+                           if titles else "")
+    got = _ask_all(scenes, numbers, topic, chat, llm_kw, note)
+    seen = {_title_key(t) for t in titles}
+    out: dict[int, dict] = {}
+    for n in numbers:
+        narr = scenes[n - 1]["narration"]
+        _, spec = _candidate(got.get(n) or {}, narr)
+        if not spec or (figures(narr) and not covers_figures(spec, narr)) or _title_key(spec["title"]) in seen:
+            continue
+        seen.add(_title_key(spec["title"]))
+        out[n] = spec
+    return out

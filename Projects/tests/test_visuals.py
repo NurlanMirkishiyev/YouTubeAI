@@ -1,6 +1,7 @@
 """Reyestr #45 (2026-10-03): sehnelerin ~60%-i analitik animasiya. Chart-daki her reqem sehne danisiginda
 olmalidir (hesab sehvi QETI olmur) - olmasa reqemsiz keypoints-e, o da alinmasa fotoya dusur."""
 from visuals import ANIM_SHARE, choose_animated, figures, plan_visuals, stats_fallback, validate_visual
+import visuals
 
 NARR = "A $10 lunch drops to $9.99 and sales jump 40% in three months."
 
@@ -385,3 +386,36 @@ def test_llm_is_asked_again_when_a_figure_is_missing_from_its_chart():
 
     out = plan_visuals([{"section": "S", "narration": narr}], "Costs", chat=fake_chat)
     assert out[0]["kind"] == "bars" and any("Show EVERY figure" in u for u in calls)
+
+
+def _abstract_scenes():
+    return [{"section": "Decision", "narration": "Lisa weighs her costs before deciding.",
+             "visual": {"kind": "flow", "title": "Cost check", "steps": ["a", "b", "c"]}},
+            {"section": "Decision", "narration": "So the decision is clear: she raises her rates."}]
+
+
+def test_animate_abstract_returns_valid_bullet_free_specs():
+    """#67: foto ile literal gosterile bilmeyen (generik qalan) sehne animasiyaya cevrilir."""
+    seen = {}
+
+    def fake_chat(system, user, **kw):
+        seen["user"] = user
+        return {"scenes": [{"n": 2, "score": 6, "visual": {"kind": "flow", "title": "Making the call",
+                                                         "steps": ["Check costs", "Ask clients", "Raise rates"]}}]}
+    got = visuals.animate_abstract(_abstract_scenes(), [2], "Should You Raise Your Prices?", fake_chat)
+    assert got[2]["kind"] == "flow"
+    assert "Cost check" in seen["user"]          # movcud basliqlar tekrarlanmasin
+    assert "bullet" in seen["user"]
+
+
+def test_animate_abstract_drops_invalid_or_repeated_title_specs():
+    def fake_chat(system, user, **kw):
+        return {"scenes": [{"n": 2, "score": 6, "visual": {"kind": "flow", "title": "Cost check",
+                                                         "steps": ["a1", "b1", "c1"]}}]}
+    assert visuals.animate_abstract(_abstract_scenes(), [2], "t", fake_chat) == {}
+
+
+def test_animate_abstract_survives_llm_error():
+    def fake_chat(system, user, **kw):
+        raise visuals.LLMError("down")
+    assert visuals.animate_abstract(_abstract_scenes(), [2], "t", fake_chat) == {}
