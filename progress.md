@@ -130,13 +130,10 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Növbəti dəqiq addım
 
-**Vəziyyət (2026-10-07):** 12 addımlıq standart E2E-də işlədi. `should-you-raise-your-prices` HAZIRDIR
-(`Hazir_Videolar\should-you-raise-your-prices\`, 11.42 dəq, −14.3 LUFS) — istifadəçi təsdiqi gözlənilir (AskUserQuestion,
-təsdiqdə `forget_episode.py`). 471 test keçir. Bu sessiyada #64–#70 düzəldildi.
-Açıq müşahidələr: (a) bu abstrakt mövzuda animasiya payı ~84% (52/62) — "~60%" qaydasından yüksək, çünki generik
-fotolar #67/#69 ilə animasiyaya keçir; (b) skriptdə köməkçi analogiyalar (aşpaz, yük daşıma) var — script_qa keçirdi;
-(c) flaky `test_run_pipeline_from_forces_rerun` (bax reyestr "—" sətri).
-**Növbəti dəqiq addım:** istifadəçi təsdiqi → yaddaş silmə; sonra yeni mövzu `Video: <Mövzu>`.
+**Vəziyyət (2026-10-07):** açıq iş yoxdur. 12 addımlıq standart E2E-də işlədi (#54–#70), 471 test keçir.
+Açıq müşahidələr: abstrakt mövzuda animasiya payı ~84%-ə qalxa bilər ("~60%"-dən yuxarı, generik foto → animasiya);
+flaky `test_run_pipeline_from_forces_rerun` (reyestr "—" sətri).
+**Növbəti dəqiq addım:** istifadəçinin yeni mövzusu `Video: <Mövzu>`.
 **Əvvəlki (2026-10-05):** açıq iş yox idi. 347 test keçirdi (#50–#53 əlavə).
 **Əvvəlki (2026-10-04):** 334 test keçirdi (#45 analitik animasiyalar ~57–60%, #46 kart təkrarı, #47 thumbnail, #48 dedupe, #49 chart mətn/vahid).
 
@@ -363,16 +360,6 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
-
-### 2026-10-06/07 — E2E `should-you-raise-your-prices` HAZIR, xətalar #64–#70
-- OpenAI balansı bərpa olundu; run 4–7. Xətalar (hamısı reyestrdə + test): #64 balansda boş retry, #65 hakim case-i
-  görmürdü, #66 refusal `content=null` çökməsi, #67 generik foto → animasiya, #68 uzunluq qapısı TTS sözlərini saymırdı
-  (725 s → qısaltma + scene_plan təkrarı), #69 hovuz fonu planda animasiya, #70 qırıq/yanlış data kartı yazıları.
-- Alət səhvləri ("yanlış yollar"-da): heredoc `
-` (3 dəfə), `.venv=1` bash prefiksi, dəyişmiş promptun orijinalı saxlanmadı.
-- Yoxlamalar: script_qa/captions_qa/math_check `problems: []`; bg_qa passed, generic 0%, dups []; owl_qa intro/outro ok
-  (sc07 3 cəhddən sonra `text` → ehtiyat bayquş, kadrda yazı yoxdur); final_video_problems []; 11.42 dəq; −14.3 LUFS;
-  sükut yoxdur; altyazıda "$1,000"; giriş kartında hook rəqəmi; chart-da kicker başlığın üstündə; thumbnail ok.
 
 ### 2026-10-05/06 — 12 addımlıq məzmun standartı (#54–#63), E2E davam edir
 - Yeni modullar: `speech.py`, `captions.py` (yeni `captions` mərhələsi), `research.py`, `script_qa.py`; dəyişən:
