@@ -419,3 +419,134 @@ def test_animate_abstract_survives_llm_error():
     def fake_chat(system, user, **kw):
         raise visuals.LLMError("down")
     assert visuals.animate_abstract(_abstract_scenes(), [2], "t", fake_chat) == {}
+
+
+def test_fragment_labels_are_rejected():
+    """#70 (raise-your-prices kadrlari): 'Prices by', "She'll still be", 'She charges' mənasız kart yazilaridir."""
+    for bad in ("Prices by", "She'll still be", "She charges", "Per", "of the"):
+        assert not visuals.label_ok(bad), bad
+    for good in ("Cost per client", "Price increase", "New monthly price", "Rent"):
+        assert visuals.label_ok(good), good
+
+
+def test_fallback_card_labels_never_end_on_a_fragment():
+    narr = "She's considering raising her prices by 15%, and she'll still be at $1,150."
+    v = stats_fallback(narr)
+    assert all(visuals.label_ok(c["label"]) or c["label"] == "Key figure" for c in v["cards"])
+    assert visuals.label_ok(v["title"]) or v["title"] == "Key figures"
+
+
+def test_name_cards_uses_llm_labels_that_pass_the_checks():
+    narr = "Her cost is $850 per client and she charges $1,000."
+    spec = stats_fallback(narr)
+
+    def fake_chat(system, user, **kw):
+        if system == visuals.VERIFY_SYSTEM:
+            return {"ok": [True, True]}
+        return {"title": "Cost vs price", "labels": ["Cost per client", "Price she charges 2000"]}
+    out = visuals.name_cards(spec, narr, fake_chat)
+    assert out["title"] == "Cost vs price"
+    assert out["cards"][0]["label"] == "Cost per client"
+    assert "2000" not in out["cards"][1]["label"]          # deyilmeyen reqem - qebul olunmur
+    assert [c["value"] for c in out["cards"]] == [850, 1000]
+
+
+def test_name_cards_survives_llm_error():
+    narr = "Her cost is $850 per client."
+    spec = stats_fallback(narr)
+
+    def fake_chat(system, user, **kw):
+        raise visuals.LLMError("down")
+    assert visuals.name_cards(spec, narr, fake_chat)["cards"][0]["value"] == 850
+
+
+def test_possessive_titles_are_fine_but_contractions_are_not():
+    assert visuals.label_ok("Lisa's Pricing Decision") and visuals.label_ok("Chef's Ingredient Costs")
+    assert not visuals.label_ok("Clients won't leave") and not visuals.label_ok("Lisa'll raise")
+
+
+def test_any_stats_card_with_fragment_labels_is_renamed():
+    narr = "She'll still be at $1,150 per month."
+    bad = {"kind": "stats", "title": "She'll still be", "cards": [{"value": 1150, "unit": "$", "label": "She'll still be"}]}
+    good = {"kind": "stats", "title": "New price", "cards": [{"value": 1150, "unit": "$", "label": "New price"}]}
+    calls = []
+
+    def fake_chat(system, user, **kw):
+        if system == visuals.VERIFY_SYSTEM:
+            return {"ok": [True]}
+        calls.append(user)
+        return {"title": "Price after the raise", "labels": ["Monthly price"]}
+    out = visuals.fix_card_labels([bad, good, None], [{"narration": narr}] * 3, fake_chat, {})
+    assert out[0]["cards"][0]["label"] == "Monthly price" and out[0]["title"] == "Price after the raise"
+    assert out[2] is None and len(calls) == 2          # her stats karti adlanir (regex/LLM qirintisi tutulmur)
+
+
+def test_figures_are_shown_to_the_namer_as_spoken():
+    assert visuals.fig_text({"value": 15.0, "unit": "%"}) == "15%"
+    assert visuals.fig_text({"value": 1150.0, "unit": "$"}) == "$1,150"
+    assert "not the number" in visuals.LABEL_SYSTEM
+
+
+def test_placeholder_card_labels_are_renamed_too():
+    narr = "Should she raise prices by 15% this year?"
+    sp = {"kind": "stats", "title": "Price Increase Decision", "cards": [{"value": 15.0, "unit": "%", "label": "Key figure"}]}
+    out = visuals.fix_card_labels([sp], [{"narration": narr}], lambda s, u, **k: {"ok": [True]} if s == visuals.VERIFY_SYSTEM else {"title": "x", "labels": ["Price increase"]}, {})
+    assert out[0]["cards"][0]["label"] == "Price increase"
+
+
+def test_label_limits_are_told_to_the_namer_and_regex_labels_cut_on_word_boundary():
+    """#70: 'Proposed Price Increase' (23) limiti asirdi; 'Employer small busines' sozun ortasindan kesilmisdi."""
+    assert "22 characters" in visuals.LABEL_SYSTEM
+    narr = "About 61% of employer small businesses raised prices last year."
+    v = stats_fallback(narr)
+    assert all(not c["label"].endswith("busines") for c in v["cards"])
+
+
+def test_name_cards_asks_again_when_a_label_is_rejected():
+    narr = "Should she raise prices by 15% this year?"
+    sp = stats_fallback(narr)
+    answers = iter([{"title": "Price call", "labels": ["Proposed Price Increase"]},     # 23 > 22
+                    {"title": "Price call", "labels": ["Price increase"]}])
+    seen = []
+
+    def fake_chat(system, user, **kw):
+        if system == visuals.VERIFY_SYSTEM:
+            return {"ok": [True]}
+        seen.append(user)
+        return next(answers)
+    out = visuals.name_cards(sp, narr, fake_chat)
+    assert out["cards"][0]["label"] == "Price increase"
+    assert "Proposed Price Increase" in seen[1]          # sebeb bildirilir
+
+
+def test_card_label_that_contradicts_the_narration_is_rejected():
+    """#70: 'fewer than 10 would leave' -> kartda '10 Clients likely to stay' yazilmisdi (ekranda yanlis fakt)."""
+    narr = "Out of 100 clients, fewer than 10 would leave."
+    sp = stats_fallback(narr)
+    names = iter([{"title": "Client survey", "labels": ["Clients surveyed", "Clients likely to stay"]},
+                  {"title": "Client survey", "labels": ["Clients surveyed", "Clients who leave"]}])
+
+    def fake_chat(system, user, **kw):
+        if system == visuals.VERIFY_SYSTEM:
+            return {"ok": [True, "Clients likely to stay" not in user]}
+        return next(names)
+    out = visuals.name_cards(sp, narr, fake_chat)
+    assert [c["label"] for c in out["cards"]] == ["Clients surveyed", "Clients who leave"]
+
+
+def test_card_labels_are_not_trusted_when_the_check_fails():
+    narr = "Out of 100 clients, fewer than 10 would leave."
+    sp = stats_fallback(narr)
+
+    def fake_chat(system, user, **kw):
+        if system == visuals.VERIFY_SYSTEM:
+            raise visuals.LLMError("down")
+        return {"title": "Client survey", "labels": ["Clients surveyed", "Clients likely to stay"]}
+    out = visuals.name_cards(sp, narr, fake_chat)
+    assert "Clients likely to stay" not in [c["label"] for c in out["cards"]]
+
+
+def test_namer_and_checker_separate_a_share_from_a_change():
+    """#70: '61 percent of employer small businesses raised prices' kartda 'Price Increase' yazilmisdi."""
+    for prompt in (visuals.LABEL_SYSTEM, visuals.VERIFY_SYSTEM):
+        assert "share" in prompt and "change" in prompt

@@ -264,8 +264,103 @@ def _context_label(narration: str, start: int, end: int) -> str:
     if len("".join(words)) < MIN_LETTERS:
         before = _WORDS.findall(_CLAUSE.split(narration[:start])[-1])
         words = [w for w in before if w.lower() not in _STOP][-2:]
-    label = " ".join(words)[:LABEL_MAX].strip()
+    while words and len(" ".join(words)) > LABEL_MAX:      # #70: sozun ortasindan kesme ("busines")
+        words = words[:-1]
+    label = " ".join(words).strip()
     return label[:1].upper() + label[1:] if label else ""
+
+
+# #70: kart yazisi cumle qirintisi olmamalidir ("Prices by", "She'll still be", "She charges")
+_DANGLING = _STOP | _LEAD | {"by", "be", "been", "still", "will", "would", "can", "could", "has", "have", "had",
+                             "her", "his", "their", "its", "our", "my", "from", "into", "about", "as", "up", "out"}
+_PRONOUN = {"she", "he", "they", "we", "i", "you", "it", "her", "his", "their"}
+_CONTRACTION = re.compile(r"['’](?:ll|re|ve|d|m)\b|n['’]t\b", re.I)      # yiyelik "Lisa's" qalir
+
+
+def label_ok(label: str) -> bool:
+    words = [w.lower() for w in _WORDS.findall(label)]
+    if not words or len("".join(words)) < MIN_LETTERS:
+        return False
+    return not _CONTRACTION.search(label) and words[0] not in _PRONOUN and words[-1] not in _DANGLING
+
+
+LABEL_SYSTEM = """You name data cards of a business explainer video. For each figure give a short noun-phrase
+label (1-4 words, Title case or sentence case) saying WHAT the number is in this narration, e.g. "Cost per client",
+"Price increase", "New monthly price". Name what the figure measures, not the number itself (never "Fifteen
+percent"). A percentage that is a share of a group ("61 percent of small businesses raised prices") must
+name the group ("Firms raising prices"), never a change ("Price increase") - a change label only for a real change.
+Never copy a sentence fragment, never start with a pronoun, no digits.
+Each label at most 22 characters. Also give a card-set "title" (2-5 words, at most 40 characters). Answer ONLY JSON: {"title": "...", "labels": ["...", ...]}"""
+
+
+NAME_TRIES = 3
+VERIFY_SYSTEM = """You check data-card labels of a business video against its narration. For each figure and
+label answer true only if the label correctly says what that figure means IN THIS NARRATION (same meaning, not
+the opposite, not another quantity). A share of a group labelled as a change is false: "61 percent of firms raised
+prices" -> "Price increase" is false, "Firms raising prices" is true. Answer ONLY JSON: {"ok": [true/false, ...]} in the same order."""
+
+
+def labels_faithful(narration: str, figs: list[str], labels: list[str], chat: Callable, **llm_kw) -> list[bool]:
+    """#70: ad menaca yoxlanir ('fewer than 10 would leave' -> 'Clients likely to stay' redd). Xetada hec biri
+    qebul olunmur (fail-closed)."""
+    pairs = "\n".join(f"{k + 1}. {f} -> {lab}" for k, (f, lab) in enumerate(zip(figs, labels)))
+    try:
+        ok = chat(VERIFY_SYSTEM, f"Narration: {narration}\nLabels:\n{pairs}", max_tokens=200, temperature=0.0,
+                  **{k: v for k, v in llm_kw.items() if k != "temperature"}).get("ok")
+    except LLMError as e:
+        print(f"  kart adi yoxlamasi xetasi: {str(e)[:120]}", flush=True)
+        return [False] * len(labels)
+    return [isinstance(ok, list) and k < len(ok) and ok[k] is True for k in range(len(labels))]
+
+
+def fig_text(card: dict) -> str:
+    """Kart reqemi danisildigi kimi: "$1,150", "15%"."""
+    unit, v = card.get("unit", ""), card["value"]
+    num = f"{v:,.0f}" if float(v).is_integer() else f"{v:,g}"
+    return f"${num}" if unit == "$" else f"{num}{unit}"
+
+
+def name_cards(spec: dict, narration: str, chat: Callable = chat_json, **llm_kw) -> dict:
+    """#70: fallback data kartlarina LLM menali ad verir; her ad yoxlanir (deyilmeyen reqem yox, qirinti yox),
+    kecmeyen ad evvelki (o da pisdirse "Key figure") qalir. Reqemler deyismir."""
+    cards = spec.get("cards") or []
+    prompt = f"Narration: {narration}\nFigures (in order): {', '.join(fig_text(c) for c in cards)}"
+
+    def good(s: object, limit: int) -> bool:
+        return isinstance(s, str) and _text_ok(s.strip(), limit, narration) and label_ok(s.strip())
+    labels: list = [None] * len(cards)
+    title = None
+    for _ in range(NAME_TRIES):                       # redd olunan ad sebebi ile bir defe yeniden sorusulur
+        try:
+            d = chat(LABEL_SYSTEM, prompt, max_tokens=300, **llm_kw)
+        except LLMError as e:
+            print(f"  kart adi xetasi: {str(e)[:120]}", flush=True)
+            break
+        got = d.get("labels") if isinstance(d.get("labels"), list) else []
+        cand = [got[k].strip() if not old and k < len(got) and good(got[k], LABEL_MAX) else None
+                for k, old in enumerate(labels)]
+        todo = [k for k, c in enumerate(cand) if c]
+        ok = labels_faithful(narration, [fig_text(cards[k]) for k in todo], [cand[k] for k in todo], chat,
+                             **llm_kw) if todo else []
+        wrong = [cand[k] for k, fine in zip(todo, ok) if not fine]
+        accepted = {k for k, fine in zip(todo, ok) if fine}
+        labels = [old or (cand[k] if k in accepted else None) for k, old in enumerate(labels)]
+        title = title or (d["title"].strip() if good(d.get("title"), TITLE_MAX) else None)
+        rejected = [g for g in got if not good(g, LABEL_MAX)] + [f"{w} (wrong meaning)" for w in wrong]
+        if all(labels) and title:
+            break
+        prompt += f"\nRejected (too long, fragment or wrong digits): {rejected or d.get('title')}"
+    new_cards = [{**c, "label": lab or (c["label"] if label_ok(c["label"]) else "Key figure")}
+                 for c, lab in zip(cards, labels)]
+    title = title or (spec["title"] if label_ok(spec["title"]) else "Key figures")
+    return validate_visual({**spec, "title": title, "cards": new_cards}, narration) or spec
+
+
+def fix_card_labels(specs: list[dict | None], scenes: list[dict], chat: Callable, llm_kw: dict) -> list[dict | None]:
+    """#70: LLM-in ozu verdiyi stats kartlarinda da qirinti yazi olur - hamisi yoxlanir, pisi yeniden adlanir."""
+    # qayda ile tutulmayan qirintilar da var ("Up more", "Would leave") - her stats karti LLM ile adlanir
+    return [name_cards(sp, sc["narration"], chat, **llm_kw) if sp and sp["kind"] == "stats" else sp
+            for sp, sc in zip(specs, scenes)]
 
 
 def stats_fallback(narration: str, title: str = "") -> dict | None:
@@ -276,11 +371,13 @@ def stats_fallback(narration: str, title: str = "") -> dict | None:
         if not any(math.isclose(v, x) for x in wanted) or any(math.isclose(v, x) for x in seen):
             continue
         seen.append(v)
-        cards.append({"value": v, "label": _context_label(narration, start, end) or "Key figure"})
+        label = _context_label(narration, start, end)
+        cards.append({"value": v, "label": label if label_ok(label) else "Key figure"})
     if not cards:
         return None
     cards = cards[:LIMITS["stats"][1]]
-    title = title if _text_ok(title, TITLE_MAX, narration) else (cards[0]["label"] or "Key figures")
+    title = title if _text_ok(title, TITLE_MAX, narration) and label_ok(title) else (
+        cards[0]["label"] if cards[0]["label"] != "Key figure" else "Key figures")
     return validate_visual({"kind": "stats", "title": title, "cards": cards}, narration)
 
 
@@ -408,6 +505,7 @@ def _cover_figures(scenes: list[dict], scores: list[float], specs: list[dict | N
         if not covers_figures(spec, narr):
             old = specs[n - 1]
             spec, score = stats_fallback(narr, old["title"] if old else ""), max(score, 5.0)
+            spec = name_cards(spec, narr, chat, **llm_kw) if spec else None      # #70: menali kart adlari
         scores[n - 1], specs[n - 1] = (score, spec) if spec else (-1.0, None)
     return {i for i in numeric if specs[i] is not None}
 
@@ -432,7 +530,7 @@ def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, sha
     print(f"  animasiya: {len(picked)}/{len(scenes)} sehne, reqemli {len(forced)} ("
           + ", ".join(f"{k}x{sum(1 for i in picked if specs[i]['kind'] == k)}" for k in KINDS
                       if any(specs[i]["kind"] == k for i in picked)) + ")", flush=True)
-    return [specs[i] if i in picked else None for i in range(len(scenes))]
+    return fix_card_labels([specs[i] if i in picked else None for i in range(len(scenes))], scenes, chat, llm_kw)
 
 
 def animate_abstract(scenes: list[dict], numbers: list[int], topic: str, chat: Callable = chat_json,
