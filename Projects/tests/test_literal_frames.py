@@ -44,3 +44,21 @@ def test_scene_plan_tells_the_director_which_business_the_case_runs():
                                           "state": "Texas"}})
     assert "taqueria" in note and "Austin" in note
     assert scene_plan.case_note({}) == ""
+
+
+def test_scene_given_a_generic_pool_photo_is_animated_at_plan_time():
+    """#69: scene_plan hovuz fonu (gear, stopwatch, port) verdiyi sehne foto olaraq qalmir - animasiya."""
+    import scene_plan
+    pool = scene_plan.FALLBACK_POOL[0]
+    planned = [{"narration": "a", "bg_prompt": "a design studio desk", "visual": None},
+               {"narration": "b", "bg_prompt": pool, "visual": None},
+               {"narration": "c", "bg_prompt": pool, "visual": {"kind": "flow"}}]
+    asked = {}
+
+    def animate(scenes, nums):
+        asked["nums"] = nums
+        return {2: {"kind": "compare", "title": "T"}}
+    out = scene_plan.animate_pool_scenes(planned, animate)
+    assert asked["nums"] == [2]
+    assert out[1]["visual"]["kind"] == "compare" and out[0]["visual"] is None
+    assert planned[1]["visual"] is None          # giris deyismir
