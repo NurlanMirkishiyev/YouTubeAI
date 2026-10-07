@@ -3,6 +3,7 @@ import {AbsoluteFill} from 'remotion';
 import {Visual} from '../types';
 import {Bars, Counter, Line, Ring, Stats} from './Charts';
 import {AREA, Kicker, Title} from './common';
+import {Table, Threshold, Timeseries, USMap} from './DataViz';
 import {Compare, Equation, Flow, Keypoints, Timeline} from './Diagrams';
 import {StudioBackdrop} from './Studio';
 
@@ -18,6 +19,10 @@ const Chart: React.FC<{v: Visual; reveal: number[]}> = ({v, reveal}) => {
     case 'timeline': return <Timeline events={v.events} reveal={reveal} />;
     case 'keypoints': return <Keypoints points={v.points} reveal={reveal} />;
     case 'stats': return <Stats cards={v.cards} reveal={reveal} />;
+    case 'table': return <Table v={v} reveal={reveal} />;
+    case 'threshold': return <Threshold v={v} reveal={reveal} />;
+    case 'timeseries': return <Timeseries v={v} reveal={reveal} />;
+    case 'usmap': return <USMap v={v} reveal={reveal} />;
   }
 };
 

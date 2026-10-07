@@ -8,16 +8,20 @@ LLM her sehne ucun chart spec teklif edir; burada deterministik yoxlanir:
 """
 from __future__ import annotations
 
+import contextvars
 import math
 import re
 from typing import Callable
 
 from llm import LLMError, chat_json
+from data_visuals import build_timeseries, build_usmap, place_map  # noqa: F401
 from math_check import find_numbers
 
 # #57 (istifadeci 2026-10-05): "generik bullet-ler olmasin" - keypoints artiq teklif/qebul olunmur;
 # "her reqem qrafik ve ya kartla" - reqemli sehne hemise animasiyadir (stats = data kartlari)
-KINDS = ("bars", "line", "compare", "ring", "equation", "flow", "timeline", "counter", "stats")
+KINDS = ("bars", "line", "compare", "ring", "equation", "flow", "timeline", "counter", "stats",
+         "table", "threshold",         # Faza 2.1: table/threshold deterministik (decision_visuals), LLM teklif etmir
+         "timeseries", "usmap")        # Faza 2.2/2.3
 ANIM_SHARE = 0.6                # istifadeci 2026-10-03: ~60% animasiya (reqemli sehneler bundan asili deyil)
 ANIM_MAX = 0.70                # istifadeci 2026-10-07 (hibrid): generik foto animasiyaya yalniz bu tavana qeder
 MAX_RUN = 3                    # reqemsiz sehnelerde ardicil en cox 3 animasiya - arada foto nefes verir
@@ -44,12 +48,18 @@ Kinds and JSON fields (labels <= 22 characters, titles <= 40, steps/points <= 32
 - timeline: {"kind":"timeline","title":..,"events":[{"label":..,"when":..}] 3-5}
 - counter: {"kind":"counter","title":..,"value":number,"unit":..,"label":..}   (one big number)
 - stats: {"kind":"stats","title":..,"cards":[{"value":number,"label":..}] 1-4}   (data cards: one card per figure)
+- timeseries: {"kind":"timeseries","title":..,"unit":..,"points":[{"label":"2021","value":number}] 2-8,
+  "events":[{"index":point index,"label":..}] 0-3}   (numbers that change over TIME: years, months, quarters)
+- usmap: {"kind":"usmap","title":..,"unit_label":"Locations","keys":[{"value":number,"label":..}] 1-4}
+  (a US location, branch, store or market spread: how many places and how the count grows or shrinks)
 
 STRICT number rule: use ONLY numbers that are said in THAT scene's narration, exactly as said.
 Never compute, estimate, round or invent a number. EVERY figure said in the scene (dollar amounts, percentages,
 counts written in digits) must appear in the animation - if a chart cannot hold them all, use stats cards.
 If the narration has no numbers, use flow, compare, timeline or equation WITHOUT values (value null).
 Never use bullet lists. No digits inside labels unless said.
+Flow steps and timeline events name the case (owner, business object, a figure) - never generic steps like
+"Analyze Changes" or "Evaluate Options". At most one flow in the whole video.
 Give "score": 0-10 how much an animation helps here (10 = numbers/comparison/process; 0 = pure emotion or
 a vivid object that a photo shows better)."""
 
@@ -117,6 +127,13 @@ def _said(value: float, narration: str, pool: list[float] | None = None) -> bool
 def _text_ok(s: str, limit: int, narration: str) -> bool:
     """Bos deyil, qisa, icindeki her reqem (soz ve ya reqem) danisiqda deyilib."""
     return len(_LETTER.findall(s)) >= MIN_LETTERS and len(s) <= limit and all(_said(v, narration) for _, _, v in find_numbers(s))
+
+
+def _label_ok(s: str, limit: int, narration: str, letters: bool = True) -> bool:
+    """timeseries/usmap etiketi: "2021" kimi herfsiz etiket olar (letters=False), reqemi deyilmelidir."""
+    if letters:
+        return _text_ok(s, limit, narration)
+    return bool(s) and len(s) <= limit and all(_said(v, narration) for _, _, v in find_numbers(s))
 
 
 def _value_ok(v: object, narration: str, optional: bool = False) -> tuple[bool, float | None]:
@@ -210,6 +227,12 @@ def _build(kind: str, v: dict, narration: str) -> dict | None:
                                            and (not e["when"] or _text_ok(e["when"], LABEL_MAX, narration))
                                            for e in out)
         return {"events": out} if good else None
+    if kind in ("table", "threshold"):
+        return _build_decision(kind, v, narration)
+    if kind == "timeseries":
+        return build_timeseries(v, narration, _said, _label_ok, LABEL_MAX)
+    if kind == "usmap":
+        return build_usmap(v, narration, _said, _label_ok, LABEL_MAX)
     if kind == "stats":
         cards = _labelled(v.get("cards"), *LIMITS["stats"], narration)
         return cards and {"cards": cards} if cards and all(c["value"] is not None for c in cards) else None
@@ -217,15 +240,88 @@ def _build(kind: str, v: dict, narration: str) -> dict | None:
     return lines and {"steps": lines}
 
 
-def validate_visual(v: object, narration: str) -> dict | None:
-    """Kecerli spec -> normallasdirilmis spec; her hansi qayda pozulsa None."""
+def _opt_said(v: object, narration: str, absolute: bool = False) -> bool:
+    if v is None:
+        return True
+    x = _num(v)
+    return x is not None and _said(abs(x) if absolute else x, narration)
+
+
+def _build_decision(kind: str, v: dict, narration: str) -> dict | None:
+    """Faza 2.1: table/threshold - ekrandaki her reqem deyilib (ferq modul ile: "-$130" = "$130 less")."""
+    if kind == "table":
+        rows = v.get("rows")
+        if not isinstance(rows, list) or not 1 <= len(rows) <= 4:
+            return None
+        for r in rows:
+            if not (isinstance(r, dict) and _text_ok(_text(r.get("label")), LABEL_MAX, narration)
+                    and _num(r.get("before")) is not None and _num(r.get("after")) is not None
+                    and _opt_said(r["before"], narration) and _opt_said(r["after"], narration)
+                    and _opt_said(r.get("delta"), narration, absolute=True) and r.get("unit", "") in UNITS):
+                return None
+        return {"columns": list(v.get("columns") or ["Before", "After", "Change"]), "rows": rows}
+    th, cur, curve = v.get("threshold"), v.get("current"), v.get("curve")
+    if not (isinstance(th, dict) and _num(th.get("value")) is not None and _opt_said(th["value"], narration)
+            and _text_ok(_text(th.get("label")), LABEL_MAX, narration)):
+        return None
+    if cur is not None and not (isinstance(cur, dict) and _num(cur.get("value")) is not None
+                                and _opt_said(cur["value"], narration)):
+        return None
+    if curve is not None:
+        pts = curve.get("points") if isinstance(curve, dict) else None
+        base = curve.get("baseline") if isinstance(curve, dict) else None
+        if not (isinstance(pts, list) and len(pts) >= 3 and all(isinstance(p, list) and len(p) == 2 for p in pts)
+                and (base is None or (isinstance(base, dict) and _opt_said(base.get("value"), narration)))):
+            return None
+    return {"threshold": th, "current": cur, "curve": curve}
+
+
+FLOW_MAX = 1           # Faza 2.6: videoda en cox bir flow
+_CTX: contextvars.ContextVar[set[str] | None] = contextvars.ContextVar("case_ctx", default=None)
+CARD_RULE = ("\nEvery flow step and timeline event names the case: the owner, the owner's business object, a model "
+             "figure or a number - never a generic verb plus a generic noun (Analyze Changes, Evaluate Options, "
+             "Review Results). Use at most one flow in the whole video.")
+# Faza 2.6: umumi fel + umumi isim addimlari ("Analyze Changes -> Forecast Actions -> Evaluate Options") kart deyil
+GENERIC_VERBS = {"identify", "analyze", "analyse", "assess", "evaluate", "review", "consider", "monitor",
+                 "understand", "forecast", "plan", "implement", "track", "measure", "optimize", "adjust", "define",
+                 "determine", "explore", "research", "gather", "set", "establish", "decide", "check"}
+
+
+def case_context(plan: dict) -> set[str]:
+    """Case sozleri (kok): sahibin adi, biznesin isimleri, model deyiseninin ad/etiket sozleri."""
+    case = plan.get("case") or {}
+    words = re.findall(r"[a-z]+", " ".join([str(case.get("owner") or ""), str(case.get("business") or "")]).lower())
+    for v in ((plan.get("model") or {}).get("variables") or []):
+        if isinstance(v, dict):
+            words += re.findall(r"[a-z]+", f"{v.get('name', '')} {v.get('label', '')}".replace("_", " ").lower())
+    return {w.rstrip("s") for w in words if len(w) >= 4 and w not in _STOP | _LEAD | {"small", "local", "with"}}
+
+
+def step_ok(text: str, ctx: set[str]) -> bool:
+    """Addim case sahibi/obyekti/model deyiseni ve ya reqem dasiyir."""
+    if find_numbers(text):
+        return True
+    return any(w.lower().rstrip("s") in ctx for w in _WORDS.findall(text))
+
+
+def _card_ok(spec: dict, ctx: set[str] | None) -> bool:
+    if ctx is None or spec["kind"] not in ("flow", "timeline"):
+        return True
+    items = spec["steps"] if spec["kind"] == "flow" else [e["label"] for e in spec["events"]]
+    return all(step_ok(t, ctx) for t in items)
+
+
+def validate_visual(v: object, narration: str, ctx: set[str] | None = None) -> dict | None:
+    """Kecerli spec -> normallasdirilmis spec; her hansi qayda pozulsa None. ctx (case_context) verilibse
+    flow/timeline addimlari generik ola bilmez (Faza 2.6)."""
     if not isinstance(v, dict) or v.get("kind") not in KINDS:
         return None
     title = _text(v.get("title"))
     if not _text_ok(title, TITLE_MAX, narration):
         return None
     body = _build(v["kind"], v, narration)
-    return {"kind": v["kind"], "title": title, **body} if body else None
+    spec = {"kind": v["kind"], "title": title, **body} if body else None
+    return spec if spec and _card_ok(spec, ctx) else None
 
 
 _YEAR = re.compile(r"(?:19|20)\d\d")
@@ -440,6 +536,8 @@ def choose_animated(scores: list[float], share: float = ANIM_SHARE, kinds: list[
         key = _title_key(titles[i])
         if i in picked or scores[i] < 0 or not _run_ok(picked | {i}, i) or key in seen:
             continue
+        if kinds and kinds[i] == "flow" and sum(1 for j in picked if kinds[j] == "flow") >= FLOW_MAX:
+            continue                                   # Faza 2.6: videoda flow <= 1
         picked.add(i)
         seen.add(key)
     return picked
@@ -447,7 +545,7 @@ def choose_animated(scores: list[float], share: float = ANIM_SHARE, kinds: list[
 
 def _candidate(item: dict, narration: str) -> tuple[float, dict | None]:
     raw = item.get("visual") if isinstance(item.get("visual"), dict) else {}
-    spec = validate_visual(raw, narration)
+    spec = validate_visual(raw, narration, ctx=_CTX.get())
     score = _num(item.get("score"))
     return ((score if score is not None else 0.0) if spec else -1.0), spec
 
@@ -512,13 +610,26 @@ def _cover_figures(scenes: list[dict], scores: list[float], specs: list[dict | N
 
 
 def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, share: float = ANIM_SHARE,
-                 **llm_kw) -> list[dict | None]:
+                 plan: dict | None = None, **llm_kw) -> list[dict | None]:
     """Her sehne ucun animasiya spec-i ve ya None (foto). Reqemli sehneler hemise butun reqemleri gosteren
     animasiyadir (#57); pay catmasa kecmeyen reqemsiz sehneler bullet-siz yeniden sorusulur."""
+    token = _CTX.set(case_context(plan) if plan else None)    # Faza 2.6: generik kart yoxlamasi
+    try:
+        return _plan_visuals(scenes, topic, chat, share, plan, **llm_kw)
+    finally:
+        _CTX.reset(token)
+
+
+def _plan_visuals(scenes: list[dict], topic: str, chat: Callable, share: float, plan: dict | None,
+                  **llm_kw) -> list[dict | None]:
     got = _ask_all(scenes, list(range(1, len(scenes) + 1)), topic, chat, llm_kw)
     pairs = [_candidate(got.get(n) or {}, scenes[n - 1]["narration"]) for n in range(1, len(scenes) + 1)]
     scores, specs = [p[0] for p in pairs], [p[1] for p in pairs]
     forced = _cover_figures(scenes, scores, specs, topic, chat, llm_kw)
+    decision = decision_visuals(scenes, plan or {})          # Faza 2.1: qerar bolmesine mecburi table/threshold
+    for i, spec in decision.items():
+        scores[i], specs[i] = 10.0, spec
+    forced |= set(decision)
     picked = _pick(scores, specs, share, forced)
     if len(picked) < round(share * len(scenes)):
         retry = [i + 1 for i in range(1, len(scenes)) if i not in picked and specs[i] is None]
@@ -534,26 +645,44 @@ def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, sha
     return fix_card_labels([specs[i] if i in picked else None for i in range(len(scenes))], scenes, chat, llm_kw)
 
 
+def finalize_maps(planned: list[dict], slug: str) -> list[dict]:
+    """Faza 2.3: usmap noqteleri epizodun slug-u ile yerlesir (scenes.json yazilmazdan evvel)."""
+    return [{**s, "visual": place_map(s["visual"], slug)}
+            if isinstance(s.get("visual"), dict) and s["visual"].get("kind") == "usmap" else s for s in planned]
+
+
 def animation_room(scenes: list[dict], cap: float = ANIM_MAX) -> int:
     """Tavana qeder nece foto sehne daha animasiyaya kece biler (reqemli sehneler artiq sayilir)."""
     return max(0, math.floor(cap * len(scenes) + 1e-9) - sum(1 for s in scenes if s.get("visual")))
 
 
 def animate_abstract(scenes: list[dict], numbers: list[int], topic: str, chat: Callable = chat_json,
-                     **llm_kw) -> dict[int, dict]:
+                     plan: dict | None = None, **llm_kw) -> dict[int, dict]:
     """#67: foto ile literal gosterile bilmeyen (yeniden cekilib hele generik qalan) sehneler bullet-siz
-    animasiya olur. Kecersiz, reqemi ortmeyen ve ya basligi tekrarlanan spec qebul olunmur - sehne foto qalir."""
+    animasiya olur. Kecersiz, reqemi ortmeyen ve ya basligi tekrarlanan spec qebul olunmur - sehne foto qalir.
+    Faza 2.6: generik addimlar ve ikinci flow qebul olunmur."""
     titles = [s["visual"]["title"] for s in scenes if isinstance(s.get("visual"), dict) and s["visual"].get("title")]
-    note = NO_KEYPOINTS + ("\nTitles already used in the video (do not repeat): " + "; ".join(titles)
-                           if titles else "")
-    got = _ask_all(scenes, numbers, topic, chat, llm_kw, note)
-    seen = {_title_key(t) for t in titles}
-    out: dict[int, dict] = {}
-    for n in numbers:
-        narr = scenes[n - 1]["narration"]
-        _, spec = _candidate(got.get(n) or {}, narr)
-        if not spec or (figures(narr) and not covers_figures(spec, narr)) or _title_key(spec["title"]) in seen:
-            continue
-        seen.add(_title_key(spec["title"]))
-        out[n] = spec
-    return out
+    flows = sum(1 for s in scenes if isinstance(s.get("visual"), dict) and s["visual"].get("kind") == "flow")
+    note = NO_KEYPOINTS + CARD_RULE + ("\nTitles already used in the video (do not repeat): " + "; ".join(titles)
+                                       if titles else "")
+    token = _CTX.set(case_context(plan) if plan else None)
+    try:
+        got = _ask_all(scenes, numbers, topic, chat, llm_kw, note)
+        seen = {_title_key(t) for t in titles}
+        out: dict[int, dict] = {}
+        for n in numbers:
+            narr = scenes[n - 1]["narration"]
+            _, spec = _candidate(got.get(n) or {}, narr)
+            if not spec or (figures(narr) and not covers_figures(spec, narr)) or _title_key(spec["title"]) in seen:
+                continue
+            if spec["kind"] == "flow" and flows >= FLOW_MAX:
+                continue
+            flows += spec["kind"] == "flow"
+            seen.add(_title_key(spec["title"]))
+            out[n] = spec
+        return out
+    finally:
+        _CTX.reset(token)
+
+
+from decision_visuals import decision_table, decision_threshold, decision_visuals  # noqa: E402,F401

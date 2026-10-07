@@ -1,25 +1,29 @@
 import React from 'react';
 import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Item, Unit} from '../types';
-import {AREA, Body, C, Count, rise, useIn} from './common';
+import {DUR, EASE, ease} from '../motion';
+import {AREA, Body, C, Count, useEnter, useIn} from './common';
 
 const at = (reveal: number[], i: number) => reveal[i] ?? reveal[reveal.length - 1] ?? 0;
 
 const Card: React.FC<{children: React.ReactNode; p: number; accent?: boolean; style?: React.CSSProperties}> = (
-  {children, p, accent = false, style}) => (
+  {children, p, accent = false, style}) => {
+  const enter = useEnter();
+  return (
   <div style={{background: accent ? 'rgba(255,196,0,0.12)' : C.card, borderRadius: 26,
     border: `2px solid ${accent ? C.accent : C.line}`, padding: '30px 34px',
-    boxShadow: accent ? `0 0 50px ${C.accent}33` : '0 20px 40px rgba(0,0,0,0.25)', ...rise(p), ...style}}>
+    boxShadow: accent ? `0 0 50px ${C.accent}33` : '0 20px 40px rgba(0,0,0,0.25)', ...enter(p), ...style}}>
     {children}
   </div>
-);
+  );
+};
 
 /** A vs B: iki kart, ortada VS; deyer varsa sayilir. */
 export const Compare: React.FC<{left: Item & {note: string}; right: Item & {note: string}; unit: Unit;
   reveal: number[]}> = ({left, right, unit, reveal}) => {
   const pl = useIn(at(reveal, 0));
   const pr = useIn(at(reveal, 1));
-  const vs = useIn(at(reveal, 1) - 6, 12);
+  const vs = useIn(at(reveal, 1) - DUR.staggerTight, 'snappy');
   const side = (it: Item & {note: string}, p: number, d: number, accent: boolean) => (
     <Card p={p} accent={accent} style={{width: 470, minHeight: 330, display: 'flex', flexDirection: 'column',
       justifyContent: 'center'}}>
@@ -53,7 +57,7 @@ export const Equation: React.FC<{terms: Item[]; result: Item; op: string; unit: 
         const isResult = i === terms.length;
         return (
           <React.Fragment key={`${it.label}${i}`}>
-            {i > 0 ? <Sym text={isResult ? '=' : op === '-' ? '−' : op} delay={at(reveal, i) - 4} /> : null}
+            {i > 0 ? <Sym text={isResult ? '=' : op === '-' ? '−' : op} delay={at(reveal, i) - DUR.staggerTight} /> : null}
             <Term item={it} unit={unit} delay={at(reveal, i)} width={w} accent={isResult} />
           </React.Fragment>
         );
@@ -63,13 +67,15 @@ export const Equation: React.FC<{terms: Item[]; result: Item; op: string; unit: 
 };
 
 const Sym: React.FC<{text: string; delay: number}> = ({text, delay}) => {
-  const p = useIn(delay, 12);
+  const enter = useEnter();
+  const p = useIn(delay, 'snappy');
   return <div style={{fontSize: 90, fontWeight: 800, color: C.muted, width: 68, textAlign: 'center',
     transform: `scale(${p})`}}>{text}</div>;
 };
 
 const Term: React.FC<{item: Item; unit: Unit; delay: number; width: number; accent: boolean}> = (
   {item, unit, delay, width, accent}) => {
+  const enter = useEnter();
   const p = useIn(delay);
   return (
     <Card p={p} accent={accent} style={{width, padding: '34px 20px', textAlign: 'center'}}>
@@ -90,7 +96,7 @@ export const Flow: React.FC<{steps: string[]; reveal: number[]}> = ({steps, reve
     <Body style={{display: 'flex', alignItems: 'center'}}>
       {steps.map((s, i) => (
         <React.Fragment key={s}>
-          {i > 0 ? <Arrow delay={at(reveal, i) - 8} width={arrow} /> : null}
+          {i > 0 ? <Arrow delay={at(reveal, i) - DUR.stagger} width={arrow} /> : null}
           <Step text={s} n={i + 1} delay={at(reveal, i)} width={w} last={i === steps.length - 1} />
         </React.Fragment>))}
     </Body>
@@ -100,7 +106,7 @@ export const Flow: React.FC<{steps: string[]; reveal: number[]}> = ({steps, reve
 const Arrow: React.FC<{delay: number; width: number}> = ({delay, width}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-  const t = interpolate(frame, [delay, delay + 0.35 * fps], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const t = ease(frame, delay, DUR.in);
   return (
     <svg width={width} height={40} style={{flexShrink: 0}}>
       <line x1={8} y1={20} x2={8 + (width - 26) * t} y2={20} stroke={C.accent} strokeWidth={6} strokeLinecap="round" />
@@ -112,6 +118,7 @@ const Arrow: React.FC<{delay: number; width: number}> = ({delay, width}) => {
 
 const Step: React.FC<{text: string; n: number; delay: number; width: number; last: boolean}> = (
   {text, n, delay, width, last}) => {
+  const enter = useEnter();
   const p = useIn(delay);
   return (
     <Card p={p} accent={last} style={{width, minHeight: 250, padding: '26px 22px', display: 'flex',
@@ -131,8 +138,7 @@ export const Timeline: React.FC<{events: {label: string; when: string}[]; reveal
   const pad = 110;
   const span = AREA.width - pad * 2;
   const xs = events.map((_, i) => pad + (events.length === 1 ? span / 2 : (i / (events.length - 1)) * span));
-  const t = interpolate(frame, [at(reveal, 0), at(reveal, events.length - 1)], [0, 1],
-    {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+  const t = ease(frame, at(reveal, 0), Math.max(DUR.in, at(reveal, events.length - 1) - at(reveal, 0)), EASE.inOut);
   const y = 220;
   return (
     <Body>
@@ -148,16 +154,17 @@ export const Timeline: React.FC<{events: {label: string; when: string}[]; reveal
 
 const Event: React.FC<{ev: {label: string; when: string}; x: number; y: number; delay: number; last: boolean}> = (
   {ev, x, y, delay, last}) => {
-  const p = useIn(delay, 14);
+  const enter = useEnter();
+  const p = useIn(delay, 'snappy');
   const w = 300;
   return (
     <>
       {ev.when ? <div style={{position: 'absolute', left: x - w / 2, width: w, top: y - 110, textAlign: 'center',
-        fontSize: 40, fontWeight: 800, color: last ? C.accent : C.teal, ...rise(p, 20)}}>{ev.when}</div> : null}
+        fontSize: 40, fontWeight: 800, color: last ? C.accent : C.teal, ...enter(p, 20)}}>{ev.when}</div> : null}
       <div style={{position: 'absolute', left: x - 22, top: y - 22, width: 44, height: 44, borderRadius: 22,
         background: last ? C.accent : C.teal, border: '7px solid #0A0F1E', transform: `scale(${p})`}} />
       <div style={{position: 'absolute', left: x - w / 2, width: w, top: y + 52, textAlign: 'center', fontSize: 36,
-        fontWeight: 800, lineHeight: 1.2, ...rise(p, 20)}}>{ev.label}</div>
+        fontWeight: 800, lineHeight: 1.2, ...enter(p, 20)}}>{ev.label}</div>
     </>
   );
 };
@@ -170,6 +177,7 @@ export const Keypoints: React.FC<{points: string[]; reveal: number[]}> = ({point
 );
 
 const Point: React.FC<{text: string; delay: number}> = ({text, delay}) => {
+  const enter = useEnter();
   const p = useIn(delay);
   return (
     <div style={{display: 'flex', alignItems: 'center', gap: 30, opacity: p,

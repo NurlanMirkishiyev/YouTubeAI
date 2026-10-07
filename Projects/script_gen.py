@@ -28,7 +28,7 @@ LENGTH_MARGIN = 1.05  # TTS bosluqlarina ve tehmin xetasina ehtiyat
 # 2364 soz -> 967 s. Xalis 199 wpm ile hesablananda video 16 deq cixirdi (hedef 8-10 deq).
 EFFECTIVE_WPM = 150.0
 MIN_SECTION_WORDS = 110  # qisaldilan bolme bundan az olmur - analogiya + misal yerlesmelidir
-OUTLINE_ATTEMPTS = 3      # #59: plan qaydalari pozulsa (qeyri-mueyyen cavab, ABS-dan kenar case) yeniden
+OUTLINE_ATTEMPTS = 5      # #59: plan qaydalari pozulsa (qeyri-mueyyen cavab, ABS-dan kenar case) yeniden
 
 SYSTEM = """You write scripts for an ELI5 Business YouTube channel.
 The audience is ADULT business owners and managers in the United States (B2B): owners of small and mid-sized
@@ -66,16 +66,18 @@ OUTLINE_USER = """Topic: {topic}
 Plan a ~11 minute ELI5 explainer for US business owners. If the topic sounds like consumer or personal finance,
 reframe it as the decision a US small-business owner faces about it (B2B). Return JSON only:
 
-{{"decision": "the ONE concrete decision the owner makes, as a question (e.g. Should I raise my menu prices
-by 10% this year?)",
-  "answer": "the rule the video ends with: a condition with a threshold the owner can check, one sentence with a
-number (e.g. Raise prices if your costs rose more than 5% and fewer than 1 in 10 clients would leave) - never
-vague advice like 'find a balance'",
-  "case": {{"owner": "first name", "business": "the business, e.g. a 30-seat taqueria",
+{{"decision": "the ONE concrete decision the owner makes, as a question starting with Should, When, How or Which",
+  "case": {{"owner": "first name", "business": "the kind of business, no numbers",
             "city": "a US city", "state": "its US state, full name",
-            "situation": "the owner's starting numbers in one sentence (round figures)"}},
-  "cold_open": "the first sentence of the video, max 12 words: a concrete number in the first 6 words, or a
-paradox with a number, from the case (e.g. A $9.99 price can earn you less than $10.)",
+            "situation": "the owner's starting numbers in one sentence - exactly the values of the model variables"}},
+  "model": {{"variables": [{{"name": "snake_case_name", "value": "a round JSON number",
+                             "unit": "$ for money, % for a percentage, share for a fraction between 0 and 1, or a plural noun such as customers",
+                             "label": "short plain-English label"}}],
+            "before": {{}}, "after": {{}},
+            "threshold": {{"name": "snake_case_name", "expr": "formula", "rounding": "ceil, floor, round or none",
+                           "meaning": "what the threshold means for this decision, plain words"}}}},
+  "answer": "the rule the video ends with: one sentence 'Make the change if/when ...' with the threshold value
+computed by the model as the condition the owner can check - never vague advice like 'find a balance'",
   "fact_need": "which official statistic would help this decision, one short phrase",
   "source_section": 2,
   "sections": [
@@ -84,11 +86,21 @@ paradox with a number, from the case (e.g. A $9.99 price can earn you less than 
     "term": "the key business term of this section", "definition": "its correct one-sentence definition",
     "domain": "the everyday adult world the analogy lives in, two or three words",
     "analogy": "the analogy used, one sentence",
-    "case_step": "what happens to the owner's business in this section, one sentence with round numbers"}}
+    "case_step": "what happens to the owner's business in this section, one sentence, no numbers"}}
 ]}}
 
 Exactly 4 sections. They build on each other: the first establishes the foundation, the last answers the
 decision for the owner. No overlap between sections.
+
+CRITICAL - the case model of THIS decision: 3 to 7 input variables with round values (inputs only - never a
+precomputed result). "model.before" and "model.after" are objects whose KEYS are result names you choose for this
+decision (such as monthly_cost, weekly_profit, hours_saved) and whose VALUES are formulas over the variable names;
+"after" (the owner makes the change) uses the same keys as "before" (today). "threshold.expr" is the break-even
+formula and may use the variables and before_<key>, after_<key>, delta_<key>. The answer states exactly the
+threshold value this formula gives. Formulas use ONLY variable names, numbers and + - * / ( ). Include EVERY factor the decision depends on (for example customers who leave after a price change,
+or the cost of each extra unit) - a calculation that ignores one of them is wrong. Every case number in the
+video is a model variable or follows from the model; never add numbers outside it. The threshold is the
+break-even point of the decision, computed by the model. Analogies never contain numbers.
 
 CRITICAL - variety: each section's analogy uses a DIFFERENT everyday domain, none shared - never another business
 or industry (the case is the only business in the video). Pick four genuinely different everyday adult images,
@@ -204,19 +216,121 @@ def insert_before(markdown: str, anchor: str, block: str) -> str:
     return markdown[:idx].rstrip() + "\n\n" + block.strip() + "\n" + markdown[idx:]
 
 
+_ANSWER_PROBLEM = "cavab"     # plan_problems-in cavaba aid qeydleri ("cavabdaki reqem", "cavab ... threshold")
+ANSWER_USER = """Decision: {decision}
+Case: {owner}, {business}. {situation}
+The case model computed this threshold: {meaning} = {value}.
+Write the rule the video ends with: ONE sentence that starts with "Make the change if" or "Make the change when"
+and uses exactly {value} as the condition the owner can check. No other numbers. Return only the sentence."""
+
+
+def answer_from_model(plan: dict, **llm_kw) -> str:
+    """Faza 1.1 (real probe 2026-10-07): cavab modelin HESABLANMIS threshold-u ile yazilir."""
+    import case_model
+    r = case_model.evaluate(plan["model"])
+    t = r["threshold"]
+    case = plan.get("case") or {}
+    return " ".join(chat(SYSTEM, ANSWER_USER.format(
+        decision=plan.get("decision"), owner=case.get("owner"), business=case.get("business"),
+        situation=case.get("situation", ""), meaning=t["meaning"], value=case_model.fmt(t["value"], t["unit"])),
+        max_tokens=120, **llm_kw).strip().strip('"').split())
+
+
+MODEL_REVIEW_MODEL = "gpt-4o"      # yoxlama modeli (istifadeci: metn gpt-4o-mini, yoxlamalar gpt-4o)
+MODEL_REVIEW_SYSTEM = """You check the numeric case model behind a business explainer video for US small-business
+owners. A program already computed the values; you judge only whether the model is RIGHT for the decision.
+Answer ONLY JSON: {"ok": bool, "problems": ["..."]}
+Names before_<key>, after_<key> and delta_<key> are defined automatically for every result key, and "after" may
+refer to a key's before value by its own name. The COMPUTED values are already correct arithmetic.
+It is a simple teaching model: accept simplifications and modelling choices. Set ok to false ONLY for a clear,
+objective ERROR:
+- a formula does not compute what its result name says, or adds different units (customers + dollars);
+- the change itself is missing from "after" (e.g. hiring with no wage cost, a price rise with no new price,
+  a discount that changes nothing);
+- "after" ignores a model VARIABLE that describes the effect of the change (e.g. a stay_share variable exists but
+  "after" uses all customers);
+- a formula uses an unexplained constant that is not a unit conversion (4 weeks, 12 months, 100 for percent);
+- the threshold formula does not compute what its meaning says.
+Never reject for missing extra factors that have no variable, profit vs break-even, "at least" vs "more than", or
+realism. Never ask to use the threshold inside before/after (the threshold is computed from them).
+problems: one short concrete fix per error (empty when ok)."""
+
+
+def review_model(plan: dict, **llm_kw) -> list[str]:
+    """Faza 1.1: gpt-4o modelin qerara uygunlugunu yoxlayir - fail-closed (cavab yoxdursa redd)."""
+    import case_model
+    r = case_model.evaluate(plan["model"])
+    user = (f"Decision: {plan.get('decision')}\nAnswer: {plan.get('answer')}\nCase: {plan.get('case')}\n"
+            f"MODEL: {json.dumps(plan['model'], ensure_ascii=False)}\nCOMPUTED:\n{case_model.figures_text(r)}")
+    kw = {k: v for k, v in llm_kw.items() if k not in ("model", "temperature")}
+    if kw.get("provider", "openai") == "openai":
+        kw["model"] = MODEL_REVIEW_MODEL
+    try:
+        got = chat_json(MODEL_REVIEW_SYSTEM, user, temperature=0, max_tokens=600, **kw)
+    except LLMError as e:
+        return [f"model yoxlamasi alinmadi: {str(e)[:100]}"]
+    if got.get("ok") is True:
+        return []
+    probs = [str(p) for p in got.get("problems") or [] if str(p).strip()]
+    return ["case model qerara uygun deyil (gpt-4o): " + "; ".join(probs or ["sebeb verilmedi"])]
+
+
+MODEL_REPAIRS = 2
+MODEL_REPAIR_SYSTEM = """You fix the numeric case model of a business explainer video. Apply the listed fixes
+exactly and change nothing else. Formulas use ONLY variable names, numbers and + - * / ( ); "before"/"after" map
+result names to formulas; threshold.expr may use variables and before_<key>, after_<key>, delta_<key>.
+Return JSON only: {"model": {...the whole corrected model...}}"""
+
+
+def repair_model(plan: dict, why: list[str], **llm_kw) -> dict:
+    """Yalniz model JSON-u duzeldilir (real probe: butun plan yeniden yazilanda mini duzelisi tetbiq etmirdi)."""
+    import case_model
+    user = (f"Decision: {plan.get('decision')}\nCase: {plan.get('case')}\nProblems to fix:\n- "
+            + "\n- ".join(why) + f"\n{case_model.names_hint(plan.get('model'))}\n\nMODEL:\n"
+            + json.dumps(plan.get("model"), ensure_ascii=False))
+    kw = {k: v for k, v in llm_kw.items() if k not in ("model", "temperature")}
+    if kw.get("provider", "openai") == "openai":
+        kw["model"] = MODEL_REVIEW_MODEL     # yoxlama qatinin duzelisi (number_audit kimi) - mini cebri duzelde bilmirdi
+    got = chat_json(MODEL_REPAIR_SYSTEM, user, temperature=0, max_tokens=1500, **kw)
+    return got.get("model") if isinstance(got.get("model"), dict) else plan.get("model")
+
+
+def settle_plan(data: dict, **llm_kw) -> tuple[dict, list[str]]:
+    """Plan yoxlamalari: deterministik (plan_problems) -> cavab hesablanmis threshold ile -> gpt-4o model
+    yoxlamasi; model xetasinda en cox MODEL_REPAIRS defe yalniz model duzeldilir. -> (plan, qalan problemler)."""
+    from script_qa import plan_problems
+    why: list[str] = []
+    for r in range(MODEL_REPAIRS + 1):
+        why = plan_problems(data)
+        if why and all(_ANSWER_PROBLEM in p for p in why):
+            data = {**data, "answer": answer_from_model(data, **llm_kw)}   # LLM threshold-u ozu hesablaya bilmir
+            why = plan_problems(data)
+        if not why:
+            why = review_model(data, **llm_kw)
+        if not why or r == MODEL_REPAIRS or not any("model" in w for w in why):
+            return data, why
+        print(f"  model duzelisi: {why}", flush=True)
+        data = {**data, "model": repair_model(data, why, **llm_kw)}
+    return data, why
+
+
 def outline(topic: str, **llm_kw) -> dict:
     """Plan (#59): biznes qerari + cavab + bir ABS case + Cold Open + 4 bolme. Sert sxem - pozulsa LLMError.
     Plan qaydalari (sual-qerar, ABS, sertli cavab) pozulsa sebebi ile yeniden istenir (OUTLINE_ATTEMPTS)."""
     from script_qa import plan_problems
     user = OUTLINE_USER.format(topic=topic)
     for _ in range(OUTLINE_ATTEMPTS):
-        data = chat_json(SYSTEM, user, max_tokens=2000, **llm_kw)
-        why = plan_problems(data)
+        data, why = settle_plan(chat_json(SYSTEM, user, max_tokens=2000, **llm_kw), **llm_kw)
         if not why:
             break
         print(f"  plan redd: {why}")
-        user = (OUTLINE_USER.format(topic=topic) + "\n\nYour previous plan was rejected: " + "; ".join(why)
-                + "\nPrevious plan: " + json.dumps(data, ensure_ascii=False)[:1500])
+        if any("model" in w for w in why):
+            # real probe 2026-10-07: kohne plan geri oturulende mini eyni sehv modeli tekrarlayirdi - teze baslanir
+            user = (OUTLINE_USER.format(topic=topic) + "\n\nA previous attempt was rejected because: "
+                    + "; ".join(why) + "\nBuild a NEW, simpler case model that avoids this mistake.")
+        else:
+            user = (OUTLINE_USER.format(topic=topic) + "\n\nYour previous plan was rejected: " + "; ".join(why)
+                    + "\nPrevious plan: " + json.dumps(data, ensure_ascii=False)[:2500])
     else:
         raise LLMError(f"plan qaydalara uygun gelmedi: {why}")
     sections = data.get("sections") or []
@@ -229,7 +343,9 @@ def outline(topic: str, **llm_kw) -> dict:
         src_sec = min(4, max(1, int(data.get("source_section") or 2)))
     except (TypeError, ValueError):
         src_sec = 2
-    return {**data, "case": case, "sections": sections, "source_section": src_sec}
+    import case_model
+    return {**data, "case": case, "sections": sections, "source_section": src_sec,
+            "model_result": case_model.evaluate(data["model"])}   # Faza 1.1: plan_problems hesabi yoxlayib
 
 
 def _write_block(topic: str, outline_text: str, heading: str, words: int,
@@ -259,6 +375,10 @@ def outline_text(plan: dict) -> str:
     head = (f"DECISION: {plan.get('decision')}\nANSWER: {plan.get('answer')}\n"
             f"CASE: {case['owner']}, {case['business']} in {case['city']}, {case['state']}. "
             f"{case.get('situation', '')}\n")
+    if isinstance(plan.get("model_result"), dict):      # Faza 1.1: case reqemleri yalniz modelden
+        import case_model
+        head += ("CASE MODEL - the only case figures allowed in the script:\n"
+                 + case_model.figures_text(plan["model_result"]) + "\n")
     return head + "\n".join(
         f"{i + 1}. {s.get('title', '')} [{s.get('domain', '')}] - {s.get('idea', '')} "
         f"Term: {s.get('term', '')} = {s.get('definition', '')} Analogy: {s.get('analogy', '')} "
@@ -276,19 +396,40 @@ Return only the sentence."""
 def make_cold_open(plan: dict, attempts: int = 3, **llm_kw) -> str:
     """#56: ilk 3 saniyede konkret reqem/paradoks - yoxlanir (cold_open_problems), olmasa yeniden yazdirilir."""
     from script_qa import cold_open_problems
+    result = plan.get("model_result") if isinstance(plan.get("model_result"), dict) else None
+    allowed = None
+    if result:                                   # Faza 1.2: cold open = modelin en teeccublu neticesi
+        import case_model
+        allowed = case_model.allowed_numbers(result)
+        line = " ".join(str(result.get("insight") or "").split())
+        if not cold_open_problems(line, allowed):
+            return line
     line = " ".join(str(plan.get("cold_open") or "").split())
     for _ in range(attempts):
-        why = cold_open_problems(line)
+        why = cold_open_problems(line, allowed)
         if not why:
             return line
         case = plan["case"]
         line = " ".join(chat(SYSTEM, COLD_OPEN_USER.format(
             decision=plan.get("decision"), owner=case["owner"], business=case["business"], city=case["city"],
-            state=case["state"], situation=case.get("situation", ""), why="; ".join(why), previous=line or "-"),
+            state=case["state"], situation=case.get("situation", ""), why="; ".join(why), previous=line or "-")
+            + (f"\nUse only figures from this case model:\n{case_model.figures_text(result)}" if result else ""),
             max_tokens=80, **llm_kw).strip().strip('"').split())
-    if cold_open_problems(line):
+    if cold_open_problems(line, allowed):
         raise LLMError(f"Cold Open qaydaya uygun yazilmadi: {line!r}")
     return line
+
+
+def hook_figures(plan: dict) -> str:
+    """Real probe 2026-10-07: model reqemleri her bolmede tekrarlanirdi. Baslangic deyisenleri yalniz Hook-da."""
+    r = plan.get("model_result")
+    if not isinstance(r, dict):
+        return ""
+    import case_model
+    lines = [f"- {case_model._label(r, k)}: {case_model.fmt(v, r['var_units'].get(k, ''))}"
+             for k, v in r["variables"].items()]
+    return ("\nState the owner's starting figures here, each once, exactly as given (later sections refer to them "
+            "in words):\n" + "\n".join(lines))
 
 
 def _section_guidance(plan: dict, s: dict, i: int, source: dict | None) -> str:
@@ -303,8 +444,16 @@ def _section_guidance(plan: dict, s: dict, i: int, source: dict | None) -> str:
     if source and i == plan["source_section"]:
         g += (f"\nCite this verified fact ONCE, naming the source and the figure exactly: According to "
               f"{source['cite_as']}, {source['claim']}")
+    if i < len(plan["sections"]) and isinstance(plan.get("model_result"), dict):
+        g += ("\nDo not state any case figure in this section: the Hook already gave the starting numbers and the "
+              "final section gives the results - here refer to them in words (the current price, the regular "
+              "customers). Every figure is said at most twice in the whole video.")
     if i == len(plan["sections"]):
         g += f"\nEnd by answering the decision for {owner} with this rule: {plan.get('answer', '')}"
+        if isinstance(plan.get("model_result"), dict):
+            import case_model
+            g += ("\nUse exactly these figures for the decision - before, after, the change and the threshold - "
+                  "and no other results:\n" + case_model.figures_text(plan["model_result"]))
     return g
 
 
@@ -324,7 +473,7 @@ def generate(topic: str, words: int, plan: dict, source: dict | None, **llm_kw) 
     hook_h, hook_w, hook_g = BLOCKS[0]
     print(f"  [{hook_h}] {hook_w} soz")
     parts += [f"## {hook_h}",
-              _write_block(topic, text_outline, hook_h, hook_w, _fill(hook_g, plan),
+              _write_block(topic, text_outline, hook_h, hook_w, _fill(hook_g, plan) + hook_figures(plan),
                            f"The opening sentence already said: \"{parts[2]}\" - do not repeat it. The teaching "
                            "sections use these analogy domains: " + ", ".join(d for d in domains if d)
                            + ". Do NOT use any of them here.", **llm_kw)]

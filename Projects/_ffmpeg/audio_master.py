@@ -12,16 +12,24 @@ DUCK = "sidechaincompress=threshold=0.03:ratio=6:attack=15:release=350"
 _KEYS = ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")
 
 
-def mix_graph(narr_in: int, music_in: int | None, delay_s: float, total_s: float) -> str:
+def mix_graph(narr_in: int, music_in: int | None, delay_s: float, total_s: float,
+              sfx_in: int | None = None) -> str:
+    """Faza 3.8: sfx_in (SFX treki, qlobal zaman) nitq + musiqi ile qarisir - loudnorm bundan SONRA."""
     ms = int(round(delay_s * 1000))
     narr = (f"[{narr_in}:a]aresample={SR},aformat=channel_layouts=mono,pan=stereo|c0=c0|c1=c0,"
             f"adelay=delays={ms}:all=1,apad=whole_dur={total_s:.3f}")
+    out = "[amix]" if sfx_in is None else "[nm]"
     if music_in is None:
-        return narr + "[amix]"
-    return (f"{narr},asplit=2[nmain][nkey];"
-            f"[{music_in}:a]aresample={SR},aformat=channel_layouts=stereo,volume={MUSIC_DB}dB[mus];"
-            f"[mus][nkey]{DUCK}[duck];"
-            f"[nmain][duck]amix=inputs=2:duration=first:normalize=0[amix]")
+        graph = narr + out
+    else:
+        graph = (f"{narr},asplit=2[nmain][nkey];"
+                 f"[{music_in}:a]aresample={SR},aformat=channel_layouts=stereo,volume={MUSIC_DB}dB[mus];"
+                 f"[mus][nkey]{DUCK}[duck];"
+                 f"[nmain][duck]amix=inputs=2:duration=first:normalize=0{out}")
+    if sfx_in is None:
+        return graph
+    return (graph + f";[{sfx_in}:a]aresample={SR},aformat=channel_layouts=stereo[fx];"
+            "[nm][fx]amix=inputs=2:duration=first:normalize=0[amix]")
 
 
 def _target() -> str:

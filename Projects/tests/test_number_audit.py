@@ -297,3 +297,54 @@ def test_number_audit_is_the_final_authority(tmp_path, monkeypatch):
     monkeypatch.setattr(mc, "llm_rewrite", lambda p, pr, **kw: {})
     assert mc.check_file(str(script), provider="openai") == []
     assert script.read_text(encoding="utf-8").strip() == GOOD.strip()
+
+
+# --- Faza 1.3 (istifadeci 2026-10-07): "given" reqem yalniz model/menbe/il/sira/vahid sabitidirse kecir ---
+
+INVENTED = """# Prices
+
+## Section 1: Costs
+
+Rosa charges $50 a plate. Her costs rose more than 9% this year.
+"""
+
+
+def test_given_number_outside_the_model_is_caught():
+    def extract(secs):
+        return {n["n"]: {"role": "given"} for sec in secs for n in sec["numbers"]}
+    secs = na.marked_sections(INVENTED)
+    problems = na.judge(secs, [extract(secs) for _ in range(3)], allowed=[50.0])
+    assert [p["text"] for p in problems] == ["9%"]
+    md, _ = na.audit_and_fix(INVENTED, extract, lambda p, pr: p, lambda s: "", rounds=1, passes=3, allowed=[50.0])
+    assert "9%" not in md and "$50" in md          # uydurma reqemli cumle videoya dusmur
+
+
+def test_given_number_from_the_model_or_a_year_passes():
+    md = INVENTED.replace("9% this year", "9% in 2025")
+    def extract(secs):
+        return {n["n"]: {"role": "given"} for sec in secs for n in sec["numbers"]}
+    _, problems = na.audit_and_fix(md, extract, lambda p, pr: p, lambda s: "", rounds=1, passes=3,
+                                   allowed=[50.0, 9.0])
+    assert problems == []
+
+
+def test_allowed_givens_are_built_from_model_source_and_constants(tmp_path):
+    import json
+    import case_model as cm
+    from test_case_model import MODEL
+    (tmp_path / "meta.json").write_text(json.dumps({"plan": {"model": MODEL}}), encoding="utf-8")
+    (tmp_path / "research.json").write_text(json.dumps({"figure": 48.9}), encoding="utf-8")
+    allowed = na.allowed_givens(str(tmp_path))
+    for v in (40, 55, 0.85, 48.9, 52, 12, 2000, 27):
+        assert any(abs(v - x) < 1e-6 for x in allowed), v
+    assert not any(abs(9 - x) < 1e-6 for x in allowed)
+
+
+def test_model_result_passes_even_when_its_inputs_are_not_in_the_paragraph():
+    """Real probe 2026-10-07: 'revenue from $7,500 to $8,100' (model neticesi) 'girisler yoxdur' ile silindi,
+    sonra script_qa 'evvel/sonra cutu yoxdur' dedi."""
+    md = "# T\n\n## Section 4: Decision\n\nRevenue goes from $7,500 to $8,100.\n"
+    secs = na.marked_sections(md)
+    passes = [{n["n"]: {"role": "missing"} for n in secs[0]["numbers"]} for _ in range(3)]
+    assert na.judge(secs, passes, allowed=[7500.0, 8100.0], trusted=[7500.0, 8100.0]) == []
+    assert len(na.judge(secs, passes, allowed=[7500.0, 8100.0])) == 2

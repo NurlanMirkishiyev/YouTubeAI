@@ -49,7 +49,12 @@ def _figures(text: str) -> list[float]:
     return figures(text)
 
 
-def cold_open_problems(line: str) -> list[str]:
+def _outside(values: list[float], allowed: list[float]) -> list[float]:
+    return [v for v in values if not any(abs(v - x) <= 1e-6 * max(1.0, abs(x)) for x in allowed)]
+
+
+def cold_open_problems(line: str, allowed: list[float] | None = None) -> list[str]:
+    """Faza 1.2: allowed verilibse (case modelinin reqemleri) Cold Open-un her reqemi modelden olmalidir."""
     words = line.split()
     if not words:
         return ["Cold Open bosdur"]
@@ -58,7 +63,24 @@ def cold_open_problems(line: str) -> list[str]:
         probs.append(f"Cold Open {len(words)} soz (max {COLD_OPEN_MAX_WORDS})")
     if not _figures(" ".join(words[:FIRST_SECONDS_WORDS])):
         probs.append(f"Cold Open-un ilk {FIRST_SECONDS_WORDS} sozunde (~3 s) konkret reqem yoxdur")
+    if allowed is not None:
+        bad = _outside(_figures(line), allowed)
+        if bad:
+            probs.append(f"Cold Open reqemi case modelinde yoxdur: {', '.join(f'{v:g}' for v in bad)}")
     return probs
+
+
+def model_result(plan: dict) -> tuple[dict | None, str]:
+    """plan.model_result (ve ya plan.model-dan hesab) -> (netice, xeta)."""
+    import case_model as cm
+    if isinstance(plan.get("model_result"), dict):
+        return plan["model_result"], ""
+    if not isinstance(plan.get("model"), dict):
+        return None, "planda case model (model) yoxdur"
+    try:
+        return cm.evaluate(plan["model"]), ""
+    except cm.CaseModelError as e:
+        return None, f"case model hesablanmir: {e}"
 
 
 def _owner(plan: dict) -> str:
@@ -66,6 +88,7 @@ def _owner(plan: dict) -> str:
 
 
 _RULE = re.compile(r"\b(if|when|unless|once|as long as|only)\b", re.I)
+_EXAMPLE = re.compile(r"\b(for example|for instance|imagine|picture this|let's say|say you|like when|such as)\b", re.I)
 MAX_FIGURE_MENTIONS = 2     # eyni reqem: bir defe deyilir, bir defe hesabda islenir - qalani tekrardir
 
 
@@ -88,6 +111,7 @@ def repeated_figures(secs: dict[str, str]) -> list[str]:
     (2026-10-07): her reqem en cox MAX_FIGURE_MENTIONS defe, qerar reqemi de. Ilk ve son deyilis qalir,
     ortadakilarin bolmeleri yeniden yazilir."""
     body = [h for h in secs if h == "Hook" or h.startswith("Section ") or h == "Common Mistakes"]
+    decision = [h for h in secs if h.startswith("Section ")][-1:]
     where: dict[float, list[str]] = {}
     for h in body:
         for v in _mentions(secs[h]):
@@ -96,8 +120,12 @@ def repeated_figures(secs: dict[str, str]) -> list[str]:
     probs = []
     for v, heads in where.items():
         if len(heads) > MAX_FIGURE_MENTIONS:
+            # ilk deyilis + qerar bolmesi saxlanir (real probe 2026-10-07: duzelis qerar bolmesinden reqemleri silirdi)
+            order = [0] + [i for i, h in enumerate(heads) if h in decision and i] + list(range(1, len(heads)))
+            keep = list(dict.fromkeys(order))[:MAX_FIGURE_MENTIONS]
             lbl = _label(v, secs[heads[0]])
-            probs += [f"{h}: reqem {lbl} {len(heads)} defe tekrarlanir" for h in dict.fromkeys(heads[1:-1])]
+            probs += [f"{h}: reqem {lbl} {len(heads)} defe tekrarlanir"
+                      for h in dict.fromkeys(heads[i] for i in range(len(heads)) if i not in keep)]
     return probs
 
 
@@ -113,13 +141,40 @@ def plan_problems(plan: dict) -> list[str]:
     answer = str(plan.get("answer") or "")
     if not (_RULE.search(answer) and _figures(answer)):
         probs.append(f"qerarin cavabi konkret sertli qayda deyil (sert + reqem lazimdir): {answer!r}")
+    # Faza 1.1/1.3: qerar hesabi case modelinden; cavabdaki her reqem modelden (ve ya menbe figure-u)
+    result, why = model_result(plan)
+    if why:
+        probs.append(why)
+    elif result["threshold"]["value"] <= 0:           # real probe: '$-2,000' - cavab bunu duzelde bilmez
+        t = result["threshold"]
+        probs.append(f"case model threshold musbet deyil ({t['value']:g}): the threshold must be positive - rewrite "
+                     f"threshold.expr so that it computes: {t['meaning']}")
+    elif _figures(answer):
+        import case_model as cm
+        allowed = cm.allowed_numbers(result) + [float(x) for x in plan.get("source_figures") or []]
+        bad = _outside(_figures(answer), allowed)
+        if bad:
+            probs.append(f"cavabdaki reqem case modelinde yoxdur (uydurma): {', '.join(f'{v:g}' for v in bad)}")
+        th = result["threshold"]["value"]
+        if _outside([th], _figures(answer)):      # real probe: cavab '80 customers', threshold 250
+            probs.append(f"cavab modelin threshold deyerini ({cm.fmt(th, result['threshold']['unit'])}) demir")
+    # Faza 1.5: analogiya reqemsiz bir cumledir
+    for i, s in enumerate(plan.get("sections") or [], 1):
+        if isinstance(s, dict) and _figures(str(s.get("analogy") or "")):
+            probs.append(f"bolme {i}: analogiyada reqem var - analogiya reqemsiz gundelik tesvirdir")
     return probs
 
 
 def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
+    import case_model as cm
     probs = plan_problems(plan)
     secs = sections(markdown)
-    probs += cold_open_problems(secs.get("Cold Open", ""))
+    result, _ = model_result(plan)
+    allowed = None
+    if result:
+        allowed = cm.allowed_numbers(result) + ([float(source["figure"])] if source and source.get("figure")
+                                                is not None else [])
+    probs += cold_open_problems(secs.get("Cold Open", ""), allowed)
     owner = _owner(plan)
     if not owner:
         probs.append("case sahibinin adi yoxdur")
@@ -132,7 +187,11 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
         probs.append("Recap: reqem var - yalniz neticeler deyilmelidir")
     if owner and owner.lower() in recap.lower():
         probs.append(f"Recap: case ({owner}) yeniden danisilir - yalniz neticeler")
+    if _EXAMPLE.search(recap):
+        probs.append("Recap: misal var - yalniz neticeler deyilmelidir")
     probs += repeated_figures(secs)
+    if result:
+        probs += cm.case_problems(markdown, {**plan, "model_result": result}, source)
     if source is None:
         probs.append("yoxlanmis menbe yoxdur")
     else:
@@ -206,11 +265,16 @@ def _rewrite_user(markdown: str, plan: dict, heading: str, body: str, instructio
 
 def apply_fixes(markdown: str, plan: dict, fixes: list[dict], rewrite: Callable, **kw) -> str:
     secs = sections(markdown)
+    merged: dict[str, list[str]] = {}       # real probe: bir bolme bir raundda bir defe yeniden yazilir
     for fx in fixes:
         head = str(fx.get("section") or "").strip().lstrip("#").strip()
+        text = f"{fx.get('problem', '')}. {fx.get('instruction', '')}".strip(". ")
+        if text not in merged.setdefault(head, []):
+            merged[head].append(text)
+    for head, texts in merged.items():
         if head not in secs or head == "Cold Open":
             continue
-        instruction = f"{fx.get('problem', '')}. {fx.get('instruction', '')}".strip(". ")
+        instruction = "\n- ".join([""] + texts).strip() if len(texts) > 1 else texts[0]
         print(f"  [qa] {head}: {instruction[:110]}", flush=True)
         new = rewrite(REWRITE_SYSTEM, _rewrite_user(markdown, plan, head, secs[head], instruction), **kw).strip()
         if new:
@@ -261,6 +325,24 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
                           "instruction": f"Do not restate {lbl} - it was already said earlier; refer to it in words "
                                          "(e.g. 'the current price') without the number, and do not re-introduce "
                                          "the business."})
+        elif "evvel/sonra cutu" in p or "threshold deyeri" in p:
+            result, _ = model_result(plan)
+            import case_model as cm
+            t = result["threshold"] if result else {}
+            fixes.append({"section": head, "problem": "the decision figures are missing",
+                          "instruction": "In ONE sentence state a before and after pair of the case model, e.g. '"
+                                         + (cm._pair_hint(result) if result else "") + "', and state the threshold "
+                                         + (cm.fmt(t["value"], t["unit"]) if t else "") + " (" + str(t.get("meaning", ""))
+                                         + ") as the condition of the decision. Use exactly these figures."
+                                         + ("\nCASE MODEL:\n" + cm.figures_text(result) if result else "")})
+        elif "deyisen buraxilib" in p or "case modelinde yoxdur" in p or "case modeli ile uygun deyil" in p:
+            result, _ = model_result(plan)
+            import case_model as cm
+            fixes.append({"section": head, "problem": "a figure does not follow the case model",
+                          "instruction": "Use exactly these figures of the case model and no other case numbers; "
+                                         "every calculation must include all variables (e.g. customers who leave). "
+                                         "Remove the wrong figure: " + p.split(":", 1)[-1].strip()
+                                         + ("\nCASE MODEL:\n" + cm.figures_text(result) if result else "")})
         elif p.startswith("menbe") and source:
             fixes.append({"section": source_section, "problem": "the research source is missing",
                           "instruction": STORY_FIX["source"].format(**source)})

@@ -346,12 +346,16 @@ def judge(sents: list[dict], passes: list[list[dict]]) -> list[dict]:
 
 
 def audit_and_fix(markdown: str, extract: Extract, rewrite: Rewrite, rounds: int = ROUNDS,
-                  passes: int = PASSES) -> tuple[str, list[dict]]:
+                  passes: int = PASSES, trusted: list[float] | None = None) -> tuple[str, list[dict]]:
     """Yoxla -> sehvli cumleleri yeniden yazdir -> butun skripti tekrar yoxla (en cox `rounds` duzelis)."""
     md = markdown
     for r in range(rounds + 1):
         sents = numeric_sentences(md)
         problems = judge(sents, [extract(sents) for _ in range(passes)]) if sents else []
+        # real probe 2026-10-07: case modelinin (Python-da hesablanmis) reqemi "duzeldilmir"
+        problems = [p for p in problems if not (trusted and p.get("claimed") is not None
+                                                and any(abs(p["claimed"] - x) <= 1e-6 * max(1.0, abs(x))
+                                                        for x in trusted))]
         if not problems or r == rounds:
             return md, problems
         by_para: dict[str, list[dict]] = {}
@@ -490,7 +494,8 @@ def llm_rewrite(paragraph: str, problems: list[dict], **llm_kw) -> dict:
     return got if isinstance(got, dict) else {}
 
 
-def _number_audit(md: str, problems: list[dict], llm_kw: dict) -> tuple[str, list[dict]]:
+def _number_audit(md: str, problems: list[dict], llm_kw: dict,
+                  allowed: list[float] | None = None, trusted: list[float] | None = None) -> tuple[str, list[dict]]:
     """Son hokm ikinci qatindir (number_audit: HER reqem, fail-closed, ikinci baxis, son care reqemsiz cumle).
     Birinci qat yalniz cogunlugun tapdigi duzgun deyerle duzelis edir; onun qalan "problemleri" (2026-10-02
     real hal: 'try $49.99' = 50 - 49.99 kimi yalanci) pipeline-i dayandirmir - o reqemler ikinci qatda
@@ -498,7 +503,7 @@ def _number_audit(md: str, problems: list[dict], llm_kw: dict) -> tuple[str, lis
     import number_audit as na
     if problems:
         print(f"  1-ci qatin {len(problems)} qeydi 2-ci qatda yoxlanacaq", flush=True)
-    return na.check(md, **llm_kw)
+    return na.check(md, allowed=allowed, trusted=trusted, **llm_kw)
 
 
 def check_file(script_path: str, **llm_kw) -> list[dict]:
@@ -508,9 +513,14 @@ def check_file(script_path: str, **llm_kw) -> list[dict]:
     with open(script_path, encoding="utf-8") as f:
         md = f.read()
     print(f"[math] hesablamalar yoxlanir ({PASSES} musteqil baxis)", flush=True)
+    import number_audit as na
+    trusted = na.trusted_numbers(os.path.dirname(script_path))
     fixed, problems = audit_and_fix(md, lambda s: llm_extract(s, **llm_kw),
-                                    lambda p, pr: llm_rewrite(p, pr, **llm_kw))
-    fixed, problems = _number_audit(fixed, problems, llm_kw)
+                                    lambda p, pr: llm_rewrite(p, pr, **llm_kw), trusted=trusted)
+    import number_audit as na
+    # Faza 1.3: 'given' reqem yalniz case modeli / menbe / il / sira / vahid sabiti ola biler (fail-closed)
+    fixed, problems = _number_audit(fixed, problems, llm_kw, na.allowed_givens(os.path.dirname(script_path)),
+                                      na.trusted_numbers(os.path.dirname(script_path)))
     if fixed != md:
         with open(script_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(fixed.rstrip() + "\n")

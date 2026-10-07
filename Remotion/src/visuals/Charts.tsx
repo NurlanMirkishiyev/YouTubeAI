@@ -1,7 +1,8 @@
 import React from 'react';
 import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Item, Unit} from '../types';
-import {AREA, Body, C, Count, fmt, rise, TITLE_H, useIn} from './common';
+import {DUR, EASE, ease} from '../motion';
+import {AREA, Body, C, Count, GHOST, useEnter, TITLE_H, useIn} from './common';
 
 const BODY_H = AREA.height - TITLE_H - 24;
 const at = (reveal: number[], i: number) => reveal[i] ?? reveal[reveal.length - 1] ?? 0;
@@ -24,18 +25,19 @@ export const Bars: React.FC<{items: Item[]; unit: Unit; reveal: number[]}> = ({i
 
 const Bar: React.FC<{item: Item; unit: Unit; delay: number; width: number; height: number; best: boolean}> = (
   {item, unit, delay, width, height, best}) => {
+  const enter = useEnter();
   const p = useIn(delay);
   const color = best ? C.accent : C.teal;
   return (
     <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width, position: 'relative'}}>
-      <div style={{fontSize: 52, fontWeight: 800, color, marginBottom: 14, ...rise(p, 20)}}>
+      <div style={{fontSize: 52, fontWeight: 800, color, marginBottom: 14, ...enter(p, 20)}}>
         {item.value !== null ? <Count value={item.value} unit={item.unit ?? unit} delay={delay} /> : null}
       </div>
       <div style={{width, height: Math.max(6, height * p), borderRadius: '18px 18px 6px 6px',
         background: `linear-gradient(180deg, ${color} 0%, ${color}99 100%)`,
         boxShadow: `0 0 40px ${color}44`}} />
       <div style={{position: 'absolute', bottom: -62, width: width + 40, textAlign: 'center', fontSize: 32,
-        fontWeight: 600, color: C.muted, opacity: p}}>{item.label}</div>
+        fontWeight: 600, color: C.muted, opacity: GHOST + (1 - GHOST) * p}}>{item.label}</div>
     </div>
   );
 };
@@ -54,8 +56,7 @@ export const Line: React.FC<{points: Item[]; unit: Unit; reveal: number[]}> = ({
     60 + (hi === lo ? plotH / 2 : (1 - (v - lo) / (hi - lo)) * plotH)] as const);
   // her seqment oz noqtesinin reveal-i ile 0.6 s-de cekilir
   const segs = xy.slice(1).map((pt, i) => {
-    const t = interpolate(frame, [at(reveal, i + 1) - 0.6 * fps, at(reveal, i + 1)], [0, 1],
-      {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+    const t = ease(frame, at(reveal, i + 1) - DUR.draw, DUR.draw, EASE.inOut);
     const [x0, y0] = xy[i];
     return {x0, y0, x1: x0 + (pt[0] - x0) * t, y1: y0 + (pt[1] - y0) * t};
   });
@@ -85,16 +86,17 @@ export const Line: React.FC<{points: Item[]; unit: Unit; reveal: number[]}> = ({
 
 const LinePoint: React.FC<{item: Item; unit: Unit; x: number; y: number; labelY: number; delay: number}> = (
   {item, unit, x, y, labelY, delay}) => {
-  const p = useIn(delay, 14);
+  const enter = useEnter();
+  const p = useIn(delay, 'snappy');
   return (
     <>
       <div style={{position: 'absolute', left: x - 14, top: y - 14, width: 28, height: 28, borderRadius: 14,
         background: C.accent, border: '5px solid #111A30', transform: `scale(${p})`}} />
       {item.value !== null ? (
         <div style={{position: 'absolute', left: x - 120, width: 240, top: y - 78, textAlign: 'center',
-          fontSize: 40, fontWeight: 800, ...rise(p, 16)}}>{fmt(item.value, item.unit ?? unit)}</div>) : null}
+          fontSize: 40, fontWeight: 800, ...enter(p, 16)}}><Count value={item.value} unit={item.unit ?? unit} delay={delay} /></div>) : null}
       <div style={{position: 'absolute', left: x - 120, width: 240, top: labelY, textAlign: 'center', fontSize: 30,
-        fontWeight: 600, color: C.muted, opacity: p}}>{item.label}</div>
+        fontWeight: 600, color: C.muted, opacity: GHOST + (1 - GHOST) * p}}>{item.label}</div>
     </>
   );
 };
@@ -104,16 +106,16 @@ export const Ring: React.FC<{value: number; label: string; reveal: number[]}> = 
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const d = at(reveal, 0);
-  const t = interpolate(frame, [d, d + 1.2 * fps], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
-  const eased = 1 - Math.pow(1 - t, 3);
+  const eased = ease(frame, d, DUR.draw * 2);
   const r = 190;
   const circ = 2 * Math.PI * r;
+  const enter = useEnter();
   const p = useIn(d);
-  const labelIn = useIn(d + 10);
+  const labelIn = useIn(d + DUR.stagger);
   return (
     <Body style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 80}}>
       <div style={{position: 'relative', width: 2 * r + 60, height: 2 * r + 60, transform: `scale(${0.85 + 0.15 * p})`,
-        opacity: p}}>
+        opacity: GHOST + (1 - GHOST) * p}}>
         <svg width={2 * r + 60} height={2 * r + 60}>
           <circle cx={r + 30} cy={r + 30} r={r} fill="none" stroke={C.line} strokeWidth={34} />
           <circle cx={r + 30} cy={r + 30} r={r} fill="none" stroke={C.accent} strokeWidth={34} strokeLinecap="round"
@@ -125,7 +127,7 @@ export const Ring: React.FC<{value: number; label: string; reveal: number[]}> = 
           <Count value={value} unit="%" delay={d} />
         </div>
       </div>
-      <div style={{fontSize: 52, fontWeight: 800, maxWidth: 440, lineHeight: 1.15, ...rise(labelIn)}}>{label}</div>
+      <div style={{fontSize: 52, fontWeight: 800, maxWidth: 440, lineHeight: 1.15, ...enter(labelIn)}}>{label}</div>
     </Body>
   );
 };
@@ -134,15 +136,16 @@ export const Ring: React.FC<{value: number; label: string; reveal: number[]}> = 
 export const Counter: React.FC<{value: number; unit: Unit; label: string; reveal: number[]}> = (
   {value, unit, label, reveal}) => {
   const d = at(reveal, 0);
+  const enter = useEnter();
   const p = useIn(d);
-  const labelIn = useIn(d + 12);
+  const labelIn = useIn(d + DUR.staggerLoose);
   return (
     <Body style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <div style={{fontSize: 230, fontWeight: 800, color: C.accent, lineHeight: 1,
-        textShadow: `0 0 60px ${C.accent}55`, transform: `scale(${0.8 + 0.2 * p})`, opacity: p}}>
+        textShadow: `0 0 60px ${C.accent}55`, transform: `scale(${0.8 + 0.2 * p})`, opacity: GHOST + (1 - GHOST) * p}}>
         <Count value={value} unit={unit} delay={d} />
       </div>
-      <div style={{fontSize: 54, fontWeight: 600, marginTop: 30, color: C.text, ...rise(labelIn)}}>{label}</div>
+      <div style={{fontSize: 54, fontWeight: 600, marginTop: 30, color: C.text, ...enter(labelIn)}}>{label}</div>
     </Body>
   );
 };
@@ -157,12 +160,13 @@ export const Stats: React.FC<{cards: {value: number; unit: Unit; label: string}[
 
 const StatCard: React.FC<{card: {value: number; unit: Unit; label: string}; delay: number; hero: boolean; n: number}> = (
   {card, delay, hero, n}) => {
+  const enter = useEnter();
   const p = useIn(delay);
   const w = n === 1 ? 760 : n === 2 ? 540 : 360;
   const color = hero ? C.accent : C.teal;
   return (
     <div style={{width: w, padding: '44px 36px', borderRadius: 28, background: C.card, border: `2px solid ${C.line}`,
-      boxShadow: `0 20px 60px rgba(0,0,0,0.35), inset 0 0 0 1px ${color}22`, textAlign: 'center', ...rise(p)}}>
+      boxShadow: `0 20px 60px rgba(0,0,0,0.35), inset 0 0 0 1px ${color}22`, textAlign: 'center', ...enter(p)}}>
       <div style={{fontSize: n === 1 ? 170 : n === 2 ? 120 : 92, fontWeight: 800, color, lineHeight: 1,
         textShadow: `0 0 50px ${color}44`}}>
         <Count value={card.value} unit={card.unit} delay={delay} />

@@ -70,10 +70,9 @@ def compact_words(words: list[dict]) -> list[dict]:
 
 
 REVEAL_LEAD = 4        # element sozden bir az evvel acilir - goz qulaqdan qabaq getsin
-REVEAL_MIN = 12        # basliq evvel gorunsun
+REVEAL_MIN = 0         # Faza 2.5: skelet 0-ci kadrdan gorunur - element oz sozunde acilir
 REVEAL_TAIL = 20       # son element sehne bitmemis tam acilsin
 REVEAL_GAP = 6
-FIRST_REVEAL_MAX = 0.35  # ilk element sehnenin en gec 35%-inde (why-9-99 sc53: chart 84% bos idi)
 _WORD = re.compile(r"[a-z0-9]+")
 
 
@@ -90,6 +89,17 @@ def visual_elements(v: dict) -> list[dict]:
         return [*(v.get("terms") or []), v.get("result") or {}]
     if k == "stats":                     # #57 data kartlari
         return list(v.get("cards") or [])
+    # Faza 2: setir "evvel" deyeri deyilende, esik/bugunku deyer, zaman noqteleri, xerite acarlari
+    if k == "table":
+        return [{"value": r.get("before"), "label": r.get("label", "")} for r in v.get("rows") or []]
+    if k == "threshold":
+        cur = [v["current"]] if v.get("current") else []
+        return [*cur, v.get("threshold") or {}]
+    if k == "timeseries":
+        return [{"value": p.get("value") if p.get("shown") else None, "label": p.get("label", "")}
+                for p in v.get("points") or []]
+    if k == "usmap":
+        return list(v.get("keys") or [])
     if k == "timeline":
         return [{"label": e.get("label", "")} for e in v.get("events") or []]
     return [{"label": t} for t in v.get("steps" if k == "flow" else "points") or []]
@@ -130,12 +140,52 @@ def reveal_frames(v: dict, words: list[dict], start_s: float, frames: int, fps: 
         if j is not None:
             out[i] = round((scene[j]["s"] - start_s) * fps) - REVEAL_LEAD
             after = j
-    if out:
-        out[0] = min(out[0], round(FIRST_REVEAL_MAX * frames))
     for i in range(n):
         lo = REVEAL_MIN if i == 0 else out[i - 1] + REVEAL_GAP
         out[i] = min(max(out[i], lo), last)
     return out
+
+
+EMPTY_WINDOW_S = 2.0      # Faza 2.5 QA: chart sehnesinin ilk 2 s-i
+EMPTY_MAX = 0.03          # "yalniz basliq" kadrlarinin payi <= 3%
+OVERLAY_MAX_S = 2.5       # Faza 2.7: foto sehnesinde reqem overlay-i <= 2.5 s, sehnede <= 1
+_FIG_WORD = re.compile(r"^\$\d[\d,]*(?:\.\d+)?|^\d[\d,]*(?:\.\d+)?%")
+
+
+def chart_empty_share(props: dict, fps: int = FPS) -> float:
+    """Chart sehnelerinin ilk 2 s-inde hec bir element gorunmeyen ("yalniz basliq") kadrlarin payi.
+    Skelet varsa kontur/oxlar/"—" 0-ci kadrdan gorunur -> 0."""
+    total = empty = 0
+    for s in props["scenes"]:
+        if not s.get("visual"):
+            continue
+        window = min(s["frames"], round(EMPTY_WINDOW_S * fps))
+        total += window
+        if not s.get("skeleton"):
+            empty += min(window, max(0, (s.get("reveal") or [window])[0]))
+    return empty / total if total else 0.0
+
+
+def number_overlay(words: list[dict], start_s: float, frames: int, fps: int = FPS) -> dict | None:
+    """Foto sehnesinde danisilan ilk pul/faiz reqemi oz sozunde count-up overlay kimi (reference counter_events).
+    Qutu bayqus ve altyazi zonasindan kenardadir (layout.OVERLAY_BOX)."""
+    import layout
+    end_s = start_s + frames / fps
+    for w in words:
+        if not start_s <= w["s"] < end_s:
+            continue
+        m = _FIG_WORD.match(w["w"])
+        if not m:
+            continue
+        text = m.group(0)
+        value = float(text.strip("$%").replace(",", ""))
+        at = max(0, round((w["s"] - start_s) * fps) - REVEAL_LEAD)
+        dur = min(round(OVERLAY_MAX_S * fps), frames - at)
+        if dur < fps // 2:
+            return None
+        return {"value": value, "unit": "$" if text.startswith("$") else "%", "from": at, "frames": dur,
+                "box": list(layout.OVERLAY_BOX)}
+    return None
 
 
 def load_words(ep: str) -> list[dict]:
@@ -155,8 +205,10 @@ def pose_table(sizes: dict[str, tuple[int, int]]) -> dict[str, dict]:
 
 def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tuple[int, int]],
                   scene_owls: dict[int, tuple[int, int]] | None = None,
-                  card_owls: dict[str, tuple[int, int]] | None = None) -> dict:
-    """scene_owls: {sehne nomresi: (w, h)} - render_owls-in cekdiyi sehne bayqusu (owl/scNN.png).
+                  card_owls: dict[str, tuple[int, int]] | None = None, slug: str | None = None,
+                  history: str | None = None) -> dict:
+    """Faza 3: slug verilibse hereket plani (motion.py: theme, variantlar, kecidler, Ken Burns) + vurgu.
+    scene_owls: {sehne nomresi: (w, h)} - render_owls-in cekdiyi sehne bayqusu (owl/scNN.png).
     card_owls: {"intro"|"outro": (w, h)} - movzuya uygun giris/cixis bayqusu; yoxdursa kohne sprite."""
     scene_owls = scene_owls or {}
     card_owls = card_owls or {}
@@ -172,9 +224,10 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
             pose = f"sc{i + 1:02d}"
         visual = s.get("visual") or None
         reveal = reveal_frames(visual, cw, start / FPS, f) if visual else []
+        overlay = None if visual else number_overlay(cw, start / FPS, f)     # Faza 2.7
         start += f
         out_scenes.append({"frames": f, "bg": None if visual else f"bg/sc{i + 1:02d}.jpg", "visual": visual,
-                           "reveal": reveal,
+                           "reveal": reveal, "skeleton": bool(visual), "overlay": overlay,
                            "pose": pose,
                            # Bayqus hemise sagda sabit; fonu bos yeri solda qurulmus (kohne epizod)
                            # sehnelerde sekil guzgulenir - bos yer saga kecir, fonda yazi yoxdur
@@ -185,7 +238,15 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
                            "lowerThird": bool(s.get("spoken_title")) and not visual,
                            "kicker": s.get("spoken_title") if visual else None})
     hook = (data.get("card_texts") or {}).get("intro")
-    return {"fps": FPS, "topic": topic, "brand": BRAND, "audio": "narration.wav",
+    plan = None
+    if slug:
+        import motion
+        desc = [{"kind": (sc["visual"] or {}).get("kind"), "section_start": bool(sc["title"])} for sc in out_scenes]
+        plan = (motion.plan_with_history(slug, desc, history) if history else motion.plan_motion(slug, desc))
+        out_scenes = [{**sc, "transition": m["transition"], "variant": m["variant"], "titleVariant": m["title"],
+                       **({"motion": m["motion"]} if m["motion"] else {})}
+                      for sc, m in zip(out_scenes, plan["scenes"])]
+    props = {"fps": FPS, "topic": topic, "brand": BRAND, "audio": "narration.wav",
             # #56: giris kartinin seslendirdiyi hook cumlesi (reqem/paradoks) kartda da gorunur
             "hook": hook if hook and hook.strip() != topic.strip() else None,
             "introFrames": frames[0], "outroFrames": frames[-1],
@@ -199,6 +260,11 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
                 for n, (w, h) in scene_owls.items()}, **{
                 name: {"name": name, "w": w, "h": h, "height": DEFAULT_HEIGHT, "flippable": False}
                 for name, (w, h) in card_owls.items()}}}
+    if plan:
+        import motion
+        props["motion"] = {k: plan[k] for k in ("theme", "backdrop", "cold_open", "chart_title")}
+        props["emphasis"] = motion.emphasis(props)
+    return props
 
 
 def sprite_sizes() -> dict[str, tuple[int, int]]:
@@ -268,11 +334,17 @@ def render_cmd(props: str, pub: str, out: str, frames: str | None) -> list[str]:
 
 
 def master(video: str, narration: str, music: str | None, out: str, total_s: float,
-           audio_start: float = 0.0) -> None:
-    """Video spec-e yeniden kodlanir, audio narration-dan: 48 kHz stereo, (musiqi), -14 LUFS."""
+           audio_start: float = 0.0, sfx: str | None = None) -> None:
+    """Video spec-e yeniden kodlanir, audio narration-dan: 48 kHz stereo, (musiqi), (SFX), -14 LUFS.
+    Faza 3.8: SFX treki nitq ve musiqi ile qarisir, loudnorm ondan SONRA."""
     audio_in = ["-ss", f"{audio_start:.3f}", "-i", narration] + (["-stream_loop", "-1", "-i", music] if music else [])
-    measured = measure(audio_in, mix_graph(0, 1 if music else None, 0.0, total_s), total_s)
-    graph = ";".join([mix_graph(1, 2 if music else None, 0.0, total_s), loudnorm_apply(measured)])
+    fx_idx = None
+    if sfx:
+        fx_idx = len([a for a in audio_in if a == "-i"])
+        audio_in += ["-ss", f"{audio_start:.3f}", "-i", sfx]
+    measured = measure(audio_in, mix_graph(0, 1 if music else None, 0.0, total_s, fx_idx), total_s)
+    graph = ";".join([mix_graph(1, 2 if music else None, 0.0, total_s, fx_idx + 1 if fx_idx is not None else None),
+                      loudnorm_apply(measured)])
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", video, *audio_in,
            # Remotion JPEG kadrlari tam diapazon (yuvj420p) verir - TV diapazonuna cevrilir
            "-filter_complex", f"[0:v]scale=out_range=tv,format=yuv420p[v];{graph}", "-map", "[v]", "-map", "[aout]",
@@ -281,6 +353,73 @@ def master(video: str, narration: str, music: str | None, out: str, total_s: flo
            "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
            "-t", f"{total_s:.3f}", "-movflags", "+faststart", out]
     subprocess.run(cmd, check=True)
+
+
+SHEET_COLS = 3
+SHEET_W = 640
+
+
+def sheet_frames(props: dict) -> list[int]:
+    """Faza 3 QA: cold open (giris kartinin ortasi), her bolmenin ilk ~1 s-i, qerar sehnesi (table/threshold)."""
+    out = [props["introFrames"] // 2]
+    start = props["introFrames"]
+    for s in props["scenes"]:
+        if s.get("title"):
+            out.append(start + min(30, s["frames"] - 1))
+        kind = (s.get("visual") or {}).get("kind")
+        if kind in ("table", "threshold"):
+            out.append(start + min(s["frames"] - 1, (s.get("reveal") or [0])[-1] + 20))
+        start += s["frames"]
+    return sorted(dict.fromkeys(out))
+
+
+def motion_sheet(ep: str, props_path: str, pub: str, props: dict) -> str:
+    """qa/motion_sheet.png: renderStill kadrlari bir cedvelde (vizual yoxlama ve epizodlar arasi muqayise)."""
+    qa = os.path.join(ep, "qa")
+    os.makedirs(qa, exist_ok=True)
+    npx = "npx.cmd" if os.name == "nt" else "npx"
+    stills = []
+    for f in sheet_frames(props):
+        png = os.path.join(qa, f"still_{f:06d}.png")
+        subprocess.run([npx, "remotion", "still", "src/index.ts", "Episode", png, f"--props={props_path}",
+                        f"--public-dir={pub}", f"--frame={f}", "--log=error"], cwd=REMOTION_DIR, check=True)
+        stills.append(png)
+    out = os.path.join(qa, "motion_sheet.png")
+    rows = -(-len(stills) // SHEET_COLS)
+    inputs = sum((["-i", p] for p in stills), [])
+    pads = SHEET_COLS * rows - len(stills)
+    graph = "".join(f"[{i}]scale={SHEET_W}:-1[s{i}];" for i in range(len(stills)))
+    cells = [f"[s{i}]" for i in range(len(stills))]
+    for k in range(pads):
+        graph += f"color=c=black:s={SHEET_W}x{SHEET_W * 9 // 16}:d=1[p{k}];"
+        cells.append(f"[p{k}]")
+    layout = "|".join(f"{(i % SHEET_COLS) * SHEET_W}_{(i // SHEET_COLS) * SHEET_W * 9 // 16}" for i in range(len(cells)))
+    graph += "".join(cells) + f"xstack=inputs={len(cells)}:layout={layout}"
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *inputs, "-filter_complex", graph, "-frames:v", "1", out],
+                   check=True)
+    for p in stills:
+        os.remove(p)
+    return out
+
+
+def motion_problems(props: dict, sims: list[float]) -> list[str]:
+    """QA (qa/motion.json): son epizodlarla oxsarliq <= 50%, cold open typewriter, bos chart <= 3%."""
+    import motion
+    probs = []
+    if max(sims, default=0.0) > motion.SIMILARITY_MAX:
+        probs.append(f"hereket plani son epizodlara cox oxsardir ({max(sims):.0%} > 50%)")
+    if (props.get("motion") or {}).get("cold_open") != "typewriter":
+        probs.append("cold open-da typewriter tetbiq olunmayib")
+    share = chart_empty_share(props) if props.get("scenes") else 0.0
+    if share > EMPTY_MAX:
+        probs.append(f"chart-larin ilk 2 s-inde bos kadr payi {share:.1%} > {EMPTY_MAX:.0%}")
+    return probs
+
+
+def write_qa(ep: str, name: str, data: dict) -> None:
+    os.makedirs(os.path.join(ep, "qa"), exist_ok=True)
+    with open(os.path.join(ep, "qa", name), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
 
 
 def main() -> None:
@@ -304,8 +443,17 @@ def main() -> None:
 
     animated = {n for n, s in enumerate(data["scenes"], 1) if s.get("visual")}
     pub = prepare_public(ep, len(data["scenes"]), animated)
+    history = os.path.join(os.path.dirname(ep), "_motion_history.json")
     props = episode_props(data, topic, words, sprite_sizes(), scene_owl_sizes(ep, len(data["scenes"])),
-                          card_owl_sizes(ep))
+                          card_owl_sizes(ep), slug=slug, history=history)
+    import motion
+    import sfx as sfx_mod
+    sims = [motion.similarity(motion.signature_of_props(props), h.get("signature") or [])
+            for h in motion._load(history) if h.get("slug") != slug][-motion.HISTORY_WINDOW:]
+    write_qa(ep, "motion.json", {"theme": props["motion"]["theme"], "signature": motion.signature_of_props(props),
+                                 "similarity_max": max(sims, default=0.0), "chart_empty_share": chart_empty_share(props),
+                                 "typewriter_cold_open": props["motion"]["cold_open"] == "typewriter",
+                                 "emphasis": len(props.get("emphasis") or []), "problems": motion_problems(props, sims)})
     props_path = os.path.join(ep, "remotion_props.json")
     with open(props_path, "w", encoding="utf-8") as f:
         json.dump(props, f, ensure_ascii=False)
@@ -319,8 +467,17 @@ def main() -> None:
     if a.frames:
         lo, hi = (int(x) for x in a.frames.split("-"))
         total_s, start = (hi - lo + 1) / FPS, lo / FPS
-    master(silent, os.path.join(ep, "narration.wav"), a.music, out, total_s, start)
+    narration = os.path.join(ep, "narration.wav")
+    evs = sfx_mod.events(props, compact_words(words))           # Faza 3.8
+    track = sfx_mod.render_track(evs, sfx_mod.sounds(os.path.join(ep, "sfx")), total_frames / FPS,
+                                 os.path.join(ep, "sfx_track.wav"), narration) if evs else None
+    write_qa(ep, "sfx.json", {"events": evs, "count": len(evs), "problems": sfx_mod.problems(evs, compact_words(words))})
+    master(silent, narration, a.music, out, total_s, start, sfx=track)
     os.remove(silent)
+    if not a.frames:
+        motion.remember(history, slug, {"theme": props["motion"]["theme"],
+                                        "signature": motion.signature_of_props(props)})
+        print("  motion sheet ->", motion_sheet(ep, props_path, pub, props), flush=True)
     print("OK ->", out)
 
 

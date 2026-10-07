@@ -7,3 +7,5 @@ PROJ = os.path.dirname(HERE)
 for p in (PROJ, os.path.join(PROJ, "_ffmpeg"), os.path.join(PROJ, "sprites")):
     if p not in sys.path:
         sys.path.insert(0, p)
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)        # testler bir-birinin fixture-larini (MODEL, PLAN) import edir

@@ -10,6 +10,7 @@ import {IntroCard, LowerThird, OutroCard} from './Cards';
 import './fonts';
 import {OwlLayer} from './Owl';
 import {AnalyticsScene} from './visuals/AnalyticsScene';
+import {NumberOverlay} from './visuals/NumberOverlay';
 import {EpisodeProps, Side} from './types';
 
 const LOWER_THIRD_S = 4;
@@ -64,6 +65,10 @@ export const Episode: React.FC<EpisodeProps> = (p) => {
         <Sequence key={s.start} from={s.start} durationInFrames={Math.min(s.frames, LOWER_THIRD_S * p.fps)}
           layout="none">
           <LowerThird text={s.title as string} />
+        </Sequence>))}
+      {placed.filter((s) => s.overlay).map((s) => (
+        <Sequence key={`ov${s.start}`} from={s.start} durationInFrames={s.frames} layout="none">
+          <NumberOverlay o={s.overlay!} />
         </Sequence>))}
       <Captions words={p.words} from={p.introFrames} to={scenesEnd} sideAt={sideAt} />
       <Audio src={staticFile(p.audio)} />

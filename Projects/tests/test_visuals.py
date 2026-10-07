@@ -306,9 +306,11 @@ def test_plan_visuals_asks_again_without_keypoints_when_share_is_short():
 
     def fake_chat(system, user, **kw):
         calls.append(user)
-        if "Do NOT use bullet lists" in user:
-            return {"scenes": [{"n": n, "score": 6, "visual": {"kind": "flow", "title": f"Reaction path {chr(64 + n)}",
-                    "steps": ["See the price", "Feel the deal", "Decide to buy"]}} for n in _numbered(user)]}
+        if "Do NOT use bullet lists" in user:      # Faza 2.6: flow <= 1 - compare ile
+            return {"scenes": [{"n": n, "score": 6, "visual": {"kind": "compare", "title": f"Reaction path {chr(64 + n)}",
+                    "left": {"label": "Round price", "value": None, "note": "Feels exact"},
+                    "right": {"label": "Odd ending", "value": None, "note": "Feels cheaper"}}}
+                               for n in _numbered(user)]}
         return {"scenes": [{"n": n, "score": 5, "visual": {"kind": "keypoints", "title": f"Idea {chr(64 + n)}",
                 "points": ["Price endings matter", "Shoppers react"]}} for n in _numbered(user)]}
 
@@ -342,7 +344,10 @@ def test_first_element_never_waits_until_the_end_of_the_scene():
     words = _w("one common mistake is assuming a price difference of one cent does not matter it feels "
                "reasonable because it is small but when you are budgeting those cents add up", 0.0, step=0.42)
     r = rb.reveal_frames(eq, words, 0.0, 410)
-    assert r[0] <= round(rb.FIRST_REVEAL_MAX * 410)
+    # Faza 2.5 (istifadeci 2026-10-07): ilk reveal-in sixilmasi legv - chart skeleti 0-ci kadrdan gorunur
+    data = {"intro_seconds": 1.0, "outro_seconds": 1.0, "scenes": [{"duration": 410 / 30, "visual": eq}]}
+    props = rb.episode_props(data, "T", [], {"three_q": (10, 10)})
+    assert props["scenes"][0]["skeleton"] is True and rb.chart_empty_share(props) == 0.0
     assert r == sorted(r) and r[-1] <= 410 - rb.REVEAL_TAIL
 
 
@@ -390,7 +395,7 @@ def test_llm_is_asked_again_when_a_figure_is_missing_from_its_chart():
 
 def _abstract_scenes():
     return [{"section": "Decision", "narration": "Lisa weighs her costs before deciding.",
-             "visual": {"kind": "flow", "title": "Cost check", "steps": ["a", "b", "c"]}},
+             "visual": {"kind": "compare", "title": "Cost check", "left": {}, "right": {}}},
             {"section": "Decision", "narration": "So the decision is clear: she raises her rates."}]
 
 

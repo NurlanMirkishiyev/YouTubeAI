@@ -154,18 +154,78 @@ def _said_before(num: dict) -> bool:
     return any(abs(x - v) <= 1e-9 * max(1.0, abs(v)) for _, _, x in mc.find_numbers(num["context"]))
 
 
-def _vote(num: dict, ans: dict | None) -> tuple[str, float | None, str]:
+_YEAR = re.compile(r"(19|20)\d\d")
+SMALL_INT = 12      # sira/fesil nomresi, "three mistakes" - struktur reqemi
+
+
+def given_allowed(num: dict, allowed: list[float]) -> bool:
+    """Faza 1.3: "given" reqem yalniz model deyiseni/neticesi, menbe figure-u, il, sira nomresi ve ya vahid
+    sabitidirse kecir (real xeta sinfi: modelde olmayan "costs rose more than 9%")."""
+    v = num["value"]
+    plain = not re.search(r"[$%]|percent|cent|dollar", num["text"], re.I)    # "9%" sira nomresi deyil
+    if plain and float(v).is_integer() and (abs(v) <= SMALL_INT or _YEAR.fullmatch(str(int(v)))):
+        return True
+    pool = list(allowed) + list(mc.CONSTANTS)
+    return any(abs(v - x) <= 1e-6 * max(1.0, abs(x)) for x in pool)
+
+
+def _trusted(num: dict, trusted: list[float]) -> bool:
+    """Case modelinin (Python-da hesablanmis) reqemi ve ya menbe figure-u - rolundan asili olmayaraq kecir.
+    Vahidsiz kicik tam ededler (sira) burada sayilmir."""
+    v = num["value"]
+    plain = not re.search(r"[$%]|percent|cent|dollar", num["text"], re.I)
+    if plain and float(v).is_integer() and abs(v) <= SMALL_INT:
+        return False
+    return any(abs(v - x) <= 1e-6 * max(1.0, abs(x)) for x in trusted)
+
+
+def allowed_givens(ep_dir: str) -> list[float] | None:
+    """meta.json plan.model (+ research.json figure) + vahid sabitleri -> icazeli "given" reqemler. Planda model
+    yoxdursa None (kohne epizod) - yeni planlarda model mecburidir (script_qa.plan_problems), orada fail-closed."""
+    got = trusted_numbers(ep_dir)
+    return None if got is None else got + list(mc.CONSTANTS)
+
+
+def trusted_numbers(ep_dir: str) -> list[float] | None:
+    """Yalniz case modelinin reqemleri + menbe figure-u (sabitler yox) - rolundan asili olmayaraq kecir."""
+    import json
+    import os
+    import case_model
+
+    def load(name: str) -> dict:
+        path = os.path.join(ep_dir, name)
+        if not os.path.isfile(path):
+            return {}
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    out: list[float] = []
+    model = (load("meta.json").get("plan") or {}).get("model")
+    if not isinstance(model, dict):
+        return None
+    try:
+        out += case_model.allowed_numbers(case_model.evaluate(model))
+    except case_model.CaseModelError:
+        pass                                     # hesablanmayan model -> yalniz menbe/sabitler (fail-closed)
+    fig = load("research.json").get("figure")
+    if fig is not None:
+        out.append(float(fig))
+    return out
+
+
+def _vote(num: dict, ans: dict | None, allowed: list[float] | None = None) -> tuple[str, float | None, str]:
     """-> (ok | wrong | unverified | none, duzgun deyer, sebeb). Evvel deyilmis reqemin tekrari 'unverified'
     ola bilmez (sehv hesab 'wrong' kimi yene tutulur)."""
-    v = _vote_raw(num, ans)
+    v = _vote_raw(num, ans, allowed)
     return ("ok", None, "") if v[0] == "unverified" and _said_before(num) else v
 
 
-def _vote_raw(num: dict, ans: dict | None) -> tuple[str, float | None, str]:
+def _vote_raw(num: dict, ans: dict | None, allowed: list[float] | None = None) -> tuple[str, float | None, str]:
     if not isinstance(ans, dict):
         return "none", None, "yoxlanmayib"
     role = str(ans.get("role", "")).lower()
     if role == "given":
+        if allowed is not None and not given_allowed(num, allowed):
+            return "unverified", None, "verilmis reqem case modelinde/menbede yoxdur (uydurma)"
         return "ok", None, ""
     if role != "result":
         return "unverified", None, "girisler metnde yoxdur"
@@ -181,14 +241,17 @@ def _vote_raw(num: dict, ans: dict | None) -> tuple[str, float | None, str]:
     return "unverified", None, p["reason"]
 
 
-def judge(sections: list[dict], passes: list[dict]) -> list[dict]:
+def judge(sections: list[dict], passes: list[dict], allowed: list[float] | None = None,
+          trusted: list[float] | None = None) -> list[dict]:
     """Reqem yalniz cogunluq onu tesdiq edende VE hec bir baxis onu hesabla tekzib etmeyende kecir;
     sehv deyeri ancaq cogunluq eyni duzgun deyeri tapanda verilir."""
     need = len(passes) // 2 + 1
     problems = []
     for sec in sections:
         for num in sec["numbers"]:
-            votes = [_vote(num, p.get(num["n"])) for p in passes]
+            if trusted and _trusted(num, trusted):
+                continue                     # case modelinin deterministik neticesi (real probe: "$8,100" silinirdi)
+            votes = [_vote(num, p.get(num["n"]), allowed) for p in passes]
             # Python-da subut olunmus sehv ('wrong') "given" ses coxlugu ile ortulmur (why-9-99 'just a dollar')
             if sum(v[0] == "ok" for v in votes) >= need and not any(v[0] == "wrong" for v in votes):
                 continue
@@ -252,24 +315,27 @@ def strip_sentences(md: str, problems: list[dict], plain: Plain) -> str:
     return md
 
 
-def second_look(sections: list[dict], problems: list[dict], focus: Focus | None, passes: int) -> list[dict]:
+def second_look(sections: list[dict], problems: list[dict], focus: Focus | None, passes: int,
+                allowed: list[float] | None = None, trusted: list[float] | None = None) -> list[dict]:
     """Duzgun deyeri olmayan sual altindaki reqemler ayrica, fokuslu suallarla yeniden yoxlanir (real hal:
     '3 dollar fee on 20 dollars = 15 percent' umumi baxisda 3 defe 'missing' oldu). Yene tesdiq olunmasa qalir."""
     suspects = {p["n"] for p in problems if p["correct"] is None}
     if not focus or not suspects:
         return problems
     nums = [n for sec in sections for n in sec["numbers"] if n["n"] in suspects]
-    still = {p["n"] for p in judge([{"numbers": nums}], [focus(nums) for _ in range(passes)])}
+    still = {p["n"] for p in judge([{"numbers": nums}], [focus(nums) for _ in range(passes)], allowed, trusted)}
     return [p for p in problems if p["correct"] is not None or p["n"] in still]
 
 
 def audit_and_fix(md: str, extract: Extract, rewrite: Rewrite, plain: Plain, rounds: int = ROUNDS,
-                  passes: int = PASSES, focus: Focus | None = None) -> tuple[str, list[dict]]:
+                  passes: int = PASSES, focus: Focus | None = None,
+                  allowed: list[float] | None = None, trusted: list[float] | None = None) -> tuple[str, list[dict]]:
     def audit(text: str) -> list[dict]:
         secs = marked_sections(text)
         if not secs:
             return []
-        return second_look(secs, judge(secs, [extract(secs) for _ in range(passes)]), focus, passes)
+        return second_look(secs, judge(secs, [extract(secs) for _ in range(passes)], allowed, trusted), focus,
+                           passes, allowed, trusted)
 
     for _ in range(rounds):
         problems = audit(md)
@@ -409,7 +475,8 @@ def llm_plain(sentence: str, **llm_kw) -> str:
     return str(data.get("sentence") or "")
 
 
-def check(md: str, **llm_kw) -> tuple[str, list[dict]]:
+def check(md: str, allowed: list[float] | None = None, trusted: list[float] | None = None,
+          **llm_kw) -> tuple[str, list[dict]]:
     """math_check.check_file-dan cagrilir: (duzeldilmis skript, qalan problemler)."""
     print(f"[math] her reqem ayrica yoxlanir ({PASSES} musteqil baxis)", flush=True)
     state: dict = {}
@@ -420,7 +487,8 @@ def check(md: str, **llm_kw) -> tuple[str, list[dict]]:
 
     return audit_and_fix(md, extract, lambda p, pr: llm_rewrite(p, pr, **llm_kw),
                          lambda s: llm_plain(s, **llm_kw),
-                         focus=lambda nums: llm_focus(nums, state["secs"], **llm_kw))
+                         focus=lambda nums: llm_focus(nums, state["secs"], **llm_kw), allowed=allowed,
+                         trusted=trusted)
 
 
 def audit_llm(md: str, **llm_kw) -> list[dict]:

@@ -13,6 +13,8 @@ export type Scene = {
   title: string | null;    // bolmenin ilk sehnesi (bolme kecidi)
   lowerThird?: boolean;    // #55: lower-third yalniz foto sehnesinde
   kicker?: string | null;  // #55: chart sehnesinde bolme adi chart basliginin ustunde
+  skeleton?: boolean;      // Faza 2.5: chart 0-ci kadrdan skelet (kontur, '—')
+  overlay?: Overlay | null; // Faza 2.7
 };
 
 export type Word = {w: string; s: number; e: number};  // saniye, qlobal zaman xetti
@@ -50,4 +52,19 @@ export type Visual =
   | {kind: 'timeline'; title: string; events: {label: string; when: string}[]}
   | {kind: 'counter'; title: string; value: number; unit: Unit; label: string}
   | {kind: 'keypoints'; title: string; points: string[]}
-  | {kind: 'stats'; title: string; cards: {value: number; unit: Unit; label: string}[]};   // #57 data kartlari
+  | {kind: 'stats'; title: string; cards: {value: number; unit: Unit; label: string}[]}   // #57 data kartlari
+  // Faza 2 (2026-10-07): qerar vizuallari (model_result-dan), zaman seriyasi, ABS xeritesi
+  | {kind: 'table'; title: string; columns: string[];
+      rows: {label: string; before: number; after: number; delta: number | null; unit: Unit}[]}
+  | {kind: 'threshold'; title: string; threshold: {value: number; unit: Unit; label: string};
+      current: {value: number; label: string} | null;
+      curve: {var: string; result: string; cross: number; points: [number, number][]; x_label: string;
+        y_label: string; baseline: {value: number; label: string; unit: Unit} | null} | null}
+  | {kind: 'timeseries'; title: string; unit: Unit; illustrative: boolean;
+      points: {label: string; value: number; shown: boolean}[]; events: {index: number; label: string}[];
+      segments: {from: number; to: number; down: boolean}[]}
+  | {kind: 'usmap'; title: string; unit_label: string; keys: {value: number; label: string}[];
+      outline: [number, number][]; dots: [number, number][]; per_dot: number; counter: [number, number, number, number]};
+
+// Faza 2.7: foto sehnesinde danisilan reqemin count-up overlay-i
+export type Overlay = {value: number; unit: Unit; from: number; frames: number; box: [number, number, number, number]};

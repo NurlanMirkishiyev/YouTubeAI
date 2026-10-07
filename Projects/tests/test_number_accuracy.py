@@ -267,3 +267,13 @@ def test_loss_stated_as_positive_amount_matches_negative_difference():
          "each client."}
     assert mc._check_one(s, {"claimed_text": "$250", "expr": "750 - 1000"}) is None
     assert mc._check_one(s, {"claimed_text": "$250", "expr": "750 + 1000"}) is not None
+
+
+def test_first_layer_never_rewrites_a_case_model_figure():
+    """Real probe 2026-10-07: modelin '$3,600'-u LLM-in sehv ifadesi (1000 * 4) ile '$4,000'-a 'duzeldildi'."""
+    import math_check as mc
+    md = "# T\n\n## Section 4: Decision\n\nRevenue goes from $3,000 to $3,600 a week.\n"
+    extract = lambda sents: [{"id": s["id"], "claimed_text": "$3,600", "expr": "1000 * 4"} for s in sents]
+    rewrites = []
+    out, probs = mc.audit_and_fix(md, extract, lambda p, pr: rewrites.append(p) or {}, trusted=[3000.0, 3600.0])
+    assert out == md and not rewrites and probs == []

@@ -44,6 +44,7 @@ or census.gov (they block automated checks). Copy each URL exactly from your sea
 Each fact must be a SURVEY or DATASET STATISTIC (a share of firms, a rate, an average) - never an anecdote from one
 business. Good places: the Fed Small Business Credit Survey report, SBA Office of Advocacy research and FAQ PDFs,
 NFIB Small Business Economic Trends, Federal Reserve FEDS notes, NBER working papers.
+Prefer data published in the last 3 years and give the exact publication year of each fact.
 The "claim" must contain the figure written in digits, exactly as stated on that page. Use the direct URL of the page or PDF that contains the quote.
 
 Return ONLY JSON:
@@ -189,7 +190,7 @@ def research(topic: str, decision: str, search: Callable[[str], str] = web_searc
         except LLMError as e:
             print(f"  menbe axtarisi xetasi: {str(e)[:120]}", flush=True)
             continue
-        for src in _parse(text):
+        for src in by_recency(_parse(text)):
             problems, quote = verify(src, fetch)
             print(f"  menbe {_host(str(src.get('url')))}: {'OK' if not problems else '; '.join(problems)}", flush=True)
             if problems:
@@ -198,6 +199,27 @@ def research(topic: str, decision: str, search: Callable[[str], str] = web_searc
             if judge(found, topic, decision):
                 return found
     return None
+
+
+RECENT_YEARS = 3     # Faza 1.4: il >= cari il - 3 olan menbe ustundur
+
+
+def _year(src: dict) -> int | None:
+    try:
+        return int(src.get("year"))
+    except (TypeError, ValueError):
+        return None
+
+
+def is_old(src: dict) -> bool:
+    import datetime
+    y = _year(src)
+    return y is None or y < datetime.date.today().year - RECENT_YEARS
+
+
+def by_recency(cands: list[dict]) -> list[dict]:
+    """Teze menbeler evvel (sabit sira), sonra kohneler - en tezesi birinci."""
+    return sorted(cands, key=lambda s: (is_old(s), -(_year(s) or 0)))
 
 
 def _paragraphs(markdown: str) -> list[str]:
@@ -217,5 +239,8 @@ def citation_problems(markdown: str, src: dict) -> list[str]:
         named = words and all(w in low for w in words)
         has_fig = any(math.isclose(v, figure, rel_tol=1e-9, abs_tol=1e-6) for _, _, v in find_numbers(p))
         if named and has_fig:
+            year = src.get("year")
+            if year and is_old(src) and str(year) not in p:      # Faza 1.4: kohne menbe ili ile deyilir
+                return [f"menbe kohnedir ({year}) - menbe abzasinda il deyilmelidir"]
             return []
     return [f"menbe ('{src.get('cite_as')}') ve reqemi ({figure:g}) skriptde eyni abzasda deyilmeyib"]

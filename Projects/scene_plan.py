@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from llm import LLMError, add_provider_arg, chat_json  # noqa: E402
-from visuals import animate_abstract, animation_room, plan_visuals  # noqa: E402
+from visuals import animate_abstract, animation_room, finalize_maps, plan_visuals  # noqa: E402
 
 SPRITES_JSON = r"C:\YouTubeAI\Character\ELI5_Owl\sprites\sprites.json"
 WPM = 199.0   # olculmus; hər halda add. 25-de gercek audio uzunlugu ile evez olunur
@@ -570,9 +570,11 @@ def main() -> None:
     llm_kw = {"provider": a.provider, "model": a.model, "temperature": a.temperature}
     try:
         # #45: evvelce hansi sehnelerin animasiya olacagi - fon yalniz qalan foto sehnelerine planlanir
-        visuals = plan_visuals(scenes, topic, **llm_kw)
+        visuals = plan_visuals(scenes, topic, plan=episode_plan(a.episode_dir), **llm_kw)   # Faza 2.1
         planned = plan(scenes, poses, topic=topic, visuals=visuals, **llm_kw)
-        planned = animate_pool_scenes(planned, lambda sc, nums: animate_abstract(sc, nums, topic, **llm_kw))
+        planned = animate_pool_scenes(planned, lambda sc, nums: animate_abstract(
+            sc, nums, topic, plan=episode_plan(a.episode_dir), **llm_kw))
+        planned = finalize_maps(planned, os.path.basename(os.path.abspath(a.episode_dir)))    # Faza 2.3
     except LLMError as e:
         raise SystemExit("LLM xetasi: " + str(e)) from e
 

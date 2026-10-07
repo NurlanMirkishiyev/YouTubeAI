@@ -198,7 +198,7 @@ def animate(ep: str, scenes_path: str, nums: list[int], provider: str) -> set[in
         nums = nums[:room]
     if not nums:
         return set()
-    specs = animate_abstract(scenes, nums, episode_topic(ep), provider=provider)
+    specs = animate_abstract(scenes, nums, episode_topic(ep), plan=episode_plan(ep), provider=provider)  # Faza 2.6
     apply_visuals(scenes_path, specs)
     print(f"[qa] generik foto -> animasiya: {sorted(specs) or 'yoxdur'} (cehd: {nums})", flush=True)
     return set(specs)

@@ -99,3 +99,107 @@ def test_stats_cards_reveal_when_each_figure_is_spoken():
              for k, w in enumerate("Rosa pays $4,000 in rent and keeps a 12% margin.".split())]
     rev = rb.reveal_frames(v, words, 1.0, 200)
     assert rev[1] > rev[0]
+
+
+# --- Faza 2.5 (istifadeci 2026-10-07): bos chart baslangici yoxdur - skelet 0-ci kadrdan ---
+
+def _ww(text, t0, step=0.4):
+    return [{"word": (" " if k else "") + w, "start": round(t0 + k * step, 2), "end": round(t0 + k * step + 0.3, 2)}
+            for k, w in enumerate(text.split())]
+
+
+def test_chart_scenes_render_a_skeleton_from_the_first_frame():
+    v = {"kind": "equation", "title": "Impact", "op": "+", "terms": [{"label": "Cents", "value": None},
+         {"label": "Budget", "value": None}], "result": {"label": "Total", "value": None}}
+    data = {**DATA, "scenes": [{**DATA["scenes"][0], "visual": v}]}
+    p = rb.episode_props(data, "T", [], POSES)
+    assert p["scenes"][0]["skeleton"] is True
+    assert rb.chart_empty_share(p) == 0.0
+
+
+def test_late_reveal_without_skeleton_counts_as_an_empty_chart():
+    p = {"fps": 30, "scenes": [{"visual": {"kind": "bars"}, "reveal": [200], "frames": 300, "skeleton": False},
+                               {"visual": None, "reveal": [], "frames": 300}]}
+    assert rb.chart_empty_share(p) == 1.0
+
+
+def test_first_reveal_is_not_clamped_any_more():
+    """Gecikmeli ilk reveal hedleri legv olunur - skelet var, element oz sozunde acilir."""
+    assert not hasattr(rb, "FIRST_REVEAL_MAX")
+    assert rb.REVEAL_MIN == 0
+
+
+# --- Faza 2.7: foto sehnesinde reqem overlay-i (reference: counter_events) ---
+
+def test_photo_scene_gets_a_count_up_overlay_at_the_spoken_figure():
+    words = _ww("Rosa now charges $55 a plate and keeps 85% of her guests", 3.52)
+    p = rb.episode_props(DATA, "T", words, POSES)
+    ov = p["scenes"][0]["overlay"]
+    assert ov["value"] == 55 and ov["unit"] == "$"
+    assert ov["from"] == round((3.52 + 3 * 0.4 - 3.52) * 30) - rb.REVEAL_LEAD
+    assert ov["frames"] <= round(2.5 * 30)
+
+
+def test_at_most_one_overlay_per_scene_and_never_on_chart_scenes():
+    words = _ww("Rosa charges $55 and $60 and 85% and 90% today", 3.52)
+    v = {"kind": "ring", "title": "Guests", "value": 85, "label": "stay"}
+    data = {**DATA, "scenes": [DATA["scenes"][0], {**DATA["scenes"][1], "visual": v}]}
+    p = rb.episode_props(data, "T", words, POSES)
+    assert isinstance(p["scenes"][0]["overlay"], dict)
+    assert p["scenes"][1].get("overlay") is None
+
+
+def test_overlay_box_avoids_the_owl_and_the_captions():
+    import layout
+    assert not layout.overlaps(layout.OVERLAY_BOX, layout.OWL_ZONE)
+    assert not layout.overlaps(layout.OVERLAY_BOX, layout.CAPTION_ZONE)
+    words = _ww("Rosa charges $55 today", 3.52)
+    assert tuple(rb.episode_props(DATA, "T", words, POSES)["scenes"][0]["overlay"]["box"]) == layout.OVERLAY_BOX
+
+
+def test_new_kinds_reveal_their_elements_at_the_spoken_figures():
+    table = {"kind": "table", "rows": [{"label": "Revenue", "before": 2000, "after": 1870, "delta": None},
+                                       {"label": "Profit", "before": 400, "after": 510, "delta": 110}]}
+    words = [{"w": w, "s": i * 0.5, "e": i * 0.5 + 0.4} for i, w in enumerate(
+        "Revenue drops from $2,000 to $1,870 while profit climbs from $400 to $510".split())]
+    r = rb.reveal_frames(table, words, 0.0, 300)
+    assert len(r) == 2 and r[0] == round(3 * 0.5 * 30) - rb.REVEAL_LEAD and r[1] == round(10 * 0.5 * 30) - rb.REVEAL_LEAD
+    th = {"kind": "threshold", "threshold": {"value": 27, "label": "Needed"}, "current": {"value": 40, "label": "Today"}}
+    assert len(rb.reveal_frames(th, [], 0.0, 300)) == 2
+    ts = {"kind": "timeseries", "points": [{"label": "2021", "value": 4, "shown": True},
+                                           {"label": "", "value": 5, "shown": False},
+                                           {"label": "2023", "value": 6, "shown": True}]}
+    assert len(rb.reveal_frames(ts, [], 0.0, 300)) == 3
+    mp = {"kind": "usmap", "keys": [{"value": 3, "label": "Start"}, {"value": 12, "label": "Now"}]}
+    assert len(rb.reveal_frames(mp, [], 0.0, 300)) == 2
+
+
+def test_props_carry_the_motion_plan_and_emphasis(tmp_path):
+    words = _ww("Rosa charges $55 today", 3.52)
+    p = rb.episode_props(DATA, "T", words, POSES, slug="raise-prices", history=str(tmp_path / "h.json"))
+    assert p["motion"]["theme"] in ("clean", "dynamic", "editorial") and p["motion"]["cold_open"] == "typewriter"
+    assert all("transition" in s for s in p["scenes"]) and "emphasis" in p
+    q = rb.episode_props(DATA, "T", words, POSES, slug="raise-prices", history=str(tmp_path / "h.json"))
+    assert [s["frames"] for s in p["scenes"]] == [s["frames"] for s in q["scenes"]]   # typewriter muddeti deyismir
+
+
+def test_master_mixes_the_sfx_track(monkeypatch):
+    cmds = []
+    monkeypatch.setattr(rb, "measure", lambda *a, **k: {"input_i": "-20", "input_tp": "-2", "input_lra": "5",
+                                                         "input_thresh": "-30", "target_offset": "0"})
+    monkeypatch.setattr(rb.subprocess, "run", lambda cmd, **k: cmds.append(cmd))
+    rb.master("v.mp4", "n.wav", None, "o.mp4", 10.0, sfx="fx.wav")
+    flat = " ".join(cmds[-1])
+    assert "fx.wav" in flat and "[2:a]" in flat
+
+
+def test_motion_sheet_covers_cold_open_section_starts_and_the_decision_scene():
+    p = {"fps": 30, "introFrames": 90, "scenes": [
+        {"frames": 300, "title": "A", "visual": None},
+        {"frames": 300, "title": None, "visual": {"kind": "stats"}, "reveal": [20]},
+        {"frames": 300, "title": "B", "visual": {"kind": "bars"}, "reveal": [10]},
+        {"frames": 300, "title": None, "visual": {"kind": "table"}, "reveal": [40]}]}
+    frames = rb.sheet_frames(p)
+    assert frames[0] < 90                                   # cold open (giris karti)
+    assert 90 + 30 in frames and 690 + 30 in frames         # her bolmenin ilk 2 s-i
+    assert any(990 <= f < 1290 for f in frames)             # qerar sehnesi (table)

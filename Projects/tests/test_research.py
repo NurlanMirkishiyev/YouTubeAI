@@ -106,3 +106,37 @@ def test_judge_sees_the_decision_not_the_narrow_search_hint():
                 fetch=lambda url: PAGE, judge=judge, fact_need="market rates for digital services")
     assert seen["decision"] == "Should I raise prices?"
     assert "market rates for digital services" in prompts[0]
+
+
+# --- Faza 1.4 (istifadeci 2026-10-07): menbenin aktualligi ---
+
+def test_recent_source_is_preferred_over_an_old_one():
+    import datetime
+    now = datetime.date.today().year
+    old = {**GOOD, "year": now - 6}
+    new = {**GOOD, "year": now - 1, "url": "https://www.bls.gov/x"}
+    fake = json.dumps({"sources": [old, new]})
+    got = rs.research("T", "D?", search=lambda prompt: fake, fetch=lambda url: PAGE, judge=lambda *a: True)
+    assert got["year"] == now - 1
+
+
+def test_old_source_must_be_named_with_its_year():
+    import datetime
+    year = datetime.date.today().year - 5
+    src = {**GOOD, "year": year}
+    md = "## Section 2: X\n\nAccording to the U.S. Small Business Administration, 48.9% of firms survive five years.\n"
+    assert any("il" in p for p in rs.citation_problems(md, src))
+    with_year = md.replace("Administration,", f"Administration in {year},")
+    assert rs.citation_problems(with_year, src) == []
+
+
+def test_recent_source_needs_no_year_in_the_script():
+    import datetime
+    src = {**GOOD, "year": datetime.date.today().year - 1}
+    md = "## S\n\nAccording to the U.S. Small Business Administration, 48.9% of firms survive five years.\n"
+    assert rs.citation_problems(md, src) == []
+
+
+def test_description_names_the_source_year():
+    import publish_pack
+    assert "(2023)" in publish_pack.source_line(GOOD)
