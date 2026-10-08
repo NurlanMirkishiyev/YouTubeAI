@@ -318,6 +318,7 @@ def allowed_numbers(result: dict) -> list[float]:
         if result["var_units"].get(k) == UNIT_PCT:
             vals.append(v / 100)
     vals += list(result["before"].values()) + list(result["after"].values())
+    vals += [abs(v) for v in (*result["before"].values(), *result["after"].values()) if v < 0]   # #94: "a loss of $450"
     vals += [abs(v) for v in result["delta"].values()]
     vals += [result["threshold"]["value"], result["threshold"]["raw"]]
     vals += _derived(result)
@@ -422,8 +423,8 @@ def _decision_section_problems(text: str, result: dict, head: str) -> list[str]:
     probs = []
     pair = False
     for sent in re.split(r"(?<=[.!?])\s+", text):
-        vals = [v for _, _, v in find_numbers(sent)]
-        if any(_in(result["before"][k], vals) and _in(result["after"][k], vals) for k in result["delta"]):
+        vals = [abs(v) for _, _, v in find_numbers(sent)]          # #94: itki ishresiz deyilir ("loss of $450")
+        if any(_in(abs(result["before"][k]), vals) and _in(abs(result["after"][k]), vals) for k in result["delta"]):
             pair = True
             break
     if not pair:

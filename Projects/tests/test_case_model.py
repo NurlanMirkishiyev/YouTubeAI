@@ -214,3 +214,27 @@ def test_difference_of_count_variables_is_a_derived_figure():
     """Real probe 2026-10-07: 150 musteri - 15 itki = 135 'modelde yoxdur' sayildi."""
     m = {**MODEL, "variables": MODEL["variables"] + [{"name": "lost", "value": 10, "unit": "customers"}]}
     assert any(abs(x - 30) < 1e-6 for x in cm.allowed_numbers(cm.evaluate(m)))
+
+
+def test_a_loss_said_without_its_sign_is_a_model_value():
+    """#94 (E2E 2026-10-08, hire-first-employee): model -$450 heftelik menfeet verir, skript "a loss of $450" deyir ->
+    450 = deyisen buraxilmis naive netice ile ust-uste dusdu, 'deyisen buraxilib' sayildi, script_gen dayandi."""
+    m = {"variables": [{"name": "customers", "value": 150, "unit": "customers"},
+                       {"name": "price", "value": 5, "unit": "$"},
+                       {"name": "owner_hours", "value": 60, "unit": "hours"},
+                       {"name": "new_hours", "value": 20, "unit": "hours"},
+                       {"name": "wage", "value": 15, "unit": "$"}],
+         "before": {"weekly_profit": "customers * price - owner_hours * wage"},
+         "after": {"weekly_profit": "customers * price - (owner_hours + new_hours) * wage"},
+         "threshold": {"name": "break_even", "expr": "(owner_hours + new_hours) * wage / price", "rounding": "ceil",
+                       "meaning": "customers needed"}}
+    allowed = cm.allowed_numbers(cm.evaluate(m))
+    assert any(abs(x - 450) < 1e-6 for x in allowed) and 450.0 not in cm.naive_values(m)
+
+
+def test_loss_pair_without_signs_counts_as_the_before_after_pair():
+    """#94: 'her weekly loss grows from $150 to $450' - itki ishresiz deyilir, cut taninmali."""
+    r = {"before": {"weekly_profit": -150.0}, "after": {"weekly_profit": -450.0}, "delta": {"weekly_profit": -300.0},
+         "units": {"weekly_profit": "$"}, "threshold": {"value": 240.0, "raw": 240.0, "unit": "customers"}}
+    probs = cm._decision_section_problems("Her weekly loss grows from $150 to $450. She needs 240 customers.", r, "S4")
+    assert probs == []
