@@ -586,3 +586,18 @@ def test_repeat_fix_quotes_the_sentence_to_change():
     fixes = [f for f in qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand") if "$3,000" in f["instruction"]]
     assert fixes and "Currently, Rosa's monthly profit is $3,000." in fixes[0]["instruction"]
     assert "goes from $3,000" not in fixes[0]["instruction"].split("Keep")[0]
+
+
+def test_reviewer_rules_match_the_cold_open_and_two_mentions_rules():
+    """#103 (E2E 2026-10-08, Gemini Pro redaktor): Cold Open tizerindeki reqemleri 'tanitilmadan isledilib' (consistent
+    false) ve qerar bolmesindeki 2-ci deyilisi 'tekrar' saydi - bizim qaydalar (Cold Open reqemi, reqem <= 2) ile zidd."""
+    low = qa.REVIEW_SYSTEM.lower()
+    assert "cold open" in low and "teaser" in low
+    assert "at most twice" in low
+
+
+def test_decision_guidance_forbids_copying_model_labels():
+    """#103: Gemini Flash 'monthly revenue before of $12,000', '40 monthly jobs completed solo' yazdi - etiketler herfen."""
+    plan = {**_model_plan(), "sections": [{}] * 4, "source_section": 2}
+    g = sg._section_guidance(plan, {}, 4, SOURCE).lower()
+    assert "never copy" in g and "labels" in g

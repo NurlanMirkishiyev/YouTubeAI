@@ -329,3 +329,10 @@ def test_intermediate_of_a_model_formula_is_an_allowed_figure():
                        "rounding": "ceil", "meaning": "extra customers needed"}}
     allowed = cm.allowed_numbers(cm.evaluate(m))
     assert any(abs(x - 20) < 1e-9 for x in allowed) and any(abs(x - 3000) < 1e-9 for x in allowed)
+
+
+def test_insight_verb_agrees_with_a_plural_label():
+    """#103 real probe: Cold Open 'Monthly costs rises from $4,400 to $11,000.'"""
+    r = {"before": {"monthly_costs": 4400.0}, "after": {"monthly_costs": 11000.0}, "delta": {"monthly_costs": 6600.0},
+         "units": {"monthly_costs": "$"}, "labels": {}, "threshold": {"value": 20.0, "unit": "", "meaning": "m"}}
+    assert cm.insight(r).startswith("Monthly costs rise from $4,400")

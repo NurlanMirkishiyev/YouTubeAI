@@ -244,10 +244,12 @@ Read the whole script and judge it strictly. Answer ONLY JSON:
   clients would leave"). A vague answer ("find a balance", "it depends", "consider your value") is false.
 - repeats: any example, story beat, analogy or explanation told more than once - including restating facts
   already given (re-introducing who the owner is or what the business is, repeating the same price or figure
-  without new meaning). Empty if none.
+  without new meaning). Empty if none. A figure may be said at most twice in the video (introduced once, then used
+  once in the decision rule) - a second mention is NOT a repeat; only a third mention or a re-told example is.
 - recap_only_conclusions: the Recap only states conclusions/rules - no examples, stories, names or numbers.
 - consistent: the case story never contradicts itself (same prices, decision and facts throughout; the case stays
-  in third person about the owner; a figure is not used before it was introduced).
+  in third person about the owner; a figure is not used before it was introduced). The Cold Open is a deliberate
+  teaser that states the key result BEFORE the story - its figures are not a consistency error.
 - source_faithful: the verified fact is stated as given in VERIFIED FACT, and nothing more is attributed to the
   source (no added conclusions such as "without losing customers").
 - single_case: every example is about the case owner's business; analogies are one-sentence everyday images

@@ -456,7 +456,8 @@ def _section_guidance(plan: dict, s: dict, i: int, source: dict | None) -> str:
         if isinstance(plan.get("model_result"), dict):
             import case_model
             g += ("\nUse exactly these figures for the decision - before, after, the change and the threshold - "
-                  "and no other results:\n" + case_model.figures_text(plan["model_result"]))
+                  "and no other results. Say them in natural spoken sentences; never copy the labels or the words "
+                  "'before'/'after' below as written (#103):\n" + case_model.figures_text(plan["model_result"]))
     return g
 
 

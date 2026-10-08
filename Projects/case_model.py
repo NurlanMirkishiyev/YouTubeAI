@@ -300,6 +300,12 @@ def _label(result: dict, key: str) -> str:
     return str(result.get("labels", {}).get(key) or key.replace("_", " "))
 
 
+def _verb(label: str, verb: str) -> str:
+    """#103 real probe: 'Monthly costs rises' - cem isim (son soz -s, -ss yox) -> 'rise'/'fall'."""
+    last = (label.split() or [""])[-1].lower()
+    return verb[:-1] if last.endswith("s") and not last.endswith("ss") else verb
+
+
 def insight(result: dict) -> str:
     """En teeccublu netice, reqemli cumle: biri dusur, digeri qalxir (gelir -, menfeet +). Yoxdursa en boyuk nisbi
     deyisiklik."""
@@ -309,11 +315,12 @@ def insight(result: dict) -> str:
     rises = [k for k in keys if d[k] > 0]
     if falls and rises:
         f, r = falls[0], rises[0]
-        return (f"{_label(result, f).capitalize()} falls from {fmt(b[f], u[f])} to {fmt(a[f], u[f])}, yet "
-                f"{_label(result, r)} rises from {fmt(b[r], u[r])} to {fmt(a[r], u[r])}.")
+        return (f"{_label(result, f).capitalize()} {_verb(_label(result, f), 'falls')} from {fmt(b[f], u[f])} to "
+                f"{fmt(a[f], u[f])}, yet {_label(result, r)} {_verb(_label(result, r), 'rises')} from "
+                f"{fmt(b[r], u[r])} to {fmt(a[r], u[r])}.")
     if keys:
         k = max(keys, key=lambda x: abs(d[x]) / max(1e-9, abs(b[x])))
-        verb = "rises" if d[k] > 0 else "falls"
+        verb = _verb(_label(result, k), "rises" if d[k] > 0 else "falls")
         return f"{_label(result, k).capitalize()} {verb} from {fmt(b[k], u[k])} to {fmt(a[k], u[k])}."
     t = result["threshold"]
     meaning = t["meaning"].strip().rstrip(".")
