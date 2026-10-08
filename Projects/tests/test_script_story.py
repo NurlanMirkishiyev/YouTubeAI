@@ -561,3 +561,17 @@ def test_repeat_fix_says_how_many_mentions_the_section_keeps():
     fixes = [f for f in qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand") if "$800" in f["instruction"]]
     assert fixes and fixes[0]["section"] == "Section 4: Decision"
     assert "exactly once" in fixes[0]["instruction"] and "current price" not in fixes[0]["instruction"]
+
+
+def test_plan_rejects_a_threshold_unlinked_to_the_decision():
+    """#98: esik musteri sayi ile olculur, delta ondan asili deyil -> plan modeli yeniden istenir."""
+    model = {"variables": [{"name": "weekly_customers", "value": 80, "label": "customers per week"},
+                           {"name": "price", "value": 5, "unit": "$"}, {"name": "rent", "value": 300, "unit": "$"},
+                           {"name": "wage", "value": 15, "unit": "$"}],
+             "before": {"weekly_profit": "weekly_customers * price - rent"},
+             "after": {"weekly_profit": "weekly_customers * price - rent - wage * 20"},
+             "threshold": {"name": "need", "expr": "wage * 20 / price", "rounding": "ceil",
+                           "meaning": "customers needed to cover the employee"}}
+    plan = {**_model_plan(), "model": model, "answer": "Hire when you have at least 60 customers a week."}
+    plan.pop("model_result")
+    assert any("not linked" in p for p in qa.plan_problems(plan))

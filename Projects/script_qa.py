@@ -143,6 +143,7 @@ def plan_problems(plan: dict) -> list[str]:
     if not (_RULE.search(answer) and _figures(answer)):
         probs.append(f"qerarin cavabi konkret sertli qayda deyil (sert + reqem lazimdir): {answer!r}")
     # Faza 1.1/1.3: qerar hesabi case modelinden; cavabdaki her reqem modelden (ve ya menbe figure-u)
+    import case_model as cm
     result, why = model_result(plan)
     if why:
         probs.append(why)
@@ -150,8 +151,9 @@ def plan_problems(plan: dict) -> list[str]:
         t = result["threshold"]
         probs.append(f"case model threshold musbet deyil ({t['value']:g}): the threshold must be positive - rewrite "
                      f"threshold.expr so that it computes: {t['meaning']}")
+    elif plan.get("model") and (link := cm.threshold_link_problem(plan["model"], result)):
+        probs.append(link)                             # #98: esik qerarin neticesini terpetmelidir
     elif _figures(answer):
-        import case_model as cm
         allowed = cm.allowed_numbers(result) + [float(x) for x in plan.get("source_figures") or []]
         bad = _outside(_figures(answer), allowed)
         if bad:

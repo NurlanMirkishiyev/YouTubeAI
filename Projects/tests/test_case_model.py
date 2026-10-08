@@ -263,3 +263,19 @@ def test_count_threshold_is_not_matched_by_a_hundredfold_money_figure():
          "threshold": {"value": 40.0, "raw": 40.0, "unit": ""}}
     probs = cm._decision_section_problems("Profit goes from $4,000 to $3,200.", r, "S4")
     assert any("threshold" in p for p in probs), probs
+
+
+def test_threshold_counted_in_a_variable_must_move_the_decision():
+    """#98 (E2E 2026-10-08, hire-first-employee): esik '60 customers', amma delta musteri sayindan asili deyil
+    (iscinin xerci sabit) -> Sarah 80 musteri ile 'esiyi kecib', yene zerer artir; redaktor 'ziddiyyet', 3 raund."""
+    m = {"variables": [{"name": "weekly_customers", "value": 80, "label": "customers per week"},
+                       {"name": "price_per_item", "value": 5, "unit": "$"},
+                       {"name": "rent", "value": 300, "unit": "$"},
+                       {"name": "hourly_wage", "value": 15, "unit": "$"}],
+         "before": {"weekly_profit": "weekly_customers * price_per_item - rent"},
+         "after": {"weekly_profit": "weekly_customers * price_per_item - rent - hourly_wage * 20"},
+         "threshold": {"name": "break_even_customers", "expr": "hourly_wage * 20 / price_per_item",
+                       "rounding": "ceil", "meaning": "the minimum number of customers needed to cover the new employee"}}
+    msg = cm.threshold_link_problem(m, cm.evaluate(m))
+    assert msg and "weekly_customers" in msg
+    assert cm.threshold_link_problem(MODEL, cm.evaluate(MODEL)) is None

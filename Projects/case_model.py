@@ -380,6 +380,26 @@ def _nouns(result: dict) -> dict[str, str]:
     return out
 
 
+def threshold_link_problem(model: dict, result: dict) -> str | None:
+    """#98: esik bir say deyiseni ile olculurse ('60 customers'), hemin deyisen deyisende qerarin neticesi (delta)
+    de deyismelidir - yoxsa esik qerarla bagli deyil (real probe: musteri sayi iscinin xercine tesir etmirdi)."""
+    meaning = str(result["threshold"].get("meaning") or "").lower()
+    for noun, var in _nouns(result).items():
+        if not re.search(rf"\b{re.escape(noun)}s?\b", meaning):
+            continue
+        bumped = [{**v, "value": v["value"] * 1.1 + 1} if v["name"] == var else v for v in model["variables"]]
+        try:
+            other = evaluate({**model, "variables": bumped})["delta"]
+        except CaseModelError:
+            return None
+        if all(abs(other[k] - result["delta"][k]) < 1e-9 for k in result["delta"]):
+            return (f"case model threshold is not linked to the decision: it counts {noun}s, but the after-before "
+                    f"change does not depend on {var} - model in 'after' what changes with {var} (e.g. the extra "
+                    f"{noun}s the change brings) so that the threshold is the break-even point")
+        return None
+    return None
+
+
 def case_problems(markdown: str, plan: dict, source: dict | None = None) -> list[str]:
     """Deterministik, fail-closed: (a) qerar bolmesi, (b) case kemiyyeti, (c) naive (deyisen buraxilib)."""
     from math_check import find_numbers
