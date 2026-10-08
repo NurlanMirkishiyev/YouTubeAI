@@ -153,6 +153,8 @@ def chat(system: str, user: str | list, *, provider: str = DEFAULT_PROVIDER, mod
     }
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
+    elif gemini:            # #104: nesr az dusunur (8000 token dusunme butceni yeyib metni kesirdi); JSON tam dusunur
+        payload["reasoning_effort"] = "low"
     t0 = time.time()
     res = _post(f"{prov.base_url}/chat/completions", _api_key(prov), payload)
     try:
@@ -161,6 +163,9 @@ def chat(system: str, user: str | list, *, provider: str = DEFAULT_PROVIDER, mod
         raise LLMError("gozlenilmeyen cavab formati: " + json.dumps(res)[:500]) from e
     if not isinstance(text, str):      # #66: refusal - content=null (cagiran LLMError-u tutur)
         raise LLMError("bos cavab (refusal): " + str(res["choices"][0]["message"].get("refusal"))[:200])
+    if res["choices"][0].get("finish_reason") == "length":     # #104: kesilmis metn sessizce kecmir
+        raise LLMError(f"cavab max_tokens-de kesildi ({payload['model']}, max_tokens={max_tokens}): ..."
+                       + text.strip()[-80:])
     usage = res.get("usage", {})
     tin, tout = usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
     usd_in, usd_out = prov.usd_in, prov.usd_out

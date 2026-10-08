@@ -129,3 +129,23 @@ def test_gemini_cost_counts_hidden_thinking_tokens(monkeypatch, capsys):
 def test_default_provider_is_gemini_unless_env_says_otherwise():
     assert llm.default_provider({}) == "gemini"
     assert llm.default_provider({"LLM_PROVIDER": "openai"}) == "openai"
+
+
+def test_a_truncated_answer_is_an_error_not_silent_text(monkeypatch):
+    """#104 real probe: Gemini Flash bolme yazanda ~8000 token dusundu, out=9384 = limit -> metn cumlenin ortasinda
+    kesildi ('which begins the moment you'), redaktor 'ends abruptly' dedi. Kesilmis cavab LLMError-dur."""
+    monkeypatch.setattr(llm, "_api_key", lambda prov: "k")
+    monkeypatch.setattr(llm, "_post", lambda url, key, payload: {
+        "choices": [{"message": {"content": "which begins the moment you"}, "finish_reason": "length"}]})
+    with pytest.raises(llm.LLMError, match="kesildi"):
+        llm.chat("s", "u", provider="gemini")
+
+
+def test_gemini_prose_thinks_little_json_thinks_fully(monkeypatch):
+    """#104: nesr yazmaq derin dusunme isteyir (60 s/bolme, butce yeyilir); plan/hakim JSON-u tam dusunur."""
+    sent = _capture(monkeypatch)
+    llm.chat("s", "u", provider="gemini")
+    monkeypatch.setattr(llm, "_post", lambda url, key, payload: sent.append((url, payload)) or {
+        "choices": [{"message": {"content": "{}"}}], "usage": {}})
+    llm.chat_json("s", "u", provider="gemini")
+    assert sent[0][1].get("reasoning_effort") == "low" and "reasoning_effort" not in sent[1][1]
