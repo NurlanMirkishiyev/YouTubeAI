@@ -177,6 +177,11 @@ Reference (yalnız ideya, icra olunmur): `docs/referance/video_yarat_v4.py`.
 `should-you-hire-your-first-employee` ("Should You Hire Your First Employee?") `script_gen` mərhələsində 10+ cəhd
 dayandı; hər cəhd yeni gizli xəta tapdı → #92–#101 düzəldildi (TDD, 671 test keçir, son commit `286bc2a`).
 İstifadəçi qərarı (2026-10-08): **"Düzəltməyə davam"** — case modeli gpt-4o-mini-də qalır (gpt-4o-ya keçmə, mövzunu dəyişmə).
+**Ehtiyat planı (istifadəçi 2026-10-08):** düzəlişlərlə də keçməsə → gpt-4o-mini istifadə olunan hissələri **Gemini** ilə
+əvəz et. Hazırlıq: `llm.PROVIDERS`-ə `gemini` (OpenAI-uyğun endpoint `https://generativelanguage.googleapis.com/v1beta/openai/`,
+açar `GEMINI_API_KEY`) — `.env`-də Gemini açarı HƏLƏ YOXDUR → keçiddən əvvəl istifadəçidən açarı `.env`-ə yazmasını istə
+(sirr — özün yazma/göstərmə); model adını sənədlərdən yoxla. Bu, "mətn modeli gpt-4o-mini" qərarını istifadəçinin öz
+qərarı ilə dəyişir (CLAUDE.md-də qeyd et).
 1. Run vəziyyətini yoxla: `Episodes\_run_should-you-hire-your-first-employee.log` + `Episodes\should-you-hire-your-first-employee\script_qa.json`
    + `logs\script_gen.log`. Python prosesi yoxdursa və log XETA ilə bitibsə → yeni problemləri sistematik araşdır
    (kök səbəb → test → düzəliş → reyestr #102+ → commit) → **WMI ilə** `--resume` (CLAUDE.md addım 2; `Start-Process` ÖLÜR).
