@@ -180,6 +180,13 @@ dayandı; hər cəhd yeni gizli xəta tapdı → #92–#101 düzəldildi (TDD, 6
 **2026-10-08 ~22:50:** E2E №1 run-ı bütün cəhdlərdən sonra DAYANDI (son 2 cəhd: gpt-4o-mini 5 dəfə hakimdən keçən
 case modeli qura bilmədi — "after weekly_profit should include …"). Növbəti: Gemini keçidi (aşağıda) — istifadəçinin
 mərhələli plana razılığını + `.env` GEMINI_API_KEY-i gözləyir. Proses işləmir.
+**2026-10-08 ~23:00 — istifadəçi qərarı: şəkil yaratmadan (gpt-image-2 QALIR) başqa BÜTÜN mərhələlər Gemini-yə**
+(DeepSeek yox: şəkil görmür, web axtarışı yoxdur). Plan: yazmaq → Gemini Flash, yoxlamaq → Gemini Pro (ayrı səviyyə),
+mərhələli (əvvəl script_gen, sonra hakimlər/vision, sonra research web search), OpenAI ehtiyat provider kimi qalır.
+`.env`-ə `GEMINI_API_KEY` yazıldı (.env git-ignore, yoxlandı); açar keçərlidir (`/v1beta/models` 200 — gemini-3.x,
+gemini-pro-latest, gemini-flash-latest siyahıdadır). **BLOKER:** generateContent → HTTP 402 "prepayment credits are
+depleted" — istifadəçi AI Studio-da (https://ai.studio/projects) balans artırmalıdır. Probe: scratchpad `gemprobe.py`
+(OpenAI-uyğun `/v1beta/openai/chat/completions`, json_object).
 **Ehtiyat planı (istifadəçi 2026-10-08):** düzəlişlərlə də keçməsə → gpt-4o-mini istifadə olunan hissələri **Gemini** ilə
 əvəz et. Hazırlıq: `llm.PROVIDERS`-ə `gemini` (OpenAI-uyğun endpoint `https://generativelanguage.googleapis.com/v1beta/openai/`,
 açar `GEMINI_API_KEY`) — `.env`-də Gemini açarı HƏLƏ YOXDUR → keçiddən əvvəl istifadəçidən açarı `.env`-ə yazmasını istə
