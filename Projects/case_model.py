@@ -208,6 +208,10 @@ def evaluate(model: dict) -> dict:
         exprs = model.get(key)
         if not isinstance(exprs, dict) or not exprs:
             raise CaseModelError(f"model has no '{key}'")
+        for k, e in exprs.items():            # #96: real probe 'weekly_profit = weekly_sales' (xercsiz menfeet)
+            if "profit" in str(k) and not re.search(r"[-−–]|profit", str(e)):
+                raise CaseModelError(f"{key} {k} = {e} has no costs: profit is revenue minus costs - "
+                                     f"subtract the costs (e.g. weekly_sales - weekly_costs)")
         blocks[key] = _Scope({str(k): str(e) for k, e in exprs.items()}, env, dims, prior=blocks.get("before"))
         blocks[key].reserved = {th_name} if th_name else set()
     before, after = blocks["before"].all(), blocks["after"].all()
@@ -432,8 +436,9 @@ def _decision_section_problems(text: str, result: dict, head: str) -> list[str]:
                      "ucun lazimdir")
     t = result["threshold"]
     vals = [v for _, _, v in find_numbers(text)]
-    if not any(math.isclose(v, form, rel_tol=0.01, abs_tol=1e-6) for v in vals for form in (t["value"], t["value"] * 100,
-                                                                                            t["raw"], t["raw"] * 100)):
+    scale = (1, 100) if t["unit"] in (UNIT_PCT, UNIT_SHARE) or abs(t["raw"]) < 1 else (1,)   # #95: 40 != $4,000
+    if not any(math.isclose(v, x * k, rel_tol=0.01, abs_tol=1e-6) for v in vals for x in (t["value"], t["raw"])
+               for k in scale):
         probs.append(f"{head}: modelin threshold deyeri ({fmt(t['value'], t['unit'])}) deyilmir - qerar qaydasi "
                      "ve threshold vizuali ucun lazimdir")
     return probs

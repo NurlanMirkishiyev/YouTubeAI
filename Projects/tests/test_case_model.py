@@ -238,3 +238,28 @@ def test_loss_pair_without_signs_counts_as_the_before_after_pair():
          "units": {"weekly_profit": "$"}, "threshold": {"value": 240.0, "raw": 240.0, "unit": "customers"}}
     probs = cm._decision_section_problems("Her weekly loss grows from $150 to $450. She needs 240 customers.", r, "S4")
     assert probs == []
+
+
+def test_profit_must_subtract_costs():
+    """#96 (E2E 2026-10-08, hire-first-employee): model 'weekly_profit = weekly_sales' (xercsiz menfeet) gpt-4o
+    hakimden kecdi -> skript "profit $3,200 after expenses" dedi, redaktor 'ziddiyyet' tapdi."""
+    m = {"variables": [{"name": "weekly_sales", "value": 4000, "unit": "$"},
+                       {"name": "employee_cost", "value": 800, "unit": "$"}],
+         "before": {"weekly_profit": "weekly_sales"},
+         "after": {"weekly_profit": "weekly_sales - employee_cost"},
+         "threshold": {"name": "t", "expr": "employee_cost / 20", "rounding": "ceil", "meaning": "x"}}
+    with pytest.raises(cm.CaseModelError, match="profit"):
+        cm.evaluate(m)
+    ok = {**m, "variables": m["variables"] + [{"name": "costs", "value": 2500, "unit": "$"}],
+          "before": {"weekly_profit": "weekly_sales - costs", "monthly_profit": "weekly_profit * 4"},
+          "after": {"weekly_profit": "weekly_sales - costs - employee_cost"}}
+    cm.evaluate(ok)
+
+
+def test_count_threshold_is_not_matched_by_a_hundredfold_money_figure():
+    """#95 (E2E 2026-10-08): esik 40 musteri, bolmede yalniz '$4,000' (=40*100) var -> 'esik deyilib' sayildi,
+    skript 40-i hec demedi, redaktor 'qerar cavablanmir' dedi."""
+    r = {"before": {"p": 4000.0}, "after": {"p": 3200.0}, "delta": {"p": -800.0}, "units": {"p": "$"},
+         "threshold": {"value": 40.0, "raw": 40.0, "unit": ""}}
+    probs = cm._decision_section_problems("Profit goes from $4,000 to $3,200.", r, "S4")
+    assert any("threshold" in p for p in probs), probs
