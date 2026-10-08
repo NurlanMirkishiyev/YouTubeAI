@@ -551,3 +551,13 @@ def test_story_checks_include_legal_claims():
     import inspect
     import script_qa as qa
     assert "legal_claim_problems" in inspect.getsource(qa.story_problems)
+
+
+def test_repeat_fix_says_how_many_mentions_the_section_keeps():
+    """#97 (E2E 2026-10-08, hire-first-employee): Hook + qerar bolmesinde 2 defe '$800' (esik = xerc). Telimat
+    'do not restate' idi - yazici qerar qaydasi ucun reqemi saxladi, hec birini silmedi, 3 cehd dayandi."""
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin. The new hire costs $800 a week.",
+                    "Section 4: Decision": "The hire costs $800. Rosa hires if she adds $800 in weekly sales."})
+    fixes = [f for f in qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand") if "$800" in f["instruction"]]
+    assert fixes and fixes[0]["section"] == "Section 4: Decision"
+    assert "exactly once" in fixes[0]["instruction"] and "current price" not in fixes[0]["instruction"]

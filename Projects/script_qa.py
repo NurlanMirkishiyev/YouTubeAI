@@ -124,7 +124,8 @@ def repeated_figures(secs: dict[str, str]) -> list[str]:
             order = [0] + [i for i, h in enumerate(heads) if h in decision and i] + list(range(1, len(heads)))
             keep = list(dict.fromkeys(order))[:MAX_FIGURE_MENTIONS]
             lbl = _label(v, secs[heads[0]])
-            probs += [f"{h}: reqem {lbl} {len(heads)} defe tekrarlanir"
+            probs += [f"{h}: reqem {lbl} {len(heads)} defe tekrarlanir (bu bolmede "   # #97: yazici kvotani bilir
+                      f"{sum(1 for i in keep if heads[i] == h)} qalir)"
                       for h in dict.fromkeys(heads[i] for i in range(len(heads)) if i not in keep)]
     return probs
 
@@ -352,10 +353,12 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
             fixes.append({"section": "Recap", "problem": "recap repeats examples", "instruction": STORY_FIX["recap"]})
         elif ": reqem " in p and "tekrarlanir" in p:
             lbl = p.split(": reqem ", 1)[1].split(" ", 1)[0]
+            left = re.search(r"bu bolmede (\d+) qalir", p)
+            keep = (f"Say {lbl} exactly once in this section (in the decision rule); every other mention of it here "
+                    if left and int(left[1]) == 1 else f"Do not restate {lbl} - it was already said earlier; ")
             fixes.append({"section": head, "problem": f"{lbl} is restated",
-                          "instruction": f"Do not restate {lbl} - it was already said earlier; refer to it in words "
-                                         "(e.g. 'the current price') without the number, and do not re-introduce "
-                                         "the business."})
+                          "instruction": keep + "refer to it in words (e.g. 'that amount', 'the same cost') without "
+                                         "the number, and do not re-introduce the business."})
         elif "evvel/sonra cutu" in p or "threshold deyeri" in p:
             result, _ = model_result(plan)
             import case_model as cm
