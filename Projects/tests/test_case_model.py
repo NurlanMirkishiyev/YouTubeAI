@@ -279,3 +279,25 @@ def test_threshold_counted_in_a_variable_must_move_the_decision():
     msg = cm.threshold_link_problem(m, cm.evaluate(m))
     assert msg and "weekly_customers" in msg
     assert cm.threshold_link_problem(MODEL, cm.evaluate(MODEL)) is None
+
+
+def test_threshold_link_accepts_any_variable_of_the_same_noun():
+    """#98 real probe: 'weekly_customers' + 'new_customers_per_employee' - delta ikinciden asilidir, yalniz birinci
+    yoxlanirdi -> duzgun model 'not linked' ile redd olundu (plan 4 defe redd)."""
+    m = {"variables": [{"name": "new_customers_per_employee", "value": 50, "unit": "customers"},
+                       {"name": "weekly_customers", "value": 200, "unit": "customers"},
+                       {"name": "price", "value": 5, "unit": "$"}, {"name": "rent", "value": 300, "unit": "$"},
+                       {"name": "wage_cost", "value": 200, "unit": "$"}],
+         "before": {"weekly_profit": "weekly_customers * price - rent"},
+         "after": {"weekly_profit": "(weekly_customers + new_customers_per_employee) * price - rent - wage_cost"},
+         "threshold": {"name": "need", "expr": "wage_cost / price", "rounding": "ceil",
+                       "meaning": "extra customers needed to pay the employee"}}
+    assert cm.threshold_link_problem(m, cm.evaluate(m)) is None
+
+
+def test_plan_prompt_says_what_an_added_cost_brings():
+    """#98: 'hire first employee' plan modeli 4 defe xerci sabit yazdi (delta musteriden asili deyil) - telimat
+    elave xercin getirdiyini (extra customers) modelde gostermeyi deyir."""
+    import script_gen as sg
+    text = sg.OUTLINE_USER.lower()
+    assert "adds a cost" in text and "revenue minus" in text

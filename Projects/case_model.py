@@ -367,37 +367,41 @@ def _structural(v: float, span: str) -> bool:
     return (float(v).is_integer() and abs(v) <= SMALL_INT) or bool(_YEAR.fullmatch(span.strip("$")))
 
 
+def _noun(result: dict, k: str) -> str:
+    """say deyiseninin ismi: unit 'customers' ve ya label-in son sozu (tekde); pul/faiz deyiseni ucun ''."""
+    unit = result["var_units"].get(k)
+    if unit in (UNIT_MONEY, UNIT_PCT, UNIT_SHARE):
+        return ""
+    word = unit if re.fullmatch(r"[a-z]+", unit or "") else (re.findall(r"[a-z]+", _label(result, k).lower())
+                                                             or [""])[-1]
+    return word.rstrip("s")
+
+
 def _nouns(result: dict) -> dict[str, str]:
-    """say deyiseninin ismi -> deyisen: unit 'customers' ve ya label-in son sozu."""
-    out = {}
-    for k, unit in result["var_units"].items():
-        if unit in (UNIT_MONEY, UNIT_PCT, UNIT_SHARE):
-            continue
-        word = unit if re.fullmatch(r"[a-z]+", unit or "") else (re.findall(r"[a-z]+", _label(result, k).lower())
-                                                                 or [""])[-1]
-        if word:
-            out[word.rstrip("s")] = k
-    return out
+    """say deyiseninin ismi -> deyisen."""
+    return {n: k for k in result["var_units"] if (n := _noun(result, k))}
 
 
 def threshold_link_problem(model: dict, result: dict) -> str | None:
     """#98: esik bir say deyiseni ile olculurse ('60 customers'), hemin deyisen deyisende qerarin neticesi (delta)
     de deyismelidir - yoxsa esik qerarla bagli deyil (real probe: musteri sayi iscinin xercine tesir etmirdi)."""
     meaning = str(result["threshold"].get("meaning") or "").lower()
-    for noun, var in _nouns(result).items():
-        if not re.search(rf"\b{re.escape(noun)}s?\b", meaning):
-            continue
+    cands = [k for k in result["variables"]
+             if (n := _noun(result, k)) and re.search(rf"\b{re.escape(n)}s?\b", meaning)]
+    for var in cands:                     # real probe: bir nece 'customers' deyiseni - biri terpedirse kifayetdir
         bumped = [{**v, "value": v["value"] * 1.1 + 1} if v["name"] == var else v for v in model["variables"]]
         try:
             other = evaluate({**model, "variables": bumped})["delta"]
         except CaseModelError:
             return None
-        if all(abs(other[k] - result["delta"][k]) < 1e-9 for k in result["delta"]):
-            return (f"case model threshold is not linked to the decision: it counts {noun}s, but the after-before "
-                    f"change does not depend on {var} - model in 'after' what changes with {var} (e.g. the extra "
-                    f"{noun}s the change brings) so that the threshold is the break-even point")
+        if any(abs(other[k] - result["delta"][k]) >= 1e-9 for k in result["delta"]):
+            return None
+    if not cands:
         return None
-    return None
+    noun = _noun(result, cands[0])
+    return (f"case model threshold is not linked to the decision: it counts {noun}s, but the after-before change "
+            f"does not depend on {' or '.join(cands)} - model in 'after' what changes with the number of {noun}s "
+            f"(e.g. the extra {noun}s the change brings) so that the threshold is the break-even point")
 
 
 def case_problems(markdown: str, plan: dict, source: dict | None = None) -> list[str]:

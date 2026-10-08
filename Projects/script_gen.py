@@ -98,7 +98,10 @@ decision (such as monthly_cost, weekly_profit, hours_saved) and whose VALUES are
 "after" (the owner makes the change) uses the same keys as "before" (today). "threshold.expr" is the break-even
 formula and may use the variables and before_<key>, after_<key>, delta_<key>. The answer states exactly the
 threshold value this formula gives. Formulas use ONLY variable names, numbers and + - * / ( ). Include EVERY factor the decision depends on (for example customers who leave after a price change,
-or the cost of each extra unit) - a calculation that ignores one of them is wrong. Every case number in the
+or the cost of each extra unit) - a calculation that ignores one of them is wrong. Profit is always revenue minus
+costs. When the change ADDS a cost (hiring, new equipment, a second location), "after" also includes what that cost
+brings (for example extra customers served or extra hours sold), and the threshold is the amount of it that pays
+for the cost. Every case number in the
 video is a model variable or follows from the model; never add numbers outside it. The threshold is the
 break-even point of the decision, computed by the model. Analogies never contain numbers.
 
