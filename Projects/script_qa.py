@@ -133,6 +133,18 @@ def repeated_figures(secs: dict[str, str]) -> list[str]:
 _REPEAT = re.compile(r"^(.*): reqem (\S+) \d+ defe tekrarlanir(?: \(bu bolmede (\d+) qalir\))?")
 
 
+_DETERMINER = r"(\b(?:the|those|these|her|his|their|its|all|our|your)\s+)"
+
+
+def _refer_back(sent: str, pat: re.Pattern, lbl: str) -> str:
+    """#108: 'those 4 extra tables' -> 'those extra tables'; pul -> 'that amount', say -> 'that many'."""
+    det = re.compile(_DETERMINER + pat.pattern + r"\s+(?=[A-Za-z])", re.I)
+    if det.search(sent):
+        return det.sub(r"\1", sent, count=1)
+    word = "that amount" if lbl.startswith("$") or lbl.endswith("%") else "that many"
+    return pat.sub(word, sent, count=1)
+
+
 def _settle_paragraph(par: str, lbl: str, drop: int) -> tuple[str, int]:
     """Paraqrafda lbl-in ilk `drop` deyilisini duzeldir: yeni reqemsiz cumle silinir, qalaninda reqem sozle."""
     pat = re.compile(r"(?<![\w$.,])" + re.escape(lbl) + r"(?![\d,]|\.\d)")
@@ -143,7 +155,7 @@ def _settle_paragraph(par: str, lbl: str, drop: int) -> tuple[str, int]:
             rest = pat.sub("", sent)
             if not _figures(rest):
                 continue                              # yalniz tekrar - cumle silinir
-            sent = pat.sub("that amount", sent, count=1)
+            sent = _refer_back(sent, pat, lbl)
         out.append(sent)
     return " ".join(s for s in out if s), drop
 
@@ -167,6 +179,121 @@ def settle_repeats(markdown: str) -> str:
             new = "\n\n".join(p for p in pars if p.strip())
             if body and new != body:
                 markdown = markdown.replace(body, new, 1)
+    return markdown
+
+
+def _pair_sentence(plan: dict, result: dict) -> tuple[str, float]:
+    import case_model as cm
+    key = next((k for k in result["delta"] if "profit" in k), next(iter(result["delta"])))
+    unit = result["units"].get(key, "")
+    say = [cm.fmt(v, unit) if v >= 0 else f"a loss of {cm.fmt(-v, unit)}"
+           for v in (result["before"][key], result["after"][key])]
+    owner = str((plan.get("case") or {}).get("owner") or "The owner")
+    return f"{owner}'s {key.replace('_', ' ')} goes from {say[0]} to {say[1]}.", abs(result["after"][key])
+
+
+def settle_decision_pair(markdown: str, plan: dict) -> str:
+    """#107: qerar bolmesinde evvel/sonra cutu bir cumlede deyilmirse modelden cumle elave olunur (sonra-deyerli
+    cumleden sonra). E2E 2026-10-09: butun raundlar kecdi, yalniz $2,500 ve $500 ayri cumlelerde qaldi."""
+    import case_model as cm
+    from math_check import find_numbers
+    result = plan.get("model_result")
+    heads = [h for h in sections(markdown) if h.startswith("Section ")]
+    if not isinstance(result, dict) or not result.get("delta") or not heads:
+        return markdown
+    head = heads[-1]
+    body = sections(markdown)[head]
+    if not any("evvel/sonra" in p for p in cm._decision_section_problems(body, result, head)):
+        return markdown
+    sentence, after = _pair_sentence(plan, result)
+    pars = body.split("\n\n")
+    at = (len(pars) - 1, None)
+    for i, par in enumerate(pars):
+        sents = re.split(r"(?<=[.!?])\s+", par)
+        j = next((j for j, s in enumerate(sents) if any(abs(abs(v) - after) < 1e-6 for _, _, v in find_numbers(s))),
+                 None)
+        if j is not None:
+            at = (i, j)
+            break
+    i, j = at
+    sents = re.split(r"(?<=[.!?])\s+", pars[i])
+    sents.insert(len(sents) if j is None else j + 1, sentence)
+    pars[i] = " ".join(sents)
+    return markdown.replace(body, "\n\n".join(pars), 1)
+
+
+_OFF_MODEL = re.compile(r"^(.*?): (?:'(.+?)' case modeli ile uygun deyil|(\S+?) - deyisen buraxilib"
+                        r"|(\S+?) case modelinde yoxdur)")
+
+
+def _sentences(par: str) -> list[str]:
+    return re.split(r"(?<=[.!?])\s+", par)
+
+
+def drop_off_model_sentences(markdown: str, plan: dict, source: dict | None) -> str:
+    """#109: modelde olmayan / deyiseni buraxan reqemli cumle silinir (reqem ozbasina duzeldilmir - uydurma qalmasin)."""
+    import case_model as cm
+    for _ in range(8):
+        hits = [m for p in cm.case_problems(markdown, plan, source) if (m := _OFF_MODEL.match(p))]
+        changed = False
+        for m in hits:
+            head, lbl = m[1], (m[2] or m[3] or m[4]).rstrip(",.;:")
+            body = sections(markdown).get(head, "")
+            pars = body.split("\n\n")
+            for i, par in enumerate(pars):
+                sents = _sentences(par)
+                j = next((j for j, s in enumerate(sents) if lbl in s), None)
+                if j is not None:
+                    pars[i] = " ".join(sents[:j] + sents[j + 1:])
+                    new = "\n\n".join(p for p in pars if p.strip())
+                    markdown, changed = markdown.replace(body, new, 1), True
+                    break
+            if changed:
+                break                                   # problemler yeniden hesablanir
+        if not changed:
+            break
+    return markdown
+
+
+def settle_threshold(markdown: str, plan: dict) -> str:
+    """#109: qerar bolmesi esik deyerini demirse modelden cumle elave olunur."""
+    import case_model as cm
+    result = plan.get("model_result")
+    heads = [h for h in sections(markdown) if h.startswith("Section ")]
+    if not isinstance(result, dict) or not heads:
+        return markdown
+    body = sections(markdown)[heads[-1]]
+    if not any("threshold deyeri" in p for p in cm._decision_section_problems(body, result, heads[-1])):
+        return markdown
+    t = result["threshold"]
+    owner = str((plan.get("case") or {}).get("owner") or "The owner")
+    sentence = f"{owner}'s break-even point is {cm.fmt(t['value'], t['unit'])}: the {t['meaning']}."
+    return markdown.replace(body, body.rstrip() + " " + sentence, 1)
+
+
+def settle_source_year(markdown: str, source: dict | None) -> str:
+    """#109: kohne menbe abzasinda il yoxdursa elave olunur (#92 telimati LLM-e qalirdi)."""
+    if not source or not any(p.startswith("menbe kohnedir") for p in citation_problems(markdown, source)):
+        return markdown
+    from research import _paragraphs, _name_words
+    import math
+    from math_check import find_numbers
+    words, fig = _name_words(str(source.get("cite_as") or "")), float(source.get("figure") or math.nan)
+    for p in _paragraphs(markdown):
+        if all(w in p.lower() for w in words) and any(math.isclose(v, fig, abs_tol=1e-6) for _, _, v in find_numbers(p)):
+            return markdown.replace(p, p.rstrip() + f" That figure comes from the {source['year']} report.", 1)
+    return markdown
+
+
+def settle_script(markdown: str, plan: dict, source: dict | None) -> str:
+    """#105/#107/#109: LLM raundlarindan sonra qalan deterministik sinifler deterministik duzelir."""
+    for _ in range(3):                                  # bir duzelis digerini poza biler -> sabit noqteye qeder
+        before = markdown
+        markdown = settle_source_year(markdown, source)
+        markdown = drop_off_model_sentences(markdown, plan, source)
+        markdown = settle_repeats(settle_threshold(settle_decision_pair(markdown, plan), plan))
+        if markdown == before:
+            break
     return markdown
 
 

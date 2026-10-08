@@ -645,6 +645,90 @@ def test_quality_gate_settles_repeats_the_llm_left(monkeypatch, tmp_path):
     assert not qa.repeated_figures(qa.sections(path.read_text(encoding="utf-8")))
 
 
+def test_settle_repeats_keeps_count_sentences_grammatical():
+    """#108 (E2E 2026-10-09 real probe): '4' sayi 'that amount' ile evezlenirdi -> 'those that amount extra clients',
+    '$800 divided by $200 equals that amount'. Teyinedicidən sonra say silinir, qalan yerde 'that many'."""
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin and needs 4 extra tables.",
+                    "Section 4: Decision": "She needs 4 tables. So, $800 divided by $200 equals 4. If she adds those "
+                                           "4 extra tables at $700, profit goes from $400 to $510 with 4 tables."})
+    out = qa.sections(qa.settle_repeats(md))["Section 4: Decision"]
+    assert "that amount" not in out and "those that" not in out
+    assert "those extra tables" in out or "equals that many" in out
+    assert not qa.repeated_figures(qa.sections(qa.settle_repeats(md)))
+
+
+def test_settle_script_clears_every_deterministic_case_problem():
+    """#109 (istifadeci 2026-10-09: 'qeti sekilde hell et'): 21 cehdin son problemleri hamisi deterministik siniflerdir
+    (modelde olmayan reqem, deyisen buraxilib, evvel/sonra cutu, esik, tekrar, kohne menbe ili). LLM-e buraxilmir:
+    settle_script modelden kenar cumleni silir, cutu/esiyi modelden yazir, ili elave edir."""
+    import case_model as cm
+    plan = _model_plan()
+    md = _script(**{"Section 4: Decision": "Rosa would earn $9,999 more. Today Rosa keeps $400 a month. At the new "
+                                           "price she keeps $510."})
+    secs = qa.sections(md)
+    assert any("Section 4" in p for p in cm.case_problems(md, plan, SOURCE))
+    out = qa.settle_script(md, plan, SOURCE)
+    assert "$9,999" not in out
+    assert not [p for p in cm.case_problems(out, plan, SOURCE) if p.startswith("Section 4")]
+    assert not qa.repeated_figures(qa.sections(out)) and secs
+
+
+def test_settle_script_says_the_year_of_an_old_source():
+    import research
+    old = {**SOURCE, "year": 2019}
+    md = _script()
+    if not research.is_old(old) or qa.citation_problems(md, old) == []:
+        pytest.skip("fixture source paragraph not old/cited")
+    assert any("kohnedir" in p for p in qa.citation_problems(md, old))
+    assert qa.citation_problems(qa.settle_script(md, _model_plan(), old), old) == []
+
+
+def _split_pair_script():
+    return _script(**{"Section 4: Decision": "Today Rosa keeps $400 a month. At the new price she keeps $510 if "
+                                             "27 customers stay."})
+
+
+def test_settle_decision_pair_states_before_and_after_in_one_sentence():
+    """#107 (E2E 2026-10-09, GPT): butun redaktor/audit raundlari kecdi, yalniz 'evvel/sonra cutu eyni cumlede
+    deyil' qaldi ($2,500 ve $500 ayri cumlelerde). LLM-e buraxilmir - cumle modelden deterministik elave olunur."""
+    import case_model as cm
+    plan = _model_plan()
+    md = _split_pair_script()
+    head = "Section 4: Decision"
+    assert any("evvel/sonra" in p for p in cm._decision_section_problems(qa.sections(md)[head],
+                                                                          plan["model_result"], head))
+    out = qa.settle_decision_pair(md, plan)
+    assert "Rosa's profit goes from $400 to $510." in out
+    assert not cm._decision_section_problems(qa.sections(out)[head], plan["model_result"], head)
+    assert qa.settle_decision_pair(out, plan) == out                    # artiq varsa toxunmur
+
+
+def test_quality_gate_reaudits_when_the_number_audit_splits_the_pair(monkeypatch, tmp_path):
+    """#107: reqem auditi abzasi yeniden yaza biler - cut itirse elave olunur ve audit yeniden isleyir (sha)."""
+    import argparse
+    plan = _model_plan()
+    (tmp_path / "meta.json").write_text(json.dumps({"plan": plan}), encoding="utf-8")
+    (tmp_path / "research.json").write_text(json.dumps(SOURCE), encoding="utf-8")
+    path = tmp_path / "script.md"
+    path.write_text(_split_pair_script(), encoding="utf-8")
+    audits = []
+
+    def audit(a, p):                                   # 1-ci audit cut cumlesini parcalayir (real probe)
+        audits.append(p)
+        if len(audits) == 1:
+            path.write_text(_split_pair_script(), encoding="utf-8")
+    monkeypatch.setattr(qa, "apply_fixes", lambda m, *a, **k: m)
+    monkeypatch.setattr(qa, "review_loop", lambda m, *a, **k: (m, []))
+    monkeypatch.setattr(sg, "verify_math", audit)
+    a = argparse.Namespace(provider="openai", model=None, temperature=0.7, topic="Raise Prices?")
+    try:
+        sg.quality_gate(a, str(tmp_path), str(path))
+    except SystemExit:
+        pass
+    assert len(audits) == 2
+    assert "goes from $400 to $510" in path.read_text(encoding="utf-8")
+
+
 def test_plan_and_repair_prompts_carry_the_model_example(monkeypatch):
     """#106: numune plan promptunda da, model temiri promptunda da olmalidir."""
     seen = []

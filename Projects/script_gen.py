@@ -615,14 +615,21 @@ def quality_gate(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
             if not fixes:
                 break
             script = qa.apply_fixes(script, plan, fixes, chat, **kw)
-        script = qa.settle_repeats(script)          # #105: LLM-in buraxdigi tekrar deterministik duzelir
+        script = qa.settle_script(script, plan, source)   # #105/#107: deterministik
     except LLMError as e:
         raise SystemExit("ssenari keyfiyyet yoxlamasi xetasi: " + str(e)) from e
-    with open(script_path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(script.rstrip() + "\n")
-    verify_math(a, script_path)                      # reqem auditi abzaslari yeniden yaza biler -> sonra son yoxlama
+    for _ in range(2):                               # #107: audit cutu parcalasa elave olunur, audit tekrar (sha)
+        with open(script_path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(script.rstrip() + "\n")
+        verify_math(a, script_path)                  # reqem auditi abzaslari yeniden yaza biler -> sonra son yoxlama
+        with open(script_path, encoding="utf-8") as f:
+            script = f.read()
+        settled = qa.settle_script(script, plan, source)
+        if settled == script:
+            break
+        script = settled
     with open(script_path, encoding="utf-8") as f:
-        script = f.read()
+        script = f.read()                            # son hokm yalniz audit olunmus fayla
     problems = check_headings_problems(script) + qa.story_problems(script, plan, source) + review
     qa.write_report(out_dir, script, problems, decision=plan.get("decision"), case=plan.get("case"),
                     source=(source or {}).get("url"))
