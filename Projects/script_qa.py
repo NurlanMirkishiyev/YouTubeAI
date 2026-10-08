@@ -281,7 +281,8 @@ paragraphs only - no heading, no lists, no meta commentary. Write figures as dig
 
 
 def _review_user(markdown: str, plan: dict, topic: str, source: dict | None = None) -> str:
-    fact = f"VERIFIED FACT ({source.get('cite_as')}): {source.get('claim')}\n" if source else ""
+    year = f", {source.get('year')} report" if source and source.get("year") else ""    # #93: il skriptde deyilir
+    fact = f"VERIFIED FACT ({source.get('cite_as')}{year}): {source.get('claim')}\n" if source else ""
     return (f"Video topic: {topic}\nPromised decision: {plan.get('decision')}\nIntended answer: {plan.get('answer')}\n"
             f"{fact}\nSCRIPT:\n{markdown}")
 
@@ -376,7 +377,8 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
         elif p.startswith("menbe kohnedir") and source:          # #92: telimat ili adlandirir
             fixes.append({"section": source_section, "problem": "the source is older than 3 years: say its year",
                           "instruction": f"In the sentence that cites {source.get('cite_as') or 'the source'}, "
-                                         f"say the year of the data explicitly: \"... in {source.get('year')}, ...\" "
+                                         f"say the year of the report explicitly: \"According to "
+                                         f"{source.get('cite_as') or 'the source'}'s {source.get('year')} report, ...\" "
                                          "Keep the figure and the source name exactly as they are."})
         elif p.startswith("menbe") and source:
             fixes.append({"section": source_section, "problem": "the research source is missing",

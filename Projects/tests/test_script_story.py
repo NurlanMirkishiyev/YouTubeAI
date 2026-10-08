@@ -258,6 +258,14 @@ def test_review_checks_story_consistency_and_source_faithfulness():
     assert "61%" in qa._review_user("x", PLAN, "T", {**SOURCE, "claim": "61% raised prices."})
 
 
+def test_reviewer_sees_the_source_year():
+    """#93 (E2E hire-first-employee): #92 skriptde ili teleb edir, redaktorun VERIFIED FACT-inde il yox idi ->
+    'in 2022' 3 raund 'menbe tehrif olunub' sayildi, script_gen dayandi."""
+    fact = next(ln for ln in qa._review_user("x", PLAN, "T", {**SOURCE, "year": 2022}).splitlines()
+                if ln.startswith("VERIFIED FACT"))
+    assert "2022" in fact
+
+
 def test_decision_figure_is_limited_to_two_mentions_too():
     """Istifadeci 2026-10-07: her reqem en cox 2 defe - qerar reqemi de ('$1,150' 3 sehnede gorunurdu)."""
     md = _script(**{"Section 1: Margin": "Rosa wonders about a 10% rise.",
