@@ -177,39 +177,29 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 | 3 Motion + səs | TAMAM (2026-10-08, #86–#88): Episode.tsx planı oynadır (keçidlər, variantlar, backdrop, vurğu, editorial film), 9 Ken Burns, altyazıda rəqəm rəngi, geniş bayquş chart-ı örtmür; renderStill probu (editorial + dynamic) ilə vizual yoxlandı. 611 test, `tsc` təmiz |
 | 4 Publish (midrolls, lead magnet/affiliate, upload checklist) | TAMAM (2026-10-08, #89). Linklər `.env`-də `LEAD_MAGNET_URL` / `AFFILIATE_LINKS` (hələ boş — istifadəçi doldurmalıdır) |
 | 5 Default ON, quality_gate, reyestr↔test, error_classes.md, CLAUDE.md, self_audit | TAMAM (2026-10-08, #90–#91) |
-| 6 Yekun: testlər + 2 E2E (qiymət qərarı; zaman/coğrafiya) | gözləyir |
+| 6 Yekun: testlər + 2 E2E (qiymət qərarı; zaman/coğrafiya) | İCRADADIR — E2E №1 4/13-də dayandırıldı (2026-10-09), №2 başlamayıb |
 
 ## Növbəti dəqiq addım
 
-**2026-10-08 axşam (LİMİTDƏN SONRA BURADAN DAVAM):** Faza 1–5 TAMAM. **Faza 6 icradadır** — E2E №1
-`should-you-hire-your-first-employee` ("Should You Hire Your First Employee?") `script_gen` mərhələsində 10+ cəhd
-dayandı; hər cəhd yeni gizli xəta tapdı → #92–#101 düzəldildi (TDD, 671 test keçir, son commit `286bc2a`).
-İstifadəçi qərarı (2026-10-08): **"Düzəltməyə davam"** — case modeli gpt-4o-mini-də qalır (gpt-4o-ya keçmə, mövzunu dəyişmə).
-**2026-10-08 ~22:50:** E2E №1 run-ı bütün cəhdlərdən sonra DAYANDI (son 2 cəhd: gpt-4o-mini 5 dəfə hakimdən keçən
-case modeli qura bilmədi — "after weekly_profit should include …"). Növbəti: Gemini keçidi (aşağıda) — istifadəçinin
-mərhələli plana razılığını + `.env` GEMINI_API_KEY-i gözləyir. Proses işləmir.
-**2026-10-08 ~23:00 — istifadəçi qərarı: şəkil yaratmadan (gpt-image-2 QALIR) başqa BÜTÜN mərhələlər Gemini-yə**
-(DeepSeek yox: şəkil görmür, web axtarışı yoxdur). Plan: yazmaq → Gemini Flash, yoxlamaq → Gemini Pro (ayrı səviyyə),
-mərhələli (əvvəl script_gen, sonra hakimlər/vision, sonra research web search), OpenAI ehtiyat provider kimi qalır.
-`.env`-ə `GEMINI_API_KEY` yazıldı (.env git-ignore, yoxlandı); açar keçərlidir (`/v1beta/models` 200 — gemini-3.x,
-gemini-pro-latest, gemini-flash-latest siyahıdadır). **BLOKER:** generateContent → HTTP 402 "prepayment credits are
-depleted" — istifadəçi AI Studio-da (https://ai.studio/projects) balans artırmalıdır. Probe: scratchpad `gemprobe.py`
-(OpenAI-uyğun `/v1beta/openai/chat/completions`, json_object).
-**Ehtiyat planı (istifadəçi 2026-10-08):** düzəlişlərlə də keçməsə → gpt-4o-mini istifadə olunan hissələri **Gemini** ilə
-əvəz et. Hazırlıq: `llm.PROVIDERS`-ə `gemini` (OpenAI-uyğun endpoint `https://generativelanguage.googleapis.com/v1beta/openai/`,
-açar `GEMINI_API_KEY`) — `.env`-də Gemini açarı HƏLƏ YOXDUR → keçiddən əvvəl istifadəçidən açarı `.env`-ə yazmasını istə
-(sirr — özün yazma/göstərmə); model adını sənədlərdən yoxla. Bu, "mətn modeli gpt-4o-mini" qərarını istifadəçinin öz
-qərarı ilə dəyişir (CLAUDE.md-də qeyd et).
-1. Run vəziyyətini yoxla: `Episodes\_run_should-you-hire-your-first-employee.log` + `Episodes\should-you-hire-your-first-employee\script_qa.json`
-   + `logs\script_gen.log`. Python prosesi yoxdursa və log XETA ilə bitibsə → yeni problemləri sistematik araşdır
-   (kök səbəb → test → düzəliş → reyestr #102+ → commit) → **WMI ilə** `--resume` (CLAUDE.md addım 2; `Start-Process` ÖLÜR).
-2. E2E №1 keçəndən sonra CLAUDE.md addım 4 yoxlamaları (quality_gate.json passed, self_audit.md, 10–12 dəq, −14 LUFS,
+**2026-10-09 ~00:25 (İSTİFADƏÇİ "SAXLA" DEDİ — BURADAN DAVAM):** Faza 1–5 TAMAM, **Faza 6 icradadır**.
+- **Modellər (son qərar 2026-10-08 gec):** Gemini-dən İMTİNA — şəkil gpt-image-2, yazan gpt-4o-mini, yoxlayan gpt-4o
+  (default `openai`). Gemini kodu qalır, yalnız `.env` `LLM_PROVIDER=gemini` ilə (istifadəçi istəmədən açma).
+- **Ssenari problemi HƏLL OLUNDU:** 21 cəhdin son xətaları deterministik siniflər idi, LLM-ə buraxılırdı → #105–#109
+  (`script_qa.settle_script`: modeldən kənar rəqəmli cümlə silinir, əvvəl/sonra cütü + eşik modeldən yazılır, təkrar
+  həll olunur, köhnə mənbəyə il; `quality_gate` auditdən əvvəl+sonra). Retry #107/#108 kodu ilə `script_gen` KEÇDİ
+  (2026-10-09 00:08, "ssenari keyfiyyeti: OK"). #109 hələ real run-da sınanmayıb. 692 test keçir, son commit `958dacb`.
+- **E2E №1** `should-you-hire-your-first-employee`: 1–3 mərhələ TAMAM (script_gen, scene_plan, render_bgs), istifadəçi
+  `[4/13] check_bgs` zamanı DAYANDIRDI (proseslər öldürüldü). Davam: WMI ilə
+  `run.py --resume should-you-hire-your-first-employee --provider openai` (CLAUDE.md addım 2; log `Episodes\_run_<slug>.log`),
+  Monitor: `[N/13]` + Traceback/XETA/ugursuz. Qalan ~80 dəq (bgs yoxlaması, owl, TTS, render, quality_gate).
+- Açıq keyfiyyət müşahidəsi: keçən skriptdə LLM rəqəmləri "a specific amount"/"that same amount" ilə bulandırıb
+  (yoxlamalardan keçir, amma zəif) — #110 namizədi: qərar bölməsində qeyri-müəyyən məbləğ ifadəsi qadağası.
+1. E2E №1 bitəndən sonra CLAUDE.md addım 4 yoxlamaları (quality_gate.json passed, self_audit.md, 10–12 dəq, −14 LUFS,
    kadrlar, owl, thumbnail, paket: mp4/thumbnail/youtube.txt/srt/script/midrolls/upload_checklist).
-3. E2E №2: "Should You Open a Second Location?" (timeseries/usmap) — eyni qayda ilə; motion_sheet №1-dən fərqli olmalıdır.
-4. Sonra: xətaları qeyd et, progress.md vəziyyət = HAZIR, commit, istifadəçiyə qısa hesabat (faza üzrə, reyestr
-   #86–#101+, iki E2E nəticəsi, açıq qalanlar: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş; "hire" mövzusunda case
-   modeli sadədir). Hər video üçün AskUserQuestion: "Video təsdiqlənsin və pipeline-dakı yaddaşı silinsin?"
-   İstifadəçi öz mövzusunu bu iki E2E-dən sonra verəcək.
+2. E2E №2: "Should You Open a Second Location?" (timeseries/usmap) — motion_sheet №1-dən fərqli olmalıdır.
+3. Xətaları qeyd et, "Cari vəziyyət" = HAZIR, commit, istifadəçiyə qısa hesabat (faza üzrə, reyestr #86–#109+, iki E2E,
+   açıq qalanlar: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş; Gemini açarı çatda göründü → rotasiya tövsiyəsi).
+   Hər video üçün AskUserQuestion: "Video təsdiqlənsin və pipeline-dakı yaddaşı silinsin?"
 
 **2026-10-08:** Faza 3, 4, 5 TAMAM. Növbəti: **Faza 6** — 2 yeni B2B mövzu ilə ardıcıl E2E (CLAUDE.md tetiki): (1) qiymət/xərc qərarı (table + threshold), (2) zaman/coğrafiya datası (timeseries/usmap); hər birində quality_gate keçir, self_audit təmiz, motion_sheet-lər fərqli, 10–12 dəq, −14 LUFS, təhvil paketi tam (mp4, thumbnail, youtube.txt, srt, script, midrolls, upload_checklist). Pullu (OpenAI) — istifadəçi təsdiqi lazımdır. `Episodes\_probe-raise-prices` probe qovluğudur (silinə bilər).
 
