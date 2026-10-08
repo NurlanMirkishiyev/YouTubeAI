@@ -373,6 +373,11 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
                                          "every calculation must include all variables (e.g. customers who leave). "
                                          "Remove the wrong figure: " + p.split(":", 1)[-1].strip()
                                          + ("\nCASE MODEL:\n" + cm.figures_text(result) if result else "")})
+        elif p.startswith("menbe kohnedir") and source:          # #92: telimat ili adlandirir
+            fixes.append({"section": source_section, "problem": "the source is older than 3 years: say its year",
+                          "instruction": f"In the sentence that cites {source.get('cite_as') or 'the source'}, "
+                                         f"say the year of the data explicitly: \"... in {source.get('year')}, ...\" "
+                                         "Keep the figure and the source name exactly as they are."})
         elif p.startswith("menbe") and source:
             fixes.append({"section": source_section, "problem": "the research source is missing",
                           "instruction": STORY_FIX["source"].format(**source)})

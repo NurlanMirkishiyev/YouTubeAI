@@ -140,3 +140,17 @@ def test_recent_source_needs_no_year_in_the_script():
 def test_description_names_the_source_year():
     import publish_pack
     assert "(2023)" in publish_pack.source_line(GOOD)
+
+
+def test_old_source_fix_tells_the_writer_to_say_the_year():
+    """#92 (E2E 2026-10-08, hire-first-employee): kohne menbe (2022) ilsiz qaldi - duzelis telimati il demirdi,
+    script_gen 'menbe kohnedir' ile dayandi."""
+    import datetime
+    import script_qa as qa
+    year = datetime.date.today().year - 5
+    src = {**GOOD, "year": year}
+    md = ("## Section 2: X\n\nAccording to the U.S. Small Business Administration, 48.9% of firms survive "
+          "five years.\n")
+    plan = {"case": {"owner": "Rosa", "business": "bakery", "city": "Austin", "state": "Texas"}}
+    fixes = [f for f in qa.story_fixes(md, plan, src, "Section 2: X") if "year" in f["problem"]]
+    assert fixes and str(year) in fixes[0]["instruction"]
