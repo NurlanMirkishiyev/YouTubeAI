@@ -1,5 +1,7 @@
 export type Side = 'left' | 'right';
-export type Motion = 'zoom_in' | 'zoom_out' | 'pan_lr' | 'pan_rl';
+// Faza 3.4: Ken Burns hereket novleri (motion.py KEN_BURNS ile eyni)
+export type Motion = 'zoom_in' | 'zoom_out' | 'pan_lr' | 'pan_rl' | 'diag_tl_br' | 'diag_br_tl' | 'push_in'
+  | 'tilt_up' | 'tilt_down';
 
 export type Scene = {
   frames: number;          // gorunme muddeti (kecid ortusmesi daxil deyil)
@@ -15,9 +17,13 @@ export type Scene = {
   kicker?: string | null;  // #55: chart sehnesinde bolme adi chart basliginin ustunde
   skeleton?: boolean;      // Faza 2.5: chart 0-ci kadrdan skelet (kontur, '—')
   overlay?: Overlay | null; // Faza 2.7
+  // Faza 3 (motion.py plani): sehneye giris kecidi, chart giris varianti, bolme basligi varianti
+  transition?: string;
+  variant?: string | null;
+  titleVariant?: string | null;
 };
 
-export type Word = {w: string; s: number; e: number};  // saniye, qlobal zaman xetti
+export type Word = {w: string; s: number; e: number; num?: boolean};  // saniye, qlobal; num: reqem sozu (3.9)
 
 export type EpisodeProps = {
   fps: number;
@@ -35,7 +41,13 @@ export type EpisodeProps = {
   scenes: Scene[];
   words: Word[];
   poses: Record<string, OwlPose>;       // poz -> olculer + ekran hundurluyu payi
+  motion?: MotionPlan;                  // Faza 3: epizodun hereket plani (yoxdursa kohne default)
+  emphasis?: Emphasis[];                // Faza 3.7: nitqle sinxron vurgu
 };
+
+export type MotionPlan = {theme: 'clean' | 'dynamic' | 'editorial'; backdrop: string; cold_open: string;
+  chart_title: string};
+export type Emphasis = {at: number; frames: number; big: boolean};   // at: qlobal kadr
 
 export type OwlPose = {name: string; w: number; h: number; height: number; flippable: boolean};
 

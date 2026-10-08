@@ -53,7 +53,8 @@ export const Captions: React.FC<{words: Word[]; from: number; to: number;
         fontFamily: FONT, fontWeight: 600, fontSize: 46, lineHeight: 1.25, color: '#fff'}}>
         {page.words.map((w, i) => {
           const active = t >= w.s && t < (page.words[i + 1]?.s ?? page.end);
-          return <span key={i} style={{color: active ? ACCENT : '#fff'}}>{(i ? ' ' : '') + w.w.trim()}</span>;
+          // Faza 3.9: reqem sozleri (Python `num`) aktiv olmasa da accent renginde qalir
+          return <span key={i} style={{color: active || w.num ? ACCENT : '#fff'}}>{(i ? ' ' : '') + w.w.trim()}</span>;
         })}
       </div>
     </AbsoluteFill>

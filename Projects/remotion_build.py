@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import os
 import shutil
@@ -53,8 +54,21 @@ def cumulative_frames(durations: list[float], fps: int = FPS, offset_s: float = 
     return out
 
 
+_NUM_WORDS = set(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+    "seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand million "
+    "billion percent half quarter dollars cents".split())
+
+
+def is_figure(word: str) -> bool:
+    """Faza 3.9: reqem sozu (altyazida aktiv olmasa da accent renginde qalir)."""
+    w = word.strip().lower().strip(".,!?;:\"'()")
+    return bool(re.search(r"\d", w)) or any(p in _NUM_WORDS for p in w.split("-") if p)
+
+
 def compact_words(words: list[dict]) -> list[dict]:
-    """Whisper tokens without a leading space (".99" after " $39") continue the previous word."""
+    """Whisper tokens without a leading space (".99" after " $39") continue the previous word.
+    Faza 3.9: reqem sozleri `num: True` ile isarelenir (Captions.tsx accent renginde saxlayir)."""
     out: list[dict] = []
     for w in words:
         text = w["word"]
@@ -66,7 +80,7 @@ def compact_words(words: list[dict]) -> list[dict]:
             out[-1] = {"w": prev["w"] + text.strip(), "s": prev["s"], "e": end}
         else:
             out.append({"w": text.strip(), "s": start, "e": end})
-    return out
+    return [{**w, "num": True} if is_figure(w["w"]) else w for w in out]
 
 
 REVEAL_LEAD = 4        # element sozden bir az evvel acilir - goz qulaqdan qabaq getsin
@@ -260,11 +274,32 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
                 for n, (w, h) in scene_owls.items()}, **{
                 name: {"name": name, "w": w, "h": h, "height": DEFAULT_HEIGHT, "flippable": False}
                 for name, (w, h) in card_owls.items()}}}
+    props = fit_chart_owls(props)
     if plan:
         import motion
         props["motion"] = {k: plan[k] for k in ("theme", "backdrop", "cold_open", "chart_title")}
         props["emphasis"] = motion.emphasis(props)
     return props
+
+
+def fit_chart_owls(props: dict) -> dict:
+    """#86: genis bayqus (lovhe/esya tutan, en > hundurluk) chart sehnesinde AREA-ya girib reqemi ortturdu.
+    Chart sehnesinde bayqusun hundurluyu elə kicildilir ki, sol kenari AREA + bosluqdan sagda qalsin. Ayrica poz
+    acari (`<poz>~chart`) eyni sekli gosterir - Owl.tsx deyismir, bayqus sabit ve sagdadir; foto sehneleri toxunulmur."""
+    import layout
+    max_w = layout.W - layout.OWL_MARGIN_X - (layout.AREA[0] + layout.AREA[2] + layout.CHART_OWL_GAP)
+    poses = dict(props["poses"])
+    scenes = []
+    for s in props["scenes"]:
+        pose = poses.get(s["pose"])
+        width = pose["w"] / pose["h"] * pose["height"] * layout.H if pose else 0
+        if not s.get("visual") or width <= max_w:
+            scenes.append(s)
+            continue
+        key = f"{s['pose']}~chart"
+        poses[key] = {**pose, "height": math.floor(max_w * pose["h"] / (pose["w"] * layout.H) * 1e4) / 1e4}
+        scenes.append({**s, "pose": key})
+    return {**props, "poses": poses, "scenes": scenes}
 
 
 def sprite_sizes() -> dict[str, tuple[int, int]]:

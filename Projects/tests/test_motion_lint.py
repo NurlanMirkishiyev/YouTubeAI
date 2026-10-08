@@ -7,7 +7,8 @@ import re
 
 SRC = r"C:\YouTubeAI\Remotion\src"
 LINTED = [os.path.join(SRC, "visuals", f) for f in os.listdir(os.path.join(SRC, "visuals")) if f.endswith(".tsx")] \
-    + [os.path.join(SRC, "Cards.tsx"), os.path.join(SRC, "Episode.tsx"), os.path.join(SRC, "Text.tsx")]
+    + [os.path.join(SRC, "Cards.tsx"), os.path.join(SRC, "Episode.tsx"), os.path.join(SRC, "Text.tsx"),
+       os.path.join(SRC, "Effects.tsx")]
 OWL_SHA = "2438271b88d26bbe352bfa6f58c388dd0404f5a3a18edaa6b90cf761a3d439dc"
 CARD_OWL_SHA = "cbc468ad4276db022a60a54d30052d6e28b092c75651f377edebdca9722609ca"
 _CARD_OWL = re.compile(r"const CardOwl: React.FC.*?\n\};\n", re.S)

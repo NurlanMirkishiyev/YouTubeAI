@@ -60,7 +60,7 @@ def test_subword_tokens_are_merged_into_previous_word():
     # Whisper "$39.99" -> " $39" + ".99" (no leading space) -> altyazida "$39 .99" gorunurdu
     words = [{"word": " a", "start": 0.0, "end": 0.2}, {"word": " $39", "start": 0.2, "end": 0.7},
              {"word": ".99", "start": 0.7, "end": 1.4}, {"word": " game.", "start": 1.4, "end": 1.9}]
-    assert rb.compact_words(words) == [{"w": "a", "s": 0.0, "e": 0.2}, {"w": "$39.99", "s": 0.2, "e": 1.4},
+    assert rb.compact_words(words) == [{"w": "a", "s": 0.0, "e": 0.2}, {"w": "$39.99", "s": 0.2, "e": 1.4, "num": True},
                                        {"w": "game.", "s": 1.4, "e": 1.9}]
 
 
@@ -203,3 +203,35 @@ def test_motion_sheet_covers_cold_open_section_starts_and_the_decision_scene():
     assert frames[0] < 90                                   # cold open (giris karti)
     assert 90 + 30 in frames and 690 + 30 in frames         # her bolmenin ilk 2 s-i
     assert any(990 <= f < 1290 for f in frames)             # qerar sehnesi (table)
+
+
+# --- #86 (2026-10-08): genis bayqus (lovhe/esya tutan) chart sahesini ortmur ---
+
+def _owl_left(pose: dict) -> float:
+    import layout
+    return layout.W - layout.OWL_MARGIN_X - pose["w"] / pose["h"] * pose["height"] * layout.H
+
+
+def test_wide_owl_on_a_chart_scene_stays_right_of_the_chart_area():
+    import layout
+    v = {"kind": "stats", "title": "Rosa", "cards": [{"value": 2000, "unit": "$", "label": "Revenue"}]}
+    data = {**DATA, "scenes": [{**DATA["scenes"][1], "visual": v}, DATA["scenes"][2]]}
+    p = rb.episode_props(data, "T", [], POSES, scene_owls={2: (1400, 1000)})
+    chart_pose = p["poses"][p["scenes"][0]["pose"]]           # sprite "chart" 1552x1248 - genis
+    assert _owl_left(chart_pose) >= layout.AREA[0] + layout.AREA[2] + layout.CHART_OWL_GAP
+    assert chart_pose["name"] == "chart"                      # eyni sekil, yalniz olcu
+    photo_pose = p["poses"][p["scenes"][1]["pose"]]
+    assert photo_pose["height"] == rb.DEFAULT_HEIGHT          # foto sehnesinde olcu deyismir
+
+
+def test_narrow_owl_on_a_chart_scene_keeps_its_size():
+    v = {"kind": "stats", "title": "Rosa", "cards": [{"value": 2000, "unit": "$", "label": "Revenue"}]}
+    data = {**DATA, "scenes": [{**DATA["scenes"][0], "visual": v}]}
+    p = rb.episode_props(data, "T", [], POSES)
+    assert p["scenes"][0]["pose"] == "three_q" and p["poses"]["three_q"]["height"] == rb.DEFAULT_HEIGHT
+
+
+def test_layout_owl_margin_matches_remotion_theme():
+    import layout
+    theme = open(r"C:\YouTubeAI\Remotion\src\theme.ts", encoding="utf-8").read()
+    assert f"OWL_MARGIN_X = {layout.OWL_MARGIN_X};" in theme

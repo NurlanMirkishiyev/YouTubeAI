@@ -28,11 +28,12 @@ const Chart: React.FC<{v: Visual; reveal: number[]}> = ({v, reveal}) => {
 
 /** #45: foto evezine analitik sehne - dizayn fonu + chart sol sahede (bayqus sagda, altyazi asagida). */
 /** #55: bolme adi (kicker) chart basliginin USTUNDE kicik setirdir - lower-third ile ust-uste dusmur. */
-export const AnalyticsScene: React.FC<{visual: Visual; reveal: number[]; kicker?: string | null}> = (
-  {visual, reveal, kicker}) => (
+/** Faza 3.5: epizodun fon varianti (backdrop), 3.2: bolme kicker-inin varianti. */
+export const AnalyticsScene: React.FC<{visual: Visual; reveal: number[]; kicker?: string | null;
+  kickerVariant?: string | null; backdrop?: string | null}> = ({visual, reveal, kicker, kickerVariant, backdrop}) => (
   <AbsoluteFill>
-    <StudioBackdrop />
-    {kicker ? <Kicker text={kicker} /> : null}
+    <StudioBackdrop variant={backdrop} />
+    {kicker ? <Kicker text={kicker} variant={kickerVariant} /> : null}
     <div style={{position: 'absolute', left: AREA.left, top: AREA.top, width: AREA.width, height: AREA.height}}>
       <Title text={visual.title} />
       <Chart v={visual} reveal={reveal} />
