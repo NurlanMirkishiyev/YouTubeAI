@@ -169,7 +169,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 
 ## Keyfiyyət + imkan yeniləməsi (istifadəçi 2026-10-07, 6 faza) — İCRADADIR
 Tapşırıq mətni: istifadəçinin 2026-10-07 mesajı ("ELI5 BUSINESS PIPELINE — KEYFİYYƏT VƏ İMKAN YENİLƏMƏSİ").
-Reference (yalnız ideya, icra olunmur): `docs/referance/video_yarat_v4.py`.
+Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 | Faza | Vəziyyət |
 |---|---|
 | 1 Məzmun dəqiqliyi (case model, cold open=insight, uydurma rəqəm, mənbə ili, tək case) | TAMAM (#73–#80); real skript probu son run-da 2 problem qaldı (düzəldildi #79/model 1-ci qat), təkrar prob lazımdır |

@@ -1,4 +1,4 @@
-"""Faza 3.8 (istifadeci 2026-10-07; ideya: docs/referance/video_yarat_v4.py make_sfx/make_ticks).
+"""Faza 3.8 (istifadeci 2026-10-07; ideya: docs/reference/video_yarat_v4.py make_sfx/make_ticks).
 SFX qati: whoosh, pop, tick, boom ffmpeg lavfi ile yaradilir (pulsuz, lisenziyasiz); Projects/sfx/<ad>.wav|mp3
 varsa istifadeci fayli secilir. Hadiseler (remotion props-dan):
   bolme kecidi -> whoosh; reqem/kart reveal -> pop + qisa tick (pop_tick); timeseries enisi -> boom.

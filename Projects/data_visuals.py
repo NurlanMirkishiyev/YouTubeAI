@@ -1,4 +1,4 @@
-"""Faza 2.2/2.3 (istifadeci 2026-10-07; ideya: docs/referance/video_yarat_v4.py sehm qrafiki ve ABS xeritesi).
+"""Faza 2.2/2.3 (istifadeci 2026-10-07; ideya: docs/reference/video_yarat_v4.py sehm qrafiki ve ABS xeritesi).
 Sabit kodlanmis data yoxdur: reqemler sehne danisigindan (visuals._said ile yoxlanir).
 - timeseries: zamanla deyisen reqemler; seyrek noqteler (< DENSE) xetti interpolasiya ile sixlasdirilir - o zaman
   ekranda "illustrative" qeydi; enis seqmentleri ayri rengde; hadise etiketi oz noqtesinde acilir.
