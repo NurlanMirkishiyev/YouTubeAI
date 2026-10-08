@@ -218,13 +218,15 @@ def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None 
 
 
 # #54: ssenari altyazisi (captions.srt) varsa o, yoxdursa whisper-inki
+DELIVER_REQUIRED = ("midrolls.txt", "upload_checklist.txt")
 DELIVER_OPTIONAL = (("narration.srt", "subtitles.srt"), ("captions.srt", "subtitles.srt"), ("script.md", "script.md"))
 
 
 def deliver(ep_dir: str, slug: str, out_dir: str) -> str:
     """Her movzunun oz qovlugu out_dir/<slug>/ (istifadeci 2026-09-27: movzular qarismasin):
     <slug>.mp4 (eyni diskde hardlink - yer tutmur), thumbnail.png, youtube.txt (basliq + description +
-    tags), subtitles.srt ve script.md (varsa). Kohne nusxe evez olunur."""
+    tags), midrolls.txt + upload_checklist.txt (Faza 4, mecburi), subtitles.srt ve script.md (varsa).
+    Kohne nusxe evez olunur."""
     topic = os.path.join(out_dir, slug)
     os.makedirs(topic, exist_ok=True)
     ydir = os.path.join(ep_dir, "youtube")
@@ -236,6 +238,8 @@ def deliver(ep_dir: str, slug: str, out_dir: str) -> str:
     except OSError:
         shutil.copy2(os.path.join(ep_dir, f"{slug}.mp4"), video)
     shutil.copy2(os.path.join(ydir, "thumbnail.png"), os.path.join(topic, "thumbnail.png"))
+    for name in DELIVER_REQUIRED:          # Faza 4: RPM paketi (fail-closed - yoxdursa FileNotFoundError)
+        shutil.copy2(os.path.join(ydir, name), os.path.join(topic, name))
     for src, dst in DELIVER_OPTIONAL:
         if os.path.isfile(os.path.join(ep_dir, src)):
             shutil.copy2(os.path.join(ep_dir, src), os.path.join(topic, dst))

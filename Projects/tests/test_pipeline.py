@@ -222,6 +222,8 @@ def _finished_episode(tmp_path):
     (ep / "youtube").mkdir(parents=True)
     (ep / "cash.mp4").write_bytes(b"video")
     (ep / "youtube" / "thumbnail.png").write_bytes(b"png")
+    (ep / "youtube" / "midrolls.txt").write_text("02:09\n", encoding="utf-8")
+    (ep / "youtube" / "upload_checklist.txt").write_text("[ ] Not made for kids\n", encoding="utf-8")
     (ep / "youtube" / "title.txt").write_text("Cash Title\n", encoding="utf-8")
     (ep / "youtube" / "description.txt").write_text("Desc 00:00 Intro\n", encoding="utf-8")
     (ep / "youtube" / "tags.txt").write_text("a,b\n", encoding="utf-8")
@@ -238,7 +240,8 @@ def test_deliver_puts_each_topic_in_its_own_folder(tmp_path):
     assert [p.name for p in out.iterdir()] == ["cash"]
     topic = out / "cash"
     assert sorted(p.name for p in topic.iterdir()) == [
-        "cash.mp4", "script.md", "subtitles.srt", "thumbnail.png", "youtube.txt"]
+        "cash.mp4", "midrolls.txt", "script.md", "subtitles.srt", "thumbnail.png", "upload_checklist.txt",
+        "youtube.txt"]
     assert (topic / "cash.mp4").read_bytes() == b"video"
     text = (topic / "youtube.txt").read_text(encoding="utf-8")
     assert "Cash Title" in text and "Desc 00:00 Intro" in text and "a,b" in text
@@ -248,7 +251,8 @@ def test_deliver_skips_missing_optional_files(tmp_path):
     ep = _finished_episode(tmp_path)
     out = tmp_path / "Hazir_Videolar"
     pl.deliver(str(ep), "cash", str(out))
-    assert sorted(p.name for p in (out / "cash").iterdir()) == ["cash.mp4", "thumbnail.png", "youtube.txt"]
+    assert sorted(p.name for p in (out / "cash").iterdir()) == [
+        "cash.mp4", "midrolls.txt", "thumbnail.png", "upload_checklist.txt", "youtube.txt"]
 
 
 def test_deliver_replaces_an_older_copy(tmp_path):
@@ -275,7 +279,7 @@ def test_deliver_prefers_script_captions(tmp_path):
     (ep / "youtube").mkdir(parents=True)
     (ep / "cash.mp4").write_bytes(b"v")
     (ep / "youtube" / "thumbnail.png").write_bytes(b"p")
-    for name in ("title.txt", "description.txt", "tags.txt"):
+    for name in ("title.txt", "description.txt", "tags.txt", "midrolls.txt", "upload_checklist.txt"):
         (ep / "youtube" / name).write_text("x", encoding="utf-8")
     (ep / "narration.srt").write_text("whisper", encoding="utf-8")
     (ep / "captions.srt").write_text("script $4,000", encoding="utf-8")
@@ -299,3 +303,12 @@ def test_word_gate_uses_spoken_words(tmp_path, monkeypatch):
     open(ctx.p("script.md"), "w", encoding="utf-8").write("## A\nIt costs $4,000.\n")
     pl.word_gate(ctx, str(tmp_path), 0)
     assert seen["n"] == pl.spoken_words("## A\nIt costs $4,000.\n")
+
+
+def test_deliver_fails_without_the_rpm_files(tmp_path):
+    """Faza 4: midrolls.txt + upload_checklist.txt teslim paketinde mecburidir (fail-closed)."""
+    import pytest
+    ep = _finished_episode(tmp_path)
+    (ep / "youtube" / "midrolls.txt").unlink()
+    with pytest.raises(FileNotFoundError):
+        pl.deliver(str(ep), "cash", str(tmp_path / "Hazir_Videolar"))

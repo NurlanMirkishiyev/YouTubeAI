@@ -15,6 +15,7 @@ from PIL import Image, ImageStat
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cards  # noqa: E402
+import config  # noqa: E402
 import thumbnail  # noqa: E402
 from llm import LLMError, add_provider_arg, chat_json  # noqa: E402
 from timeline import INTRO_S, OUTRO_S, display_title, section_starts  # noqa: E402
@@ -116,16 +117,86 @@ def load_credits() -> dict[str, str]:
         return json.load(f)
 
 
-def description(summary: str, chaps: list[tuple[float, str]], hashtags: list, credit: str = "") -> str:
+def description(summary: str, chaps: list[tuple[float, str]], hashtags: list, credit: str = "",
+                extra: str = "") -> str:
+    """extra: Faza 4 monetizasiya bloku (lead magnet / affiliate) - chapters-den sonra, menbe/musiqiden evvel."""
     lines = [summary.strip(), ""]
     if chaps:
         lines += ["Chapters:"] + [f"{fmt_ts(t)} {title}" for t, title in chaps] + [""]
+    if extra:
+        lines += [extra.strip(), ""]
     tags = " ".join(h if str(h).startswith("#") else "#" + str(h).replace(" ", "") for h in hashtags)
     if tags:
         lines += [tags, ""]
     if credit:
         lines.append(credit)
     return "\n".join(lines).strip() + "\n"
+
+
+# --- Faza 4 (istifadeci 2026-10-07): RPM ---
+MIDROLL_LEAD_S = 1.0       # bolme kecidinden 1 s evvel
+MIDROLL_FIRST_S = 60.0     # ilk 60 s-de mid-roll yoxdur
+MIDROLL_GAP_S = 120.0      # aralarinda >= 2 deq
+MIDROLL_MIN, MIDROLL_MAX = 3, 4
+
+
+def midrolls(scenes: list[dict], intro_s: float, total_s: float) -> list[float]:
+    """Bolme kecidlerinden 1 s evvel 3-4 noqte. Ilk noqte erken secilir (max say), 4-den coxu mumkundurse
+    video boyu beraber paylanmis hedeflere en yaxin namizedler (aralari yene >= 2 deq)."""
+    cands = [round(start - MIDROLL_LEAD_S, 2) for _, start in section_starts(scenes, intro_s)[1:]]
+    cands = [c for c in cands if MIDROLL_FIRST_S <= c <= total_s - MIDROLL_FIRST_S]
+    greedy: list[float] = []
+    for c in cands:
+        if not greedy or c - greedy[-1] >= MIDROLL_GAP_S:
+            greedy.append(c)
+    if len(greedy) <= MIDROLL_MAX:
+        return greedy
+    span = total_s / (MIDROLL_MAX + 1)
+    out: list[float] = []
+    for k in range(1, MIDROLL_MAX + 1):
+        ok = [c for c in cands if not out or c - out[-1] >= MIDROLL_GAP_S]
+        if not ok:
+            break
+        out.append(min(ok, key=lambda c: abs(c - k * span)))
+    return out if len(out) >= len(greedy[:MIDROLL_MAX]) else greedy[:MIDROLL_MAX]
+
+
+def write_midrolls(ydir: str, points: list[float]) -> str:
+    path = os.path.join(ydir, "midrolls.txt")
+    lines = ["# Mid-roll ad breaks - YouTube Studio > Monetization > Ad breaks: insert manually at these times"]
+    lines += [fmt_ts(p) for p in points]
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    return path
+
+
+def monetization_block(lead_url: str, affiliates: list[str]) -> str:
+    """Konfiqurasiyadan (config.py, .env): bos olan blok yazilmir. Affiliate linkleri aciqlanir (FTC)."""
+    parts = []
+    if lead_url.strip():
+        parts.append(f"Free checklist for this decision: {lead_url.strip()}")
+    links = [a.strip() for a in affiliates if a.strip()]
+    if links:
+        parts.append("Tools mentioned (affiliate links - I may earn a commission at no extra cost to you):\n"
+                     + "\n".join(f"- {a}" for a in links))
+    return "\n\n".join(parts)
+
+
+def write_checklist(ydir: str, titles: list[str]) -> str:
+    clean = [" ".join(str(t).split()) for t in titles if str(t).strip()][:3]
+    lines = ["UPLOAD CHECKLIST", "",
+             "[ ] Audience: \"No, it's not made for kids\" (Not made for kids)",
+             "[ ] Monetization: turn ON all ad formats (pre-roll, mid-roll, post-roll, skippable, non-skippable)",
+             "[ ] Mid-rolls: turn OFF automatic placement and insert the breaks manually at the times in midrolls.txt",
+             "[ ] Title test (Test & Compare) with these 3 titles:"]
+    lines += [f"      {i}. {t}" for i, t in enumerate(clean, 1)]
+    lines += ["[ ] Thumbnail A/B test: thumbnail.png + one variant",
+              "[ ] Schedule the release in US time (ET), not Baku time",
+              "[ ] Description: chapters, source link, lead magnet / affiliate block present"]
+    path = os.path.join(ydir, "upload_checklist.txt")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    return path
 
 
 def source_line(src: dict) -> str:
@@ -160,11 +231,14 @@ def _read(ydir: str, name: str) -> str:
 
 
 def pack_problems(ydir: str) -> list[str]:
-    names = ("title.txt", "description.txt", "tags.txt", "thumbnail.png")
+    names = ("title.txt", "description.txt", "tags.txt", "thumbnail.png", "midrolls.txt", "upload_checklist.txt")
     missing = [f"{n} yoxdur" for n in names if not os.path.isfile(os.path.join(ydir, n))]
     if missing:
         return missing
     problems = []
+    n_mid = sum(1 for ln in _read(ydir, "midrolls.txt").splitlines() if ln.strip() and not ln.startswith("#"))
+    if not MIDROLL_MIN <= n_mid <= MIDROLL_MAX:
+        problems.append(f"mid-roll {n_mid} ({MIDROLL_MIN}..{MIDROLL_MAX} lazimdir)")
     title = _read(ydir, "title.txt")
     if not 0 < len(title) <= TITLE_MAX:
         problems.append(f"title uzunlugu {len(title)} (1..{TITLE_MAX})")
@@ -186,18 +260,21 @@ def thumb_owl(ep: str) -> str:
 
 
 def write_pack(ep: str, topic: str, data: dict, chaps: list[tuple[float, str]], credit: str = "",
-               make_bg=thumbnail.make_background) -> str:
+               make_bg=thumbnail.make_background, mids: list[float] | None = None, extra: str = "") -> str:
+    """Faza 4: mids -> midrolls.txt, extra -> description monetizasiya bloku, upload_checklist.txt (3 basliq)."""
     ydir = os.path.join(ep, "youtube")
     os.makedirs(ydir, exist_ok=True)
     titles = data.get("titles") or []
     files = {"title.txt": pick_title(titles) + "\n",
              "title_variants.txt": "\n".join(" ".join(str(t).split()) for t in titles) + "\n",
              "description.txt": description(str(data.get("summary", "")), chaps, data.get("hashtags") or [],
-                                            credit),
+                                            credit, extra),
              "tags.txt": ",".join(fit_tags(data.get("tags") or [])) + "\n"}
     for name, text in files.items():
         with open(os.path.join(ydir, name), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
+    write_midrolls(ydir, mids or [])
+    write_checklist(ydir, titles)
     bgs = sorted(glob.glob(os.path.join(ep, "bg_hd", "sc*.png"))) or \
         sorted(glob.glob(os.path.join(ep, "bg", "sc*.png")))
     # #47: ayrica cekilmis movzu fonu; alinmasa en kontrastli sehne fotosu, o da yoxdursa dizayn fonu
@@ -229,7 +306,8 @@ def main() -> None:
                                                   hook=scenes[0]["narration"][:600]),
                          max_tokens=900, provider=a.provider, model=a.model, temperature=0.7)
         credit = "\n".join(x for x in (source_line(load_source(ep)), music_credit(a.music, load_credits())) if x)
-        ydir = write_pack(ep, meta["topic"], data, chaps, credit)
+        extra = monetization_block(config.lead_magnet_url(), config.affiliate_links())
+        ydir = write_pack(ep, meta["topic"], data, chaps, credit, mids=midrolls(scenes, intro_s, total), extra=extra)
     except (LLMError, ValueError) as e:
         raise SystemExit("publish paketi xetasi: " + str(e)) from e
     problems = pack_problems(ydir)
