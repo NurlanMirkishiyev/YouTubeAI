@@ -197,6 +197,7 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 1. E2E №1 bitəndən sonra CLAUDE.md addım 4 yoxlamaları (quality_gate.json passed, self_audit.md, 10–12 dəq, −14 LUFS,
    kadrlar, owl, thumbnail, paket: mp4/thumbnail/youtube.txt/srt/script/midrolls/upload_checklist).
 2. E2E №2: "Should You Open a Second Location?" (timeseries/usmap) — motion_sheet №1-dən fərqli olmalıdır.
+   İstifadəçi 2026-10-09: niyə 2 video olduğu izah edildi → "qalsın" (2 E2E qalır, birə endirilmir).
 3. Xətaları qeyd et, "Cari vəziyyət" = HAZIR, commit, istifadəçiyə qısa hesabat (faza üzrə, reyestr #86–#109+, iki E2E,
    açıq qalanlar: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş; Gemini açarı çatda göründü → rotasiya tövsiyəsi).
    Hər video üçün AskUserQuestion: "Video təsdiqlənsin və pipeline-dakı yaddaşı silinsin?"
