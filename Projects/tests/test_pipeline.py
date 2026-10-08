@@ -312,3 +312,9 @@ def test_deliver_fails_without_the_rpm_files(tmp_path):
     (ep / "youtube" / "midrolls.txt").unlink()
     with pytest.raises(FileNotFoundError):
         pl.deliver(str(ep), "cash", str(tmp_path / "Hazir_Videolar"))
+
+
+def test_pipeline_default_provider_follows_llm_default():
+    """Istifadeci 2026-10-08: LLM merheleleri Gemini-de - pipeline 'openai'-ni sabit yazmamalidir."""
+    import llm
+    assert pl.parse_args(["Topic"]).provider == llm.DEFAULT_PROVIDER

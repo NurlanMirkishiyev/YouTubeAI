@@ -89,3 +89,43 @@ def test_chat_null_content_is_an_llm_error_not_a_crash(monkeypatch):
         "choices": [{"message": {"content": None, "refusal": "I can't help with that."}}], "usage": {}})
     with pytest.raises(llm.LLMError, match="bos cavab"):
         llm.chat("s", "u", provider="openai")
+
+
+# Istifadeci 2026-10-08: sekil yaratmadan (gpt-image-2) basqa butun LLM merheleleri Gemini-ye. Koddaki model adlari
+# rol kimi oxunur: "gpt-4o-mini"/None = yazan (Flash), "gpt-4o" = yoxlayan (Pro).
+def _capture(monkeypatch, usage=None):
+    sent = []
+    monkeypatch.setattr(llm, "_api_key", lambda prov: "k")
+    monkeypatch.setattr(llm, "_post", lambda url, key, payload: sent.append((url, payload)) or {
+        "choices": [{"message": {"content": "ok"}}], "usage": usage or {}})
+    return sent
+
+
+def test_gemini_maps_the_writer_and_checker_roles(monkeypatch):
+    sent = _capture(monkeypatch)
+    llm.chat("s", "u", provider="gemini")
+    llm.chat("s", "u", provider="gemini", model="gpt-4o-mini")
+    llm.chat("s", "u", provider="gemini", model="gpt-4o")
+    assert [p["model"] for _, p in sent] == [llm.GEMINI_WRITE, llm.GEMINI_WRITE, llm.GEMINI_CHECK]
+    assert all("generativelanguage.googleapis.com" in u for u, _ in sent)
+    assert llm.PROVIDERS["gemini"].key_env == "GEMINI_API_KEY"
+
+
+def test_gemini_gets_room_for_thinking_tokens(monkeypatch):
+    """Duşunme tokenleri max_tokens-i yeyib JSON-u kesmemelidir (research hakimi max_tokens=200 isledir)."""
+    sent = _capture(monkeypatch)
+    llm.chat("s", "u", provider="gemini", max_tokens=200)
+    assert sent[0][1]["max_tokens"] >= 200 + llm.THINK_ROOM
+
+
+def test_gemini_cost_counts_hidden_thinking_tokens(monkeypatch, capsys):
+    """Real probe: prompt 45, completion 48, total 321 - ferq dusunme tokenleridir ve pullu cixisdir."""
+    _capture(monkeypatch, usage={"prompt_tokens": 1_000_000, "completion_tokens": 0, "total_tokens": 2_000_000})
+    llm.chat("s", "u", provider="gemini")
+    price_in, price_out = llm.GEMINI_PRICES[llm.GEMINI_WRITE]
+    assert f"~${price_in + price_out:.4f}" in capsys.readouterr().out
+
+
+def test_default_provider_is_gemini_unless_env_says_otherwise():
+    assert llm.default_provider({}) == "gemini"
+    assert llm.default_provider({"LLM_PROVIDER": "openai"}) == "openai"

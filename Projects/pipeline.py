@@ -20,6 +20,7 @@ from dataclasses import dataclass
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from checks import duration  # noqa: E402
 from comfy import ComfyGuard  # noqa: E402
+from llm import DEFAULT_PROVIDER  # noqa: E402
 from script_gen import (EFFECTIVE_WPM, EPISODES, slugify, word_count, words_for_seconds,  # noqa: E402
                         words_to_add, words_to_cut)
 from speech import to_speech  # noqa: E402
@@ -262,7 +263,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--from", dest="from_stage", choices=[s.name for s in STAGES])
     ap.add_argument("--min-seconds", type=float, default=MIN_SECONDS, help="video minimum uzunlugu (s)")
     ap.add_argument("--max-seconds", type=float, default=MAX_SECONDS, help="video maksimum uzunlugu (s)")
-    ap.add_argument("--provider", default="openai")
+    ap.add_argument("--provider", default=DEFAULT_PROVIDER)      # 2026-10-08: Gemini (LLM_PROVIDER ile deyisir)
     a = ap.parse_args(argv)
     if not a.topic and not a.resume:
         ap.error("movzu ve ya --resume <slug> lazimdir")

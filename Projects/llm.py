@@ -35,10 +35,15 @@ PROVIDERS: dict[str, Provider] = {
     "deepseek": Provider("https://api.deepseek.com/v1", "deepseek-chat", "DEEPSEEK_API_KEY", 0.28, 0.42),
     "openai":   Provider("https://api.openai.com/v1", "gpt-4o-mini", "OPENAI_API_KEY", 0.15, 0.60),
     "ollama":   Provider("http://127.0.0.1:11434/v1", "qwen2.5:7b-instruct", "", 0.0, 0.0),
+    # Istifadeci 2026-10-08: sekil (gpt-image-2) xaric butun LLM merheleleri Gemini-de (OpenAI-uygun endpoint)
+    "gemini":   Provider("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.8-flash",
+                         "GEMINI_API_KEY", 0.75, 3.75),
 }
-
-
-DEFAULT_PROVIDER = "openai"
+GEMINI_WRITE = "gemini-3.8-flash"          # yazan: plan, case modeli, ssenari, duzelisler, sehne/vizual plani
+GEMINI_CHECK = "gemini-3.1-pro-preview"    # yoxlayan: riyazi audit, redaktor, hakimler (yazandan ayri model)
+GEMINI_ROLES = {"gpt-4o-mini": GEMINI_WRITE, "gpt-4o": GEMINI_CHECK}   # koddaki adlar = rol
+GEMINI_PRICES = {GEMINI_WRITE: (0.75, 3.75), GEMINI_CHECK: (2.00, 12.00)}   # $/1M (2026-10-08, ai.google.dev/pricing)
+THINK_ROOM = 8000          # Gemini dusunme tokenleri max_tokens-den yeyir - JSON kesilmesin
 
 
 class LLMError(RuntimeError):
@@ -56,6 +61,16 @@ def load_env(path: str = ENV_FILE) -> None:
                 continue
             key, val = line.split("=", 1)
             os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+def default_provider(env) -> str:
+    """Default Gemini (istifadeci 2026-10-08); geri qayitmaq: .env-de LLM_PROVIDER=openai."""
+    name = str(env.get("LLM_PROVIDER") or "gemini").strip().lower()
+    return name if name in PROVIDERS else "gemini"
+
+
+load_env()
+DEFAULT_PROVIDER = default_provider(os.environ)
 
 
 def add_provider_arg(ap: argparse.ArgumentParser) -> None:
@@ -126,6 +141,10 @@ def chat(system: str, user: str | list, *, provider: str = DEFAULT_PROVIDER, mod
     if provider not in PROVIDERS:
         raise LLMError("bilinmeyen provider: " + provider)
     prov = PROVIDERS[provider]
+    gemini = provider == "gemini"
+    if gemini:
+        model = GEMINI_ROLES.get(model or "", model or GEMINI_WRITE)
+        max_tokens += THINK_ROOM
     payload: dict = {
         "model": model or prov.model,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -143,10 +162,13 @@ def chat(system: str, user: str | list, *, provider: str = DEFAULT_PROVIDER, mod
     if not isinstance(text, str):      # #66: refusal - content=null (cagiran LLMError-u tutur)
         raise LLMError("bos cavab (refusal): " + str(res["choices"][0]["message"].get("refusal"))[:200])
     usage = res.get("usage", {})
-    cost = (usage.get("prompt_tokens", 0) * prov.usd_in
-            + usage.get("completion_tokens", 0) * prov.usd_out) / 1_000_000
-    print(f"  {provider}/{payload['model']}  {time.time() - t0:.1f}s  "
-          f"in={usage.get('prompt_tokens', 0)} out={usage.get('completion_tokens', 0)}  ~${cost:.4f}")
+    tin, tout = usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
+    usd_in, usd_out = prov.usd_in, prov.usd_out
+    if gemini:      # real probe: total - prompt = cavab + gizli dusunme tokenleri (pullu cixis)
+        tout = max(tout, usage.get("total_tokens", 0) - tin)
+        usd_in, usd_out = GEMINI_PRICES.get(payload["model"], (prov.usd_in, prov.usd_out))
+    cost = (tin * usd_in + tout * usd_out) / 1_000_000
+    print(f"  {provider}/{payload['model']}  {time.time() - t0:.1f}s  in={tin} out={tout}  ~${cost:.4f}")
     return text.strip()
 
 
