@@ -61,10 +61,9 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
   qalanı foto. **Hibrid (istifadəçi 2026-10-07):** generik foto animasiyaya yalnız `ANIM_MAX` = 70% tavanına qədər
   keçir; tavandan sonra case biznesinin literal kadrı ilə yenidən çəkilir, generik <10% qapısı qalır.
   Test: `test_visuals.py::test_animation_room_respects_the_70_percent_cap`. Chart-dakı HƏR rəqəm səhnə danışığında deyilməlidir (fail-closed). Giriş/çıxış kartı səhnə fotosunu
-  təkrar etmir. Thumbnail fonu ayrıca (gpt-image-2 high + hakim). **LLM modelləri (istifadəçi 2026-10-08, əvvəlki "gpt-4o-mini" qərarını əvəz edir):** şəkil yaratma
-  **gpt-image-2 QALIR**; qalan BÜTÜN LLM mərhələləri **Gemini**: yazan `gemini-3.8-flash` (kodda rol adı "gpt-4o-mini"/None),
-  yoxlayan `gemini-3.1-pro-preview` (rol adı "gpt-4o") — `llm.GEMINI_ROLES`. Geri qayıtmaq: `.env` `LLM_PROVIDER=openai`.
-  Mənbə axtarışı (`research.web_search`) hələ OpenAI web_search-dədir (növbəti addım: Google Search). Test: `test_llm.py`.
+  təkrar etmir. Thumbnail fonu ayrıca (gpt-image-2 high + hakim). **LLM modelləri (istifadəçi 2026-10-08 gec, son qərar):** Gemini sınağından İMTİNA — şəkil **gpt-image-2**,
+  yazan **gpt-4o-mini**, yoxlayan **gpt-4o** (default `openai`). Gemini kodu qalır, yalnız `.env` `LLM_PROVIDER=gemini`
+  ilə (istifadəçi istəmədən açma). Test: `test_llm.py::test_default_provider_is_openai_unless_env_says_otherwise`.
   Test: `test_visuals.py`, `test_thumbnail.py`.
 - **Məzmun standartı — HƏR yeni videoda** (istifadəçi 2026-10-05, 12 addım; reyestr #54–#60):
   1) yalnız B2B — hər video ABŞ biznes sahibinin bir konkret qərarına cavab verir (plan: `decision`/`answer`);

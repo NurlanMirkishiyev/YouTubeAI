@@ -601,3 +601,60 @@ def test_decision_guidance_forbids_copying_model_labels():
     plan = {**_model_plan(), "sections": [{}] * 4, "source_section": 2}
     g = sg._section_guidance(plan, {}, 4, SOURCE).lower()
     assert "never copy" in g and "labels" in g
+
+
+def test_settle_repeats_drops_a_pure_restatement_and_keeps_the_decision_sentence():
+    """#105 (E2E 2026-10-08): 14 ugursuz cehdin 7-si 'qerar bolmesinde reqem 3 defe' - gpt-4o-mini sitatli telimata
+    da emel etmedi. LLM raundlarindan sonra artiq deyilis DETERMINISTIK duzelir: yeni melumatsiz cumle silinir."""
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin and earns $3,000 a month.",
+                    "Section 4: Decision": "Currently, Rosa's monthly profit is $3,000. Her profit goes from $3,000 "
+                                           "to $1,000 if she hires."})
+    out = qa.settle_repeats(md)
+    assert "Currently, Rosa's monthly profit is $3,000." not in out
+    assert "Her profit goes from $3,000 to $1,000 if she hires." in out
+    assert not qa.repeated_figures(qa.sections(out))
+
+
+def test_settle_repeats_replaces_the_number_when_the_sentence_has_new_facts():
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin and earns $3,000 a month.",
+                    "Section 4: Decision": "On $3,000 a month she pays $700 in rent. Her profit goes from $3,000 "
+                                           "to $1,000 if she hires."})
+    out = qa.settle_repeats(md)
+    assert "On that amount a month she pays $700 in rent." in out and "$700" in out
+    assert not qa.repeated_figures(qa.sections(out))
+
+
+def test_quality_gate_settles_repeats_the_llm_left(monkeypatch, tmp_path):
+    """#105: quality_gate LLM raundlarindan sonra settle_repeats-i cagirir - tekrar problemi ile dayanmir."""
+    import argparse
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin and earns $3,000 a month.",
+                    "Section 4: Decision": "Currently, Rosa's monthly profit is $3,000. Her profit goes from $3,000 "
+                                           "to $1,000 if she hires."})
+    (tmp_path / "meta.json").write_text(json.dumps({"plan": PLAN}), encoding="utf-8")
+    (tmp_path / "research.json").write_text(json.dumps(SOURCE), encoding="utf-8")
+    path = tmp_path / "script.md"
+    path.write_text(md, encoding="utf-8")
+    monkeypatch.setattr(qa, "apply_fixes", lambda m, *a, **k: m)          # LLM tekrari duzeltmir (real probe)
+    monkeypatch.setattr(qa, "review_loop", lambda m, *a, **k: (m, []))
+    monkeypatch.setattr(sg, "verify_math", lambda a, p: None)
+    a = argparse.Namespace(provider="openai", model=None, temperature=0.7, topic="Raise Prices?")
+    try:
+        sg.quality_gate(a, str(tmp_path), str(path))
+    except SystemExit:
+        pass                                   # fixturede basqa problemler ola biler - yalniz tekrar yoxlanir
+    assert not qa.repeated_figures(qa.sections(path.read_text(encoding="utf-8")))
+
+
+def test_plan_and_repair_prompts_carry_the_model_example(monkeypatch):
+    """#106: numune plan promptunda da, model temiri promptunda da olmalidir."""
+    seen = []
+
+    def stop(system, user, **kw):
+        seen.append(user)
+        raise sg.LLMError("stop")
+    monkeypatch.setattr(sg, "chat_json", stop)
+    with pytest.raises(sg.LLMError):
+        sg.outline("Should You Hire Your First Employee?", provider="openai")
+    with pytest.raises(sg.LLMError):
+        sg.repair_model(_model_plan(), ["x"], provider="openai")
+    assert len(seen) == 2 and all("EXAMPLE of a correct case model" in u for u in seen)

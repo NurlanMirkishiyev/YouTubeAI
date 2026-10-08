@@ -130,6 +130,46 @@ def repeated_figures(secs: dict[str, str]) -> list[str]:
     return probs
 
 
+_REPEAT = re.compile(r"^(.*): reqem (\S+) \d+ defe tekrarlanir(?: \(bu bolmede (\d+) qalir\))?")
+
+
+def _settle_paragraph(par: str, lbl: str, drop: int) -> tuple[str, int]:
+    """Paraqrafda lbl-in ilk `drop` deyilisini duzeldir: yeni reqemsiz cumle silinir, qalaninda reqem sozle."""
+    pat = re.compile(r"(?<![\w$.,])" + re.escape(lbl) + r"(?![\d,]|\.\d)")
+    out = []
+    for sent in re.split(r"(?<=[.!?])\s+", par):
+        if drop > 0 and pat.search(sent):
+            drop -= 1
+            rest = pat.sub("", sent)
+            if not _figures(rest):
+                continue                              # yalniz tekrar - cumle silinir
+            sent = pat.sub("that amount", sent, count=1)
+        out.append(sent)
+    return " ".join(s for s in out if s), drop
+
+
+def settle_repeats(markdown: str) -> str:
+    """#105: LLM raundlarindan sonra qalan 'reqem N defe' tekrarini deterministik duzeldir (son deyilisler - qerar
+    qaydasi - qalir). gpt-4o-mini sitatli telimata da emel etmirdi: 14 cehdin 7-si bu xeta ile dusdu."""
+    for _ in range(3):
+        probs = [m for p in repeated_figures(sections(markdown)) if (m := _REPEAT.match(p))]
+        if not probs:
+            break
+        for m in probs:
+            head, lbl, quota = m[1], m[2], int(m[3] or 0)
+            body = sections(markdown).get(head, "")
+            pat = re.compile(r"(?<![\w$.,])" + re.escape(lbl) + r"(?![\d,]|\.\d)")
+            drop = max(0, len(pat.findall(body)) - quota)
+            pars = []
+            for par in body.split("\n\n"):
+                par, drop = _settle_paragraph(par, lbl, drop)
+                pars.append(par)
+            new = "\n\n".join(p for p in pars if p.strip())
+            if body and new != body:
+                markdown = markdown.replace(body, new, 1)
+    return markdown
+
+
 def plan_problems(plan: dict) -> list[str]:
     """Plan seviyyesi (#59): ssenari yazilmazdan evvel - pozulsa outline yeniden istenir."""
     probs: list[str] = []

@@ -285,12 +285,34 @@ result names to formulas; threshold.expr may use variables and before_<key>, aft
 Return JSON only: {"model": {...the whole corrected model...}}"""
 
 
+# #106: gpt-4o-mini xerc elave eden qerarda (isci, avadanliq) modeli 5 cehdde hakimden kecire bilmirdi - isleyen
+# numune (yalniz STRUKTUR; reqemler case-in oz reqemleri olmalidir). Numune butun deterministik qaydalardan kecir.
+MODEL_EXAMPLE = {
+    "variables": [{"name": "monthly_jobs", "value": 40, "unit": "jobs", "label": "jobs done each month"},
+                  {"name": "price_per_job", "value": 300, "unit": "$", "label": "price per job"},
+                  {"name": "cost_per_job", "value": 60, "unit": "$", "label": "material cost per job"},
+                  {"name": "fixed_costs", "value": 2000, "unit": "$", "label": "monthly fixed costs"},
+                  {"name": "extra_jobs", "value": 30, "unit": "jobs", "label": "extra jobs the hire makes possible"},
+                  {"name": "employee_cost", "value": 4800, "unit": "$", "label": "monthly cost of the employee"}],
+    "before": {"monthly_profit": "monthly_jobs * (price_per_job - cost_per_job) - fixed_costs"},
+    "after": {"monthly_profit": "(monthly_jobs + extra_jobs) * (price_per_job - cost_per_job) - fixed_costs "
+                                "- employee_cost"},
+    "threshold": {"name": "extra_jobs_needed", "expr": "employee_cost / (price_per_job - cost_per_job)",
+                  "rounding": "ceil", "meaning": "extra jobs per month needed to pay for the employee"},
+}
+
+
+def model_example_text() -> str:
+    return ("\n\nEXAMPLE of a correct case model for a decision that ADDS a cost (structure only - use this case's "
+            "own variables and numbers, never these):\n" + json.dumps(MODEL_EXAMPLE, ensure_ascii=False))
+
+
 def repair_model(plan: dict, why: list[str], **llm_kw) -> dict:
     """Yalniz model JSON-u duzeldilir (real probe: butun plan yeniden yazilanda mini duzelisi tetbiq etmirdi)."""
     import case_model
     user = (f"Decision: {plan.get('decision')}\nCase: {plan.get('case')}\nProblems to fix:\n- "
             + "\n- ".join(why) + f"\n{case_model.names_hint(plan.get('model'))}\n\nMODEL:\n"
-            + json.dumps(plan.get("model"), ensure_ascii=False))
+            + json.dumps(plan.get("model"), ensure_ascii=False) + model_example_text())     # #106
     kw = {k: v for k, v in llm_kw.items() if k not in ("model", "temperature")}
     if kw.get("provider", "openai") == "openai":
         kw["model"] = MODEL_REVIEW_MODEL     # yoxlama qatinin duzelisi (number_audit kimi) - mini cebri duzelde bilmirdi
@@ -321,7 +343,8 @@ def outline(topic: str, **llm_kw) -> dict:
     """Plan (#59): biznes qerari + cavab + bir ABS case + Cold Open + 4 bolme. Sert sxem - pozulsa LLMError.
     Plan qaydalari (sual-qerar, ABS, sertli cavab) pozulsa sebebi ile yeniden istenir (OUTLINE_ATTEMPTS)."""
     from script_qa import plan_problems
-    user = OUTLINE_USER.format(topic=topic)
+    base = OUTLINE_USER.format(topic=topic) + model_example_text()       # #106: isleyen model numunesi
+    user = base
     for _ in range(OUTLINE_ATTEMPTS):
         data, why = settle_plan(chat_json(SYSTEM, user, max_tokens=2000, **llm_kw), **llm_kw)
         if not why:
@@ -329,10 +352,10 @@ def outline(topic: str, **llm_kw) -> dict:
         print(f"  plan redd: {why}")
         if any("model" in w for w in why):
             # real probe 2026-10-07: kohne plan geri oturulende mini eyni sehv modeli tekrarlayirdi - teze baslanir
-            user = (OUTLINE_USER.format(topic=topic) + "\n\nA previous attempt was rejected because: "
+            user = (base + "\n\nA previous attempt was rejected because: "
                     + "; ".join(why) + "\nBuild a NEW, simpler case model that avoids this mistake.")
         else:
-            user = (OUTLINE_USER.format(topic=topic) + "\n\nYour previous plan was rejected: " + "; ".join(why)
+            user = (base + "\n\nYour previous plan was rejected: " + "; ".join(why)
                     + "\nPrevious plan: " + json.dumps(data, ensure_ascii=False)[:2500])
     else:
         raise LLMError(f"plan qaydalara uygun gelmedi: {why}")
@@ -592,6 +615,7 @@ def quality_gate(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
             if not fixes:
                 break
             script = qa.apply_fixes(script, plan, fixes, chat, **kw)
+        script = qa.settle_repeats(script)          # #105: LLM-in buraxdigi tekrar deterministik duzelir
     except LLMError as e:
         raise SystemExit("ssenari keyfiyyet yoxlamasi xetasi: " + str(e)) from e
     with open(script_path, "w", encoding="utf-8", newline="\n") as f:

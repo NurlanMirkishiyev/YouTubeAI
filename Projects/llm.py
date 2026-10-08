@@ -64,9 +64,10 @@ def load_env(path: str = ENV_FILE) -> None:
 
 
 def default_provider(env) -> str:
-    """Default Gemini (istifadeci 2026-10-08); geri qayitmaq: .env-de LLM_PROVIDER=openai."""
-    name = str(env.get("LLM_PROVIDER") or "gemini").strip().lower()
-    return name if name in PROVIDERS else "gemini"
+    """Default OpenAI (istifadeci 2026-10-08 gec: Gemini-den imtina, sekilden basqa modeller GPT); Gemini yalniz
+    .env-de LLM_PROVIDER=gemini ile."""
+    name = str(env.get("LLM_PROVIDER") or "openai").strip().lower()
+    return name if name in PROVIDERS else "openai"
 
 
 load_env()

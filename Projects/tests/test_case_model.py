@@ -336,3 +336,12 @@ def test_insight_verb_agrees_with_a_plural_label():
     r = {"before": {"monthly_costs": 4400.0}, "after": {"monthly_costs": 11000.0}, "delta": {"monthly_costs": 6600.0},
          "units": {"monthly_costs": "$"}, "labels": {}, "threshold": {"value": 20.0, "unit": "", "meaning": "m"}}
     assert cm.insight(r).startswith("Monthly costs rise from $4,400")
+
+
+def test_model_example_for_added_cost_decisions_passes_every_rule():
+    """#106 (E2E 2026-10-08): gpt-4o-mini 'hire' modelini 5 cehdde hakimden kecire bilmedi (xerc sabit, hedd bagli
+    deyil). Plan promptuna isleyen numune (yalniz STRUKTUR) verilir - numunenin ozu butun qaydalardan kecmelidir."""
+    import script_gen as sg
+    r = cm.evaluate(sg.MODEL_EXAMPLE)
+    assert cm.threshold_link_problem(sg.MODEL_EXAMPLE, r) is None and r["threshold"]["value"] > 0
+    assert "structure only" in sg.model_example_text().lower()

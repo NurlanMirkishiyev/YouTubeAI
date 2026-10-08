@@ -126,9 +126,11 @@ def test_gemini_cost_counts_hidden_thinking_tokens(monkeypatch, capsys):
     assert f"~${price_in + price_out:.4f}" in capsys.readouterr().out
 
 
-def test_default_provider_is_gemini_unless_env_says_otherwise():
-    assert llm.default_provider({}) == "gemini"
-    assert llm.default_provider({"LLM_PROVIDER": "openai"}) == "openai"
+def test_default_provider_is_openai_unless_env_says_otherwise():
+    """Istifadeci 2026-10-08 (gec): Gemini-den imtina - sekilden basqa modeller yeniden GPT (yazan gpt-4o-mini,
+    yoxlayan gpt-4o). Gemini kodu qalir, yalniz LLM_PROVIDER=gemini ile."""
+    assert llm.default_provider({}) == "openai"
+    assert llm.default_provider({"LLM_PROVIDER": "gemini"}) == "gemini"
 
 
 def test_a_truncated_answer_is_an_error_not_silent_text(monkeypatch):
