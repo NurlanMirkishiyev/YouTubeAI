@@ -10,7 +10,8 @@
 İstifadəçi `Video: <Mövzu>` yazır və ya sadəcə mövzunu yazır → **sualsız, təsdiqsiz** dərhal:
 1. Mövzu azərbaycanca verilibsə, ingiliscə başlığa çevir (məs. "What Is Profit Margin?").
 2. PowerShell ilə müstəqil proses aç (Claude sessiyası bağlansa da işləsin):
-   `Start-Process "C:\YouTubeAI\Projects\.venv\Scripts\python.exe" -ArgumentList 'run.py','"<Mövzu>"' -WorkingDirectory C:\YouTubeAI -RedirectStandardOutput Episodes\_run_<slug>.log -RedirectStandardError Episodes\_run_<slug>.log.err`
+   `Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c "C:\YouTubeAI\Projects\.venv\Scripts\python.exe -u run.py "<Mövzu>" > C:\YouTubeAI\Episodes\_run_<slug>.log 2> C:\YouTubeAI\Episodes\_run_<slug>.log.err"'; CurrentDirectory='C:\YouTubeAI'}`
+   (2026-10-08: alətdən `Start-Process` çağırış bitəndə ölür — WMI ilə aç, 20 s sonra prosesin sağ olduğunu yoxla.)
 3. Loqu Monitor ilə izlə (`[N/11]` mərhələ sətirləri + error/traceback). Ölsə: `run.py --resume <slug>`.
 4. Bitəndə özün yoxla (istifadəçidən soruşma):
    - **`qa/quality_gate.json` → `"passed": true`** (pipeline-ın son mərhələsi; bütün hesabatlar skriptin sha256-sı

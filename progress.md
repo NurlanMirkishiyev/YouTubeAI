@@ -398,6 +398,7 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | Bash-da `python3 - <<EOF … \|\| .venv python - <<EOF2` fallback zənciri (2026-10-08) | Windows-da `python3` Microsoft Store stub-ıdır — stdin gözləyib 120 s ilişdi, fayl dəyişmədi. `python3` yazma; yalnız `Projects/.venv/Scripts/python`; mətn düzəlişi isə Edit aləti ilə. |
 | Heredoc Python splice-da `"…\\n"` (2026-10-08, BEŞİNCİ dəfə — `test_pipeline.py` fixture) | Fayla real yeni sətir yazıldı (string literal qırıldı); Edit ilə düzəldildi. QAYDA mütləqdir: əvəzlənən mətndə `\n` VARSA heredoc YOX — yalnız Edit aləti. |
 | renderStill probunda fon kimi thumbnail götürmək (2026-10-08) | Thumbnail-da yazı və bayquş var — kadrda "ikinci bayquş/yazı" görünür, pipeline xətası kimi çaşdırır. Probe fonu yazısız şəkil olsun (və ya StudioBackdrop). |
+| Claude-un PowerShell alətindən `Start-Process … run.py --resume` (2026-10-08) | Alət çağırışı bitəndə proses ağacı ilə birlikdə öldü (log `[1/13] script_gen` sətrində qaldı, xəta yox, 18 dəq boşa). Düzgün yol: `Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c "…python.exe -u run.py … > log 2> log.err"'; CurrentDirectory='C:\YouTubeAI'}` — sonra 20 s gözləyib python prosesinin sağ olduğunu yoxla. |
 
 **Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
 reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur".
