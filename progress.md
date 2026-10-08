@@ -173,6 +173,21 @@ Reference (yalnız ideya, icra olunmur): `docs/referance/video_yarat_v4.py`.
 
 ## Növbəti dəqiq addım
 
+**2026-10-08 axşam (LİMİTDƏN SONRA BURADAN DAVAM):** Faza 1–5 TAMAM. **Faza 6 icradadır** — E2E №1
+`should-you-hire-your-first-employee` ("Should You Hire Your First Employee?") `script_gen` mərhələsində 10+ cəhd
+dayandı; hər cəhd yeni gizli xəta tapdı → #92–#101 düzəldildi (TDD, 671 test keçir, son commit `286bc2a`).
+İstifadəçi qərarı (2026-10-08): **"Düzəltməyə davam"** — case modeli gpt-4o-mini-də qalır (gpt-4o-ya keçmə, mövzunu dəyişmə).
+1. Run vəziyyətini yoxla: `Episodes\_run_should-you-hire-your-first-employee.log` + `Episodes\should-you-hire-your-first-employee\script_qa.json`
+   + `logs\script_gen.log`. Python prosesi yoxdursa və log XETA ilə bitibsə → yeni problemləri sistematik araşdır
+   (kök səbəb → test → düzəliş → reyestr #102+ → commit) → **WMI ilə** `--resume` (CLAUDE.md addım 2; `Start-Process` ÖLÜR).
+2. E2E №1 keçəndən sonra CLAUDE.md addım 4 yoxlamaları (quality_gate.json passed, self_audit.md, 10–12 dəq, −14 LUFS,
+   kadrlar, owl, thumbnail, paket: mp4/thumbnail/youtube.txt/srt/script/midrolls/upload_checklist).
+3. E2E №2: "Should You Open a Second Location?" (timeseries/usmap) — eyni qayda ilə; motion_sheet №1-dən fərqli olmalıdır.
+4. Sonra: xətaları qeyd et, progress.md vəziyyət = HAZIR, commit, istifadəçiyə qısa hesabat (faza üzrə, reyestr
+   #86–#101+, iki E2E nəticəsi, açıq qalanlar: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş; "hire" mövzusunda case
+   modeli sadədir). Hər video üçün AskUserQuestion: "Video təsdiqlənsin və pipeline-dakı yaddaşı silinsin?"
+   İstifadəçi öz mövzusunu bu iki E2E-dən sonra verəcək.
+
 **2026-10-08:** Faza 3, 4, 5 TAMAM. Növbəti: **Faza 6** — 2 yeni B2B mövzu ilə ardıcıl E2E (CLAUDE.md tetiki): (1) qiymət/xərc qərarı (table + threshold), (2) zaman/coğrafiya datası (timeseries/usmap); hər birində quality_gate keçir, self_audit təmiz, motion_sheet-lər fərqli, 10–12 dəq, −14 LUFS, təhvil paketi tam (mp4, thumbnail, youtube.txt, srt, script, midrolls, upload_checklist). Pullu (OpenAI) — istifadəçi təsdiqi lazımdır. `Episodes\_probe-raise-prices` probe qovluğudur (silinə bilər).
 
 **Vəziyyət (2026-10-07):** açıq iş yoxdur. 12 addımlıq standart E2E-də işlədi (#54–#70), 471 test keçir.
