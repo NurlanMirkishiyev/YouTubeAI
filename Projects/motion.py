@@ -79,7 +79,9 @@ def plan_motion(slug: str, scenes: list[dict], theme: str | None = None, salt: i
             item["title"] = _pick(rnd, _pool(VARIANTS["kicker" if kind else "lower_third"], theme))
         out.append(item)
         prev_tr = tr
-    return {"theme": theme, "backdrop": rnd.choice(BACKDROPS), "cold_open": "typewriter",
+    import config
+    cold = "typewriter" if config.TYPEWRITER else _pick(rnd, VARIANTS["cold_open"], "typewriter")   # Faza 5.1
+    return {"theme": theme, "backdrop": rnd.choice(BACKDROPS), "cold_open": cold,
             "chart_title": _pick(rnd, _pool(VARIANTS["title"], theme)), "scenes": out}
 
 

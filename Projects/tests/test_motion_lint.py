@@ -67,3 +67,11 @@ def test_owl_components_are_unchanged_and_still():
     assert hashlib.sha256(block.encode()).hexdigest() == CARD_OWL_SHA
     for text in (owl, block):
         assert "spring(" not in text and "Math.sin" not in text and "rotate" not in text
+
+
+def test_ken_burns_keeps_a_constant_speed():
+    """Reyestr #9: inOut easing fonu her kecidde dayandirirdi - Ken Burns zamanla XETTI (easing-siz) hereket edir."""
+    text = _src(os.path.join(SRC, "Background.tsx"))
+    calls = [c for c in _calls(text, "interpolate") if re.match(r"interpolate\(frame\b", c)]
+    assert calls and all("easing" not in c for c in calls)
+    assert "Easing." not in text and "spring(" not in text

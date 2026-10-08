@@ -13,6 +13,15 @@ from llm import load_env  # noqa: E402
 
 LINK_SEP = "|"
 
+# Faza 5.1 (istifadeci 2026-10-07): butun videolarda default ACIQ; sondurmek yalniz istifadeci qerari ile.
+# Test: tests/test_defaults.py (False olsa dusur).
+CASE_MODEL = True        # strukturlu case modeli + deterministik qerar hesabi (quality_gate model_result teleb edir)
+SFX = True               # whoosh/pop/tick/boom qati (remotion_build master)
+NUMBER_OVERLAY = True    # foto sehnesinde danisilan reqemin count-up overlay-i
+TYPEWRITER = True        # cold open typewriter (motion.plan_motion)
+MOTION_VARIANTS = True   # epizoda hereket plani: theme, variantlar, kecidler (motion.py)
+REQUIRED_KINDS = ("table", "threshold", "timeseries", "usmap")   # visuals.KINDS-de olmalidir
+
 
 def _env(name: str) -> str:
     load_env()

@@ -165,6 +165,35 @@ def plan_problems(plan: dict) -> list[str]:
     return probs
 
 
+_LEGAL = re.compile(r"\b(sued|lawsuits?|fined|convicted|indicted|fraud|settled|scam(?:med)?|charged with|"
+                    r"violat(?:ed|ion)|illegal(?:ly)?|guilty|penalt(?:y|ies))\b", re.I)
+_CAP_WORD = re.compile(r"\b[A-Z][a-zA-Z&.'-]*")
+# dovlet qurumlari ve cumle evvelinde boyuk herfle gelen adi sozler - ad sayilmir
+NOT_NAMES = {"irs", "sba", "ftc", "sec", "dol", "osha", "u.s", "us", "usa", "fda", "census", "bureau", "federal",
+             "state", "department", "the", "if", "when", "she", "he", "they", "her", "his", "a", "an", "in", "so",
+             "but", "and", "or", "this", "that", "for", "at", "on", "by", "under", "after", "before", "even", "i"}
+
+
+def _bare(word: str) -> str:
+    return re.sub(r"'s$", "", word.lower().strip(".,;:!?\"()"))
+
+
+def legal_claim_problems(markdown: str, plan: dict) -> list[str]:
+    """Faza 5.5 (2026-10-08): real sexs/sirket haqqinda menbesiz huquqi iddia olmur. Huquqi ittiham sozu olan
+    cumlede case sahibi/biznesi/yeri ve dovlet qurumundan basqa xususi ad varsa -> problem (fail-closed)."""
+    case = plan.get("case") or {}
+    own = {_bare(w) for k in ("owner", "business", "city", "state") for w in str(case.get(k) or "").split()}
+    probs = []
+    for head, body in sections(markdown).items():
+        for sent in re.split(r"(?<=[.!?])\s+", body):
+            if not _LEGAL.search(sent):
+                continue
+            names = [w for w in _CAP_WORD.findall(sent) if _bare(w) not in own | NOT_NAMES]
+            if names:
+                probs.append(f"{head}: menbesiz huquqi iddia ({', '.join(names)}): {sent.strip()[:90]}")
+    return probs
+
+
 def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
     import case_model as cm
     probs = plan_problems(plan)
@@ -190,6 +219,7 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
     if _EXAMPLE.search(recap):
         probs.append("Recap: misal var - yalniz neticeler deyilmelidir")
     probs += repeated_figures(secs)
+    probs += legal_claim_problems(markdown, plan)
     if result:
         probs += cm.case_problems(markdown, {**plan, "model_result": result}, source)
     if source is None:

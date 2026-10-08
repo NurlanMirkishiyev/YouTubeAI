@@ -211,6 +211,15 @@ def verify_pack(ctx: Ctx) -> list[str]:
     return pack_problems(ctx.p("youtube"))
 
 
+def verify_gate(ctx: Ctx) -> list[str]:
+    """Faza 5.3: qa/quality_gate.json - yoxdursa xeta (fail-closed)."""
+    path = ctx.p("qa", "quality_gate.json")
+    if not os.path.isfile(path):
+        return ["qa/quality_gate.json yoxdur"]
+    rep = json.loads(_read(path))
+    return [] if rep.get("passed") else list(rep.get("problems") or ["keyfiyyet qapisi kecmedi"])
+
+
 def _build_cmd(c: Ctx, f: bool) -> list[str]:
     # Remotion: sub-pixel Ken Burns, animasiyali bayqus/altyazi/kartlar (ffmpeg zoompan "dona-dona" idi)
     return _proj("remotion_build.py", c.ep_dir) + (["--music", c.music] if c.music else [])
@@ -258,6 +267,11 @@ STAGES: tuple[Stage, ...] = (
     Stage("publish", lambda c, f: _proj("publish_pack.py", c.ep_dir, "--provider", c.provider)
           + (["--music", c.music] if c.music else []),
           lambda c: os.path.isfile(c.p("youtube", "thumbnail.png")), verify_pack),
+    # Faza 5.3: vahid keyfiyyet qapisi (her run-da yeniden; deliver yalniz bu kecende) + qa/self_audit.md
+    Stage("quality_gate",
+          lambda c, f: _proj("quality_gate.py", c.ep_dir, "--slug", c.slug, "--min-seconds", str(c.min_seconds),
+                             "--max-seconds", str(c.max_seconds)),
+          lambda c: False, verify_gate),
 )
 
 

@@ -29,6 +29,7 @@ from llm import DEFAULT_PROVIDER, LLMError, chat_json  # noqa: E402
 from scene_plan import (FALLBACK_BG, FALLBACK_POOL, case_note, clean_bg_prompt, episode_plan,  # noqa: E402
                         episode_topic, hero)
 from visuals import ANIM_MAX, animate_abstract, animation_room  # noqa: E402
+import qa_stamp  # noqa: E402
 import render_bgs  # noqa: E402
 
 MAX_ATTEMPTS = 3
@@ -410,10 +411,9 @@ def main() -> None:
     if generic:
         report = drop_animated(report, animate(ep, scenes_path, generic, a.provider))
     duplicates = [] if clean else find_duplicates(ep, a.provider)["pairs"]     # bos deyilse check_bgs merhelesi kecmir
-    with open(os.path.join(ep, REPORT), "w", encoding="utf-8") as f:
-        generic, share = generic_share(report)
-        json.dump({"passed": not duplicates and share <= GENERIC_MAX, "scenes": report, "duplicates": duplicates,
-                   "generic": generic, "generic_share": share}, f, indent=2, ensure_ascii=False)
+    generic, share = generic_share(report)
+    qa_stamp.write(ep, REPORT, {"passed": not duplicates and share <= GENERIC_MAX, "scenes": report,   # Faza 5.3
+                                "duplicates": duplicates, "generic": generic, "generic_share": share})
     redone = sorted(int(n) for n, r in report.items() if r["attempts"])
     print(f"[qa] bitdi: {len(redone)} fon yeniden cekildi {redone or ''}; generik {generic} ({share:.0%})")
 

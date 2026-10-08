@@ -525,3 +525,21 @@ def test_fixes_for_one_section_are_merged_into_one_rewrite():
              {"section": "Section 4: Decision", "problem": "b", "instruction": "fix B"}]
     qa.apply_fixes(_script(), PLAN, fixes, rewrite)
     assert len(calls) == 1 and "fix A" in calls[0] and "fix B" in calls[0]
+
+
+# --- Faza 5.5 xeta sinfi: real sexs/sirket haqqinda menbesiz huquqi iddia (2026-10-08) ---
+
+def test_unsourced_legal_claim_about_a_real_company_is_caught():
+    import script_qa as qa
+    plan = {"case": {"owner": "Rosa Diaz", "business": "Rosa's Bakery", "city": "Austin", "state": "Texas"}}
+    bad = "## Section 1: Prices\nWalmart was sued for price gouging, so Rosa should be careful.\n"
+    assert qa.legal_claim_problems(bad, plan)
+    ok = ("## Section 1: Prices\nRosa could be fined by the IRS if she files late.\n"
+          "Rosa's Bakery would face a penalty from the SBA rules.\n")
+    assert qa.legal_claim_problems(ok, plan) == []
+
+
+def test_story_checks_include_legal_claims():
+    import inspect
+    import script_qa as qa
+    assert "legal_claim_problems" in inspect.getsource(qa.story_problems)

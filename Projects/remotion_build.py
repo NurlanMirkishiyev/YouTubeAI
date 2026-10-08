@@ -25,6 +25,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "_ffmpeg"))
 from audio_master import loudnorm_apply, measure, mix_graph  # noqa: E402
 from math_check import find_numbers  # noqa: E402
+import config  # noqa: E402
 
 REMOTION_DIR = r"C:\YouTubeAI\Remotion"
 SPRITE_DIR = r"C:\YouTubeAI\Character\ELI5_Owl\sprites_hd"
@@ -238,7 +239,7 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
             pose = f"sc{i + 1:02d}"
         visual = s.get("visual") or None
         reveal = reveal_frames(visual, cw, start / FPS, f) if visual else []
-        overlay = None if visual else number_overlay(cw, start / FPS, f)     # Faza 2.7
+        overlay = None if visual or not config.NUMBER_OVERLAY else number_overlay(cw, start / FPS, f)  # 2.7
         start += f
         out_scenes.append({"frames": f, "bg": None if visual else f"bg/sc{i + 1:02d}.jpg", "visual": visual,
                            "reveal": reveal, "skeleton": bool(visual), "overlay": overlay,
@@ -253,7 +254,7 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
                            "kicker": s.get("spoken_title") if visual else None})
     hook = (data.get("card_texts") or {}).get("intro")
     plan = None
-    if slug:
+    if slug and config.MOTION_VARIANTS:
         import motion
         desc = [{"kind": (sc["visual"] or {}).get("kind"), "section_start": bool(sc["title"])} for sc in out_scenes]
         plan = (motion.plan_with_history(slug, desc, history) if history else motion.plan_motion(slug, desc))
@@ -280,6 +281,11 @@ def episode_props(data: dict, topic: str, words: list[dict], sizes: dict[str, tu
         props["motion"] = {k: plan[k] for k in ("theme", "backdrop", "cold_open", "chart_title")}
         props["emphasis"] = motion.emphasis(props)
     return props
+
+
+def sfx_enabled() -> bool:
+    """Faza 5.1: SFX qati config.SFX ile (default ACIQ)."""
+    return bool(config.SFX)
 
 
 def fit_chart_owls(props: dict) -> dict:
@@ -452,9 +458,9 @@ def motion_problems(props: dict, sims: list[float]) -> list[str]:
 
 
 def write_qa(ep: str, name: str, data: dict) -> None:
-    os.makedirs(os.path.join(ep, "qa"), exist_ok=True)
-    with open(os.path.join(ep, "qa", name), "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=1)
+    """qa/<name> - skriptin sha256-si ile (Faza 5.3: quality_gate kohne hesabati qebul etmir)."""
+    import qa_stamp
+    qa_stamp.write(ep, os.path.join("qa", name), data, indent=1)
 
 
 def main() -> None:
@@ -485,9 +491,10 @@ def main() -> None:
     import sfx as sfx_mod
     sims = [motion.similarity(motion.signature_of_props(props), h.get("signature") or [])
             for h in motion._load(history) if h.get("slug") != slug][-motion.HISTORY_WINDOW:]
-    write_qa(ep, "motion.json", {"theme": props["motion"]["theme"], "signature": motion.signature_of_props(props),
+    plan = props.get("motion") or {}           # MOTION_VARIANTS sondurulubse plan yoxdur (motion_problems tutur)
+    write_qa(ep, "motion.json", {"theme": plan.get("theme"), "signature": motion.signature_of_props(props),
                                  "similarity_max": max(sims, default=0.0), "chart_empty_share": chart_empty_share(props),
-                                 "typewriter_cold_open": props["motion"]["cold_open"] == "typewriter",
+                                 "typewriter_cold_open": plan.get("cold_open") == "typewriter",
                                  "emphasis": len(props.get("emphasis") or []), "problems": motion_problems(props, sims)})
     props_path = os.path.join(ep, "remotion_props.json")
     with open(props_path, "w", encoding="utf-8") as f:
@@ -505,13 +512,12 @@ def main() -> None:
     narration = os.path.join(ep, "narration.wav")
     evs = sfx_mod.events(props, compact_words(words))           # Faza 3.8
     track = sfx_mod.render_track(evs, sfx_mod.sounds(os.path.join(ep, "sfx")), total_frames / FPS,
-                                 os.path.join(ep, "sfx_track.wav"), narration) if evs else None
+                                 os.path.join(ep, "sfx_track.wav"), narration) if evs and sfx_enabled() else None
     write_qa(ep, "sfx.json", {"events": evs, "count": len(evs), "problems": sfx_mod.problems(evs, compact_words(words))})
     master(silent, narration, a.music, out, total_s, start, sfx=track)
     os.remove(silent)
-    if not a.frames:
-        motion.remember(history, slug, {"theme": props["motion"]["theme"],
-                                        "signature": motion.signature_of_props(props)})
+    if not a.frames and plan:
+        motion.remember(history, slug, {"theme": plan["theme"], "signature": motion.signature_of_props(props)})
         print("  motion sheet ->", motion_sheet(ep, props_path, pub, props), flush=True)
     print("OK ->", out)
 

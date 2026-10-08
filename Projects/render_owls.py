@@ -25,6 +25,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from llm import DEFAULT_PROVIDER, LLMError, chat_json, edit_image  # noqa: E402
+import qa_stamp  # noqa: E402
 
 OWL_REF = os.path.join(os.path.dirname(HERE), "Character", "ELI5_Owl", "sprites_hd", "front.png")
 MODEL = "gpt-image-2"     # istifadeci 2026-09-30: gpt-image-2 qalir (personaj referansa en yaxin)
@@ -276,8 +277,7 @@ def main() -> None:
     prop = choose_prop(topic, provider=a.provider)
     print(f"[owl] giris/cixis karti: movzu esyasi = {prop}", flush=True)
     cards = run_cards(ep, topic, gen, lambda p, n: judge_owl(p, a.provider, prop), prop=prop)
-    with open(os.path.join(ep, REPORT), "w", encoding="utf-8") as f:
-        json.dump({"scenes": report, "cards": cards}, f, indent=2, ensure_ascii=False)
+    qa_stamp.write(ep, REPORT, {"scenes": report, "cards": cards})          # Faza 5.3: skriptin sha256-si ile
     bad = sorted(int(n) for n, r in report.items() if not r["ok"])
     print(f"[owl] bitdi: {len(report) - len(bad)} sehne bayqusu, kohne poza dusen: {bad or 'yoxdur'}; "
           f"kart: " + ", ".join(f"{k}={'ok' if v['ok'] else 'sprite'}" for k, v in cards.items()))

@@ -20,6 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from math_check import find_numbers  # noqa: E402
 from speech import to_display, to_speech  # noqa: E402
+import qa_stamp  # noqa: E402
 
 MAX_CHARS = 42      # bir altyazi setri (Whisper/make_srt.py ile eyni)
 MAX_DUR = 5.0
@@ -166,8 +167,7 @@ def main() -> None:
     with open(os.path.join(ep, "captions.srt"), "w", encoding="utf-8", newline="\n") as f:
         f.write(to_srt(words))
     report["problems"] = number_problems(report)
-    with open(os.path.join(ep, "captions_qa.json"), "w", encoding="utf-8") as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
+    qa_stamp.write(ep, "captions_qa.json", report)          # Faza 5.3: skriptin sha256-si ile
     print(f"[captions] {len(words)} soz, reqem problemi: {len(report['problems'])}")
     for p in report["problems"]:
         print("  ", p)
