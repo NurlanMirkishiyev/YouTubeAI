@@ -57,6 +57,28 @@ def _names(tree: ast.AST) -> list[str]:
     return [n.id for n in ast.walk(tree) if isinstance(n, ast.Name)]
 
 
+def _subtracts_a_cost(expr: str) -> bool:
+    """#96/#99: menfeet dusturu ya baska profit-e istinad edir, ya da DEYISEN olan bir terefi cixir ('x - 0' yox)."""
+    tree = _parse(expr)
+    if any("profit" in n for n in _names(tree)):
+        return True
+    return any(isinstance(n, ast.BinOp) and isinstance(n.op, ast.Sub) and _names(n.right) for n in ast.walk(tree))
+
+
+def _intermediates(exprs: list[str], env: dict[str, float], dims: dict[str, int]) -> list[float]:
+    """#100: dusturlarin yalniz giris deyisenlerinden ibaret ara ifadeleri ('weekly_revenue / weekly_customers' = $20)."""
+    scope = _Scope({}, env, dims)
+    out = []
+    for expr in exprs:
+        for node in ast.walk(_parse(expr)):
+            if isinstance(node, ast.BinOp) and set(_names(node)) <= set(env):
+                try:
+                    out.append(scope._eval(node, ())[0])
+                except (CaseModelError, ZeroDivisionError):
+                    continue
+    return out
+
+
 class _Scope:
     """Bir blokun (before/after/threshold) ifadeleri: ad -> deyer, dovri istinad tutulur."""
 
@@ -209,7 +231,7 @@ def evaluate(model: dict) -> dict:
         if not isinstance(exprs, dict) or not exprs:
             raise CaseModelError(f"model has no '{key}'")
         for k, e in exprs.items():            # #96: real probe 'weekly_profit = weekly_sales' (xercsiz menfeet)
-            if "profit" in str(k) and not re.search(r"[-−–]|profit", str(e)):
+            if "profit" in str(k) and not _subtracts_a_cost(str(e)):
                 raise CaseModelError(f"{key} {k} = {e} has no costs: profit is revenue minus costs - "
                                      f"subtract the costs (e.g. weekly_sales - weekly_costs)")
         blocks[key] = _Scope({str(k): str(e) for k, e in exprs.items()}, env, dims, prior=blocks.get("before"))
@@ -258,6 +280,8 @@ def evaluate(model: dict) -> dict:
         "threshold": {"name": th_name or "threshold", "value": _clean(value), "raw": _clean(raw),
                       "rounding": rounding, "meaning": str(th.get("meaning") or ""), "unit": t_unit,
                       "expr": str(th["expr"])},
+        "intermediates": [_clean(v) for v in _intermediates(
+            [*model["before"].values(), *model["after"].values(), str(th["expr"])], env, dims)],
     }
     result["insight"] = insight(result)
     return result
@@ -323,6 +347,7 @@ def allowed_numbers(result: dict) -> list[float]:
             vals.append(v / 100)
     vals += list(result["before"].values()) + list(result["after"].values())
     vals += [abs(v) for v in (*result["before"].values(), *result["after"].values()) if v < 0]   # #94: "a loss of $450"
+    vals += [abs(v) for v in result.get("intermediates") or []]                                   # #100: "$20 a customer"
     vals += [abs(v) for v in result["delta"].values()]
     vals += [result["threshold"]["value"], result["threshold"]["raw"]]
     vals += _derived(result)

@@ -575,3 +575,14 @@ def test_plan_rejects_a_threshold_unlinked_to_the_decision():
     plan = {**_model_plan(), "model": model, "answer": "Hire when you have at least 60 customers a week."}
     plan.pop("model_result")
     assert any("not linked" in p for p in qa.plan_problems(plan))
+
+
+def test_repeat_fix_quotes_the_sentence_to_change():
+    """#101 (E2E 2026-10-08): 'Say $3,000 exactly once' 2 raund icra olunmadi (gpt-4o-mini) - telimat artiq
+    reqemi silinecek cumleni sitat getirir, qerar qaydasi (son deyilis) qalir."""
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin and earns $3,000 a month.",
+                    "Section 4: Decision": "Currently, Rosa's monthly profit is $3,000. Her profit goes from $3,000 "
+                                           "to $1,000 if she hires."})
+    fixes = [f for f in qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand") if "$3,000" in f["instruction"]]
+    assert fixes and "Currently, Rosa's monthly profit is $3,000." in fixes[0]["instruction"]
+    assert "goes from $3,000" not in fixes[0]["instruction"].split("Keep")[0]

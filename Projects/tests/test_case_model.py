@@ -301,3 +301,31 @@ def test_plan_prompt_says_what_an_added_cost_brings():
     import script_gen as sg
     text = sg.OUTLINE_USER.lower()
     assert "adds a cost" in text and "revenue minus" in text
+
+
+def test_profit_minus_zero_is_still_without_costs():
+    """#99 (E2E 2026-10-08): #96-dan sonra LLM 'weekly_revenue - 0' yazdi - cixilan terefde deyisen olmalidir."""
+    m = {"variables": [{"name": "weekly_revenue", "value": 6000, "unit": "$"},
+                       {"name": "employee_cost", "value": 1000, "unit": "$"}],
+         "before": {"weekly_profit": "weekly_revenue - 0"},
+         "after": {"weekly_profit": "weekly_revenue - employee_cost"},
+         "threshold": {"name": "t", "expr": "employee_cost / 20", "rounding": "ceil", "meaning": "x"}}
+    with pytest.raises(cm.CaseModelError, match="profit"):
+        cm.evaluate(m)
+
+
+def test_intermediate_of_a_model_formula_is_an_allowed_figure():
+    """#100 (E2E 2026-10-08): '$20 per customer' = weekly_revenue / weekly_customers modelin oz dusturunda var,
+    amma 'case modelinde yoxdur' sayildi."""
+    m = {"variables": [{"name": "weekly_customers", "value": 300, "unit": "customers"},
+                       {"name": "weekly_revenue", "value": 6000, "unit": "$"},
+                       {"name": "costs", "value": 4000, "unit": "$"},
+                       {"name": "extra_customers", "value": 150, "unit": "customers"},
+                       {"name": "employee_cost", "value": 1000, "unit": "$"}],
+         "before": {"weekly_profit": "weekly_revenue - costs"},
+         "after": {"weekly_profit": "weekly_revenue + extra_customers * (weekly_revenue / weekly_customers) "
+                                    "- costs - employee_cost"},
+         "threshold": {"name": "need", "expr": "employee_cost / (weekly_revenue / weekly_customers)",
+                       "rounding": "ceil", "meaning": "extra customers needed"}}
+    allowed = cm.allowed_numbers(cm.evaluate(m))
+    assert any(abs(x - 20) < 1e-9 for x in allowed) and any(abs(x - 3000) < 1e-9 for x in allowed)

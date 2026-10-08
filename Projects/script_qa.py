@@ -358,9 +358,14 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
             left = re.search(r"bu bolmede (\d+) qalir", p)
             keep = (f"Say {lbl} exactly once in this section (in the decision rule); every other mention of it here "
                     if left and int(left[1]) == 1 else f"Do not restate {lbl} - it was already said earlier; ")
+            quota = int(left[1]) if left else 0
+            sents = [s for s in re.split(r"(?<=[.!?])\s+", sections(markdown).get(head, "")) if lbl in s]
+            drop, kept = (sents[:-1], sents[-1:]) if quota == 1 and len(sents) > 1 else (sents, [])
+            quoted = (" Change exactly these sentences: " + " ".join(f'"{s}"' for s in drop)
+                      + (f' Keep {lbl} in: "{kept[0]}"' if kept else "")) if drop else ""   # #101: sitat
             fixes.append({"section": head, "problem": f"{lbl} is restated",
                           "instruction": keep + "refer to it in words (e.g. 'that amount', 'the same cost') without "
-                                         "the number, and do not re-introduce the business."})
+                                         "the number, and do not re-introduce the business." + quoted})
         elif "evvel/sonra cutu" in p or "threshold deyeri" in p:
             result, _ = model_result(plan)
             import case_model as cm
