@@ -177,6 +177,9 @@ Reference (yalnız ideya, icra olunmur): `docs/referance/video_yarat_v4.py`.
 `should-you-hire-your-first-employee` ("Should You Hire Your First Employee?") `script_gen` mərhələsində 10+ cəhd
 dayandı; hər cəhd yeni gizli xəta tapdı → #92–#101 düzəldildi (TDD, 671 test keçir, son commit `286bc2a`).
 İstifadəçi qərarı (2026-10-08): **"Düzəltməyə davam"** — case modeli gpt-4o-mini-də qalır (gpt-4o-ya keçmə, mövzunu dəyişmə).
+**2026-10-08 ~22:50:** E2E №1 run-ı bütün cəhdlərdən sonra DAYANDI (son 2 cəhd: gpt-4o-mini 5 dəfə hakimdən keçən
+case modeli qura bilmədi — "after weekly_profit should include …"). Növbəti: Gemini keçidi (aşağıda) — istifadəçinin
+mərhələli plana razılığını + `.env` GEMINI_API_KEY-i gözləyir. Proses işləmir.
 **Ehtiyat planı (istifadəçi 2026-10-08):** düzəlişlərlə də keçməsə → gpt-4o-mini istifadə olunan hissələri **Gemini** ilə
 əvəz et. Hazırlıq: `llm.PROVIDERS`-ə `gemini` (OpenAI-uyğun endpoint `https://generativelanguage.googleapis.com/v1beta/openai/`,
 açar `GEMINI_API_KEY`) — `.env`-də Gemini açarı HƏLƏ YOXDUR → keçiddən əvvəl istifadəçidən açarı `.env`-ə yazmasını istə
