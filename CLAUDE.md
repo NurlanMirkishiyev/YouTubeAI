@@ -99,6 +99,7 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 - Yeni problem tapılanda: `progress.md` reyestrinə sətir + test (TDD) + kod düzəlişi — əl ilə həll yox.
 
 ## Texniki
+- Kod arxitekturası, mərhələ müqaviləsi, venv-lər, tək test əmri: `Projects/CLAUDE.md`.
 - Testlər: `Projects\.venv\Scripts\python -m pytest -q Projects/tests` (repo kökündən).
 - Açarlar `.env`-də — commit etmə. HF yükləməsi: `HF_HUB_DISABLE_XET=1`.
 - Cavab dili: azərbaycanca, qısa.
