@@ -456,6 +456,8 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | Hesabat sətrində skill adından sonra izah: `Yoxlama: skill=x (çağırdım, amma …)` (2026-10-09) | Köhnə `yoxlama-guard` "amma"-nı skill adı sayıb hər cavabı blokladı (hook düzəldildi: yalnız son sətir, yalnız `>` siyahısı). Yenə də: sətirdə YALNIZ adlar, izah növbəti sətirdə. |
 | Skill çağırışı ilə iş alətini (Bash/Edit) EYNİ mesajda paralel göndərmək (2026-10-09, 2 dəfə) | `guard-skill-check` Skill-i transkriptdə hələ görmür → alət rədd olunur. Əvvəl Skill-ləri ayrıca mesajda çağır, iş alətləri NÖVBƏTİ mesajda (hook-a retry əlavəsi auto-mode tərəfindən rədd edildi — istifadəçi qərarı). |
 | `bg_qa.json`-u əl ilə redaktə edib cəhd sayını sıfırlamaq (2026-10-09) | Əl ilə həll qadağandır — #114 bunu kodda həll etdi; retry/resume uğursuz səhnəyə özü təzə büdcə verir. |
+| Git Bash-dan venv Python-a `/c/YouTubeAI/...` yolu ötürmək (2026-10-09, `checks.final_video_problems`) | Windows Python MSYS yolunu tanımır → ffprobe "No such file". Python-a həmişə `C:\...` (Windows) yolu ver. |
+| (2026-10-09) Bloklayan hook-lar (`guard-skill-check`, `yoxlama-guard`) | İstifadəçi tez-tez yanlış xəta verdiyi üçün settings.json-dan sildi; yalnız `skill-reminder` qalır. |
 
 **Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
 reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur".
@@ -463,6 +465,13 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-09 19:05 — E2E №1 `should-you-hire-your-first-employee` HAZIR (Faza 6)
+- 13/13 keçdi, `Hazir_Videolar\should-you-hire-your-first-employee\` (10:56, −14.3 LUFS, musiqi sükutu 0).
+- quality_gate passed, self_audit KEÇDİ; script_qa/captions_qa/math_check problems []; bg_qa generic 0.0, duplicates [];
+  owl_qa hamısı ok (intro/outro ok); `final_video_problems` []; midrolls 3, upload_checklist var; kadrlar + thumbnail vizual OK.
+- Run xətaları: #110–#115 (reyestr), alət səhvi MSYS yolu (yanlış yollar). Qalan qüsur: ssenaridə "a specific amount"
+  cümləsi (#115-dən əvvəl yazılıb; növbəti videolarda qapı tutur).
 
 ### 2026-10-05/06 — 12 addımlıq məzmun standartı (#54–#63), E2E davam edir
 - Yeni modullar: `speech.py`, `captions.py` (yeni `captions` mərhələsi), `research.py`, `script_qa.py`; dəyişən:
