@@ -315,6 +315,6 @@ def test_deliver_fails_without_the_rpm_files(tmp_path):
 
 
 def test_pipeline_default_provider_follows_llm_default():
-    """Istifadeci 2026-10-08: LLM merheleleri Gemini-de - pipeline 'openai'-ni sabit yazmamalidir."""
+    """pipeline provider-i sabit yazmir - llm.DEFAULT_PROVIDER (.env LLM_PROVIDER) izlenir."""
     import llm
     assert pl.parse_args(["Topic"]).provider == llm.DEFAULT_PROVIDER

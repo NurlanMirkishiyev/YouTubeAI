@@ -82,7 +82,7 @@ sonra danışıq saniyəsi) skripti uzadır/qısaldır və `restart` ilə `scene
 Faylı oxuyub-yazan kod diskdən təzə oxuyub yalnız öz açarını yazır (reyestr #5).
 
 **LLM qatı:** bütün çağırışlar `llm.py` (`chat`, `chat_json`, `generate_image`, `edit_image`); provider
-`--provider` / `.env LLM_PROVIDER` (default `openai`; Gemini yalnız istifadəçi istəyəndə).
+`--provider` / `.env LLM_PROVIDER` (default `openai`; Gemini kodu 2026-10-10 silinib).
 
 ## Keyfiyyət tapşırığının 6 fazası → kod
 

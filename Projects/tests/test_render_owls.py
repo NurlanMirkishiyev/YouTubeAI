@@ -70,11 +70,12 @@ def test_failed_generation_does_not_stop_the_episode(tmp_path):
     assert report["1"]["ok"] is False and not os.path.exists(tmp_path / "owl" / "sc01.png")
 
 
-def test_owl_judge_uses_the_checker_model_on_gemini(monkeypatch, tmp_path):
-    """Istifadeci 2026-10-08: bayquş eyniliyi deqiq yoxlanmalidir - Gemini-de de yoxlayan (Pro) model."""
+def test_owl_judge_uses_the_checker_model(monkeypatch, tmp_path):
+    """Istifadeci 2026-10-08: bayqus eyniliyi deqiq yoxlanmalidir - yoxlayan model (gpt-4o)."""
     seen = {}
     import check_bgs
     monkeypatch.setattr(check_bgs, "_image_part", lambda p: {"type": "text", "text": "img"})
     monkeypatch.setattr(ro, "chat_json", lambda *a, **kw: seen.update(kw) or {"ok": True, "reason": ""})
-    ro.judge_owl(str(tmp_path / "x.png"), provider="gemini")
+    ro.judge_owl(str(tmp_path / "x.png"), provider="openai")
     assert seen["model"] == "gpt-4o"
+

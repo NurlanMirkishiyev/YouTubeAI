@@ -91,63 +91,25 @@ def test_chat_null_content_is_an_llm_error_not_a_crash(monkeypatch):
         llm.chat("s", "u", provider="openai")
 
 
-# Istifadeci 2026-10-08: sekil yaratmadan (gpt-image-2) basqa butun LLM merheleleri Gemini-ye. Koddaki model adlari
-# rol kimi oxunur: "gpt-4o-mini"/None = yazan (Flash), "gpt-4o" = yoxlayan (Pro).
-def _capture(monkeypatch, usage=None):
-    sent = []
-    monkeypatch.setattr(llm, "_api_key", lambda prov: "k")
-    monkeypatch.setattr(llm, "_post", lambda url, key, payload: sent.append((url, payload)) or {
-        "choices": [{"message": {"content": "ok"}}], "usage": usage or {}})
-    return sent
-
-
-def test_gemini_maps_the_writer_and_checker_roles(monkeypatch):
-    sent = _capture(monkeypatch)
-    llm.chat("s", "u", provider="gemini")
-    llm.chat("s", "u", provider="gemini", model="gpt-4o-mini")
-    llm.chat("s", "u", provider="gemini", model="gpt-4o")
-    assert [p["model"] for _, p in sent] == [llm.GEMINI_WRITE, llm.GEMINI_WRITE, llm.GEMINI_CHECK]
-    assert all("generativelanguage.googleapis.com" in u for u, _ in sent)
-    assert llm.PROVIDERS["gemini"].key_env == "GEMINI_API_KEY"
-
-
-def test_gemini_gets_room_for_thinking_tokens(monkeypatch):
-    """Duşunme tokenleri max_tokens-i yeyib JSON-u kesmemelidir (research hakimi max_tokens=200 isledir)."""
-    sent = _capture(monkeypatch)
-    llm.chat("s", "u", provider="gemini", max_tokens=200)
-    assert sent[0][1]["max_tokens"] >= 200 + llm.THINK_ROOM
-
-
-def test_gemini_cost_counts_hidden_thinking_tokens(monkeypatch, capsys):
-    """Real probe: prompt 45, completion 48, total 321 - ferq dusunme tokenleridir ve pullu cixisdir."""
-    _capture(monkeypatch, usage={"prompt_tokens": 1_000_000, "completion_tokens": 0, "total_tokens": 2_000_000})
-    llm.chat("s", "u", provider="gemini")
-    price_in, price_out = llm.GEMINI_PRICES[llm.GEMINI_WRITE]
-    assert f"~${price_in + price_out:.4f}" in capsys.readouterr().out
+def test_gemini_provider_is_removed():
+    """Istifadeci 2026-10-10: "gemini hissesini cixart" -> kod tam silindi; yalniz OpenAI (+ deepseek/ollama)."""
+    assert "gemini" not in llm.PROVIDERS
+    assert not any(n.startswith("GEMINI") or n == "THINK_ROOM" for n in dir(llm))
 
 
 def test_default_provider_is_openai_unless_env_says_otherwise():
-    """Istifadeci 2026-10-08 (gec): Gemini-den imtina - sekilden basqa modeller yeniden GPT (yazan gpt-4o-mini,
-    yoxlayan gpt-4o). Gemini kodu qalir, yalniz LLM_PROVIDER=gemini ile."""
+    """Istifadeci 2026-10-08 (gec): sekilden basqa modeller GPT (yazan gpt-4o-mini, yoxlayan gpt-4o);
+    2026-10-10: Gemini kodu silindi - kohne .env LLM_PROVIDER=gemini openai-ye dusur."""
     assert llm.default_provider({}) == "openai"
-    assert llm.default_provider({"LLM_PROVIDER": "gemini"}) == "gemini"
+    assert llm.default_provider({"LLM_PROVIDER": "deepseek"}) == "deepseek"
+    assert llm.default_provider({"LLM_PROVIDER": "gemini"}) == "openai"
 
 
 def test_a_truncated_answer_is_an_error_not_silent_text(monkeypatch):
-    """#104 real probe: Gemini Flash bolme yazanda ~8000 token dusundu, out=9384 = limit -> metn cumlenin ortasinda
+    """#104 real probe: model bolme yazanda ~8000 token dusundu, out=9384 = limit -> metn cumlenin ortasinda
     kesildi ('which begins the moment you'), redaktor 'ends abruptly' dedi. Kesilmis cavab LLMError-dur."""
     monkeypatch.setattr(llm, "_api_key", lambda prov: "k")
     monkeypatch.setattr(llm, "_post", lambda url, key, payload: {
         "choices": [{"message": {"content": "which begins the moment you"}, "finish_reason": "length"}]})
     with pytest.raises(llm.LLMError, match="kesildi"):
-        llm.chat("s", "u", provider="gemini")
-
-
-def test_gemini_prose_thinks_little_json_thinks_fully(monkeypatch):
-    """#104: nesr yazmaq derin dusunme isteyir (60 s/bolme, butce yeyilir); plan/hakim JSON-u tam dusunur."""
-    sent = _capture(monkeypatch)
-    llm.chat("s", "u", provider="gemini")
-    monkeypatch.setattr(llm, "_post", lambda url, key, payload: sent.append((url, payload)) or {
-        "choices": [{"message": {"content": "{}"}}], "usage": {}})
-    llm.chat_json("s", "u", provider="gemini")
-    assert sent[0][1].get("reasoning_effort") == "low" and "reasoning_effort" not in sent[1][1]
+        llm.chat("s", "u", provider="openai")

@@ -245,7 +245,7 @@ def judge_owl(path: str, provider: str, prop: str | None = None) -> Verdict:
         return parse_owl_verdict(chat_json(
             judge_system(prop), [{"type": "text", "text": "Image 1 (reference), then image 2 (new drawing)."},
                      _image_part(OWL_REF), _image_part(path)],
-            provider=provider, model=JUDGE_MODEL if provider in ("openai", "gemini") else None,
+            provider=provider, model=JUDGE_MODEL if provider == "openai" else None,
             temperature=0.0, max_tokens=200))
     except LLMError as e:
         print(f"  hakim xetasi ({os.path.basename(path)}): {str(e)[:120]}")

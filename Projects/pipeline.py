@@ -290,7 +290,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--from", dest="from_stage", choices=[s.name for s in STAGES])
     ap.add_argument("--min-seconds", type=float, default=MIN_SECONDS, help="video minimum uzunlugu (s)")
     ap.add_argument("--max-seconds", type=float, default=MAX_SECONDS, help="video maksimum uzunlugu (s)")
-    ap.add_argument("--provider", default=DEFAULT_PROVIDER)      # 2026-10-08: Gemini (LLM_PROVIDER ile deyisir)
+    ap.add_argument("--provider", default=DEFAULT_PROVIDER)      # .env LLM_PROVIDER ile deyisir (default openai)
     a = ap.parse_args(argv)
     if not a.topic and not a.resume:
         ap.error("movzu ve ya --resume <slug> lazimdir")
