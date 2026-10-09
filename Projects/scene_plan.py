@@ -276,6 +276,10 @@ _FRAMING = {"photo", "photograph", "image", "picture", "view", "shot", "interior
 _VENUES = {"bakery", "kitchen", "shop", "store", "storefront", "restaurant", "cafe", "diner", "office",
            "workshop", "warehouse", "studio", "salon", "room", "area", "showroom", "backroom", "garage", "factory"}
 PLACE = "place"
+# Murekkeb isimlerin -ing teyini ("rolling pin", "baking sheet") - feil kimi kesilmir (E2E hire-first-employee:
+# hero "wooden" idi, iki oklov kadri tekrar)
+_ING_NOUNS = {"rolling", "baking", "cutting", "mixing", "serving", "measuring", "cooling", "packing",
+              "frying", "sewing", "washing", "shopping", "dining", "sitting", "living", "waiting", "meeting"}
 
 
 def _is_place(words: list[str]) -> bool:
@@ -301,7 +305,7 @@ def hero(prompt: str) -> str:
                                     or chunk[-2:] == ["close", "up"]):
             chunk = []                      # "a stack of cookies" -> cookie (6 peceniye tutulmurdu)
             continue
-        if w in _HERO_STOP or (chunk and (w.endswith("ing") or w.endswith("ly") or
+        if w in _HERO_STOP or (chunk and ((w.endswith("ing") and w not in _ING_NOUNS) or w.endswith("ly") or
                                           (w.endswith("ed") and len(w) > 4))):
             if _is_place(chunk + words[i:]):
                 return PLACE

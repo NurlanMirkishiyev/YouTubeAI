@@ -153,6 +153,13 @@ def test_photo_of_prefix_is_not_the_hero():
     assert scene_plan.hero("an image of a stainless steel mixer") == "mixer"
 
 
+def test_ing_compound_noun_keeps_its_head():
+    # E2E hire-first-employee: "rolling pin" -> hero "wooden" idi, 17/56 eyni oklov kadri tutulmadi
+    assert scene_plan.hero("A wooden rolling pin on a floured surface in a bakery kitchen") == "pin"
+    assert scene_plan.hero("a stainless baking sheet with cookies") == "sheet"
+    assert scene_plan.hero("a glass jar filling with coins") == "jar"
+
+
 def test_duplicate_redraw_asks_for_a_new_case_object_not_the_generic_pool():
     used = {"a cozy bakery with display cases", "a bakery counter with fresh bread"}
     asked = []
