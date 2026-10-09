@@ -177,3 +177,15 @@ def test_duplicate_redraw_falls_back_to_the_pool_only_without_a_fresh_suggestion
     used = {"a cozy bakery with display cases", "a bakery counter with fresh bread"}
     got = cb.duplicate_prompt("a bakery counter with fresh bread", used, lambda fb: ("a bakery counter at dawn",))
     assert got in scene_plan.FALLBACK_POOL
+
+
+# Reyestr #124 (E2E second-location): check_bgs sc60-i animasiyaya kecirdi, amma bg/sc60.png qaldi ve
+# bg_dedupe butun bg/sc*.png-ni muqayise etdi -> [46, 60] "tekrar" qaldi, merhele ugursuz oldu
+def test_dedupe_compares_only_photo_scenes(tmp_path):
+    scenes = [{"bg_prompt": "a"}, {"bg_prompt": "b", "visual": {"kind": "compare"}}, {"bg_prompt": "c"}]
+    (tmp_path / "scenes.json").write_text(json.dumps({"scenes": scenes}))
+    (tmp_path / "bg").mkdir()
+    for n in (1, 2, 3):
+        (tmp_path / "bg" / f"sc{n:02d}.png").write_bytes(b"x")
+    paths = bg_dedupe.photo_paths(str(tmp_path))
+    assert [p.split("sc")[-1] for p in paths] == ["01.png", "03.png"]

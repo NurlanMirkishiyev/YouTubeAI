@@ -7,7 +7,6 @@ MusicGen venv-inde isleyir (torch + transformers orada var):
 """
 from __future__ import annotations
 
-import glob
 import json
 import os
 import sys
@@ -28,6 +27,15 @@ def find_duplicates(sim: list[list[float]], threshold: float = DUP_SIM) -> tuple
         if i not in redo:
             redo.add(j)
     return pairs, sorted(redo)
+
+
+def photo_paths(ep: str) -> list[str]:
+    """#124: yalniz foto sehnelerinin fonlari - animasiyaya kecmis sehnenin (visual) kohne bg/scNN.png-si
+    videoda gorunmur, onu muqayise etmek yalanci "tekrar" verir."""
+    with open(os.path.join(ep, "scenes.json"), encoding="utf-8") as f:
+        scenes = json.load(f)["scenes"]
+    paths = [os.path.join(ep, "bg", f"sc{n:02d}.png") for n, s in enumerate(scenes, 1) if not s.get("visual")]
+    return [p for p in paths if os.path.isfile(p)]
 
 
 def similarity(paths: list[str]) -> list[list[float]]:
@@ -51,7 +59,7 @@ def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("istifade: bg_dedupe.py <episode_dir>")
     os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
-    paths = sorted(glob.glob(os.path.join(sys.argv[1], "bg", "sc*.png")))
+    paths = photo_paths(sys.argv[1])
     if not paths:
         raise SystemExit("fon yoxdur: " + os.path.join(sys.argv[1], "bg"))
     nums = [int(os.path.basename(p)[2:-4]) for p in paths]       # scNN.png -> NN
