@@ -61,7 +61,8 @@ talks to the viewer ("you") - never infer people or writing from it.
 - "no_subject": no clear main subject - mostly empty, blurry or unrecognisable.
 - "deformed": melted, broken or impossible objects that look like generation mistakes.
 - "off_topic": the image is unrelated to the narration even as a metaphor, or shows gambling, weapons,
-  alcohol or medicine.
+  alcohol or medicine. A real place, tool, machine or product of the case business named in the message is
+  never off_topic - even when the narration is an everyday analogy or a call to watch the next video.
 - "childish": it looks like a children's video - toys, candy, carnival or playground things, cartoonish
   plastic toy-like objects, or a cute kids-show look. The video is for adult professionals.
 - "generic": a generic stock picture or a symbolic metaphor (piggy bank, hourglass, chess piece, light bulb,
@@ -153,7 +154,10 @@ def suggest_again(scene: dict, feedback: str, used: set[str], provider: str, cas
 
 def choose_prompt(v: Verdict, attempt: int, used: set[str], suggest) -> str:
     """Reyestr #32: hakimin teklifleri redd olunanda derhal movzudan kenar ehtiyat fona kecilmir -
-    sebebler bildirilib bir defe yeni teklif alinir (suggest(feedback) -> teklifler)."""
+    sebebler bildirilib bir defe yeni teklif alinir (suggest(feedback) -> teklifler).
+    #112: yalniz "mismatch" olanda son cehdde de teze case kadri hovuzdan ustundur (hovuz terife gore generikdir)."""
+    if set(v.problems) <= {"mismatch"}:
+        attempt = min(attempt, MAX_ATTEMPTS - 1)
     p = next_prompt(v.fix_options, attempt, used)
     if attempt >= MAX_ATTEMPTS or p not in FALLBACK_POOL:
         return p

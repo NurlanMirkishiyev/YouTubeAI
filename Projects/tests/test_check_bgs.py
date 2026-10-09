@@ -179,6 +179,20 @@ def test_choose_prompt_does_not_ask_again_when_an_option_is_fine():
     assert p == "a pasta box on a counter"
 
 
+def test_last_attempt_mismatch_only_keeps_a_case_frame_not_the_generic_pool():
+    """#112 (E2E hire-first-employee): analogiya/CTA sehnesi son cehdde hovuza dusurdu (generik 14%).
+    Yalniz "mismatch" ucun case kadri hovuzdan yaxsidir - hovuz terife gore generikdir."""
+    v = cb.Verdict(ok=False, problems=("mismatch",), fix_prompt="", fix_options=("a bakery dough proofer cabinet",))
+    p = cb.choose_prompt(v, attempt=cb.MAX_ATTEMPTS, used=set(), suggest=lambda fb: ())
+    assert p == "a bakery dough proofer cabinet"
+
+
+def test_last_attempt_generic_still_goes_to_the_pool():
+    v = cb.Verdict(ok=False, problems=("generic",), fix_prompt="", fix_options=("a bakery dough proofer cabinet",))
+    p = cb.choose_prompt(v, attempt=cb.MAX_ATTEMPTS, used=set(), suggest=lambda fb: ())
+    assert p in scene_plan.FALLBACK_POOL
+
+
 def test_rerender_turns_balance_exit_into_no_retry_message(monkeypatch, tmp_path):
     """#64: balans bitende check_bgs traceback yox, pipeline-in NO_RETRY mesajini vermelidir."""
     import subprocess
@@ -225,6 +239,11 @@ def test_generic_rule_keeps_the_case_business_own_places():
     assert "case business" in cb.SUGGEST_SYSTEM
 
 
+def test_case_business_object_is_never_off_topic_for_analogy_or_cta_lines():
+    """#112 (E2E hire-first-employee): analogiya/CTA sehnelerinde cörekxana esyasi "off_topic" sayilirdi ->
+    hovuz fonu -> generik 14%. Case biznesinin literal esyasi her sehneye uygun sayilir."""
+    rule = cb.SYSTEM.split('- "off_topic"')[1].split('- "childish"')[0]
+    assert "case business" in rule and "never off_topic" in rule
 def test_scene_still_generic_after_a_redraw_is_animated():
     """#67: bir defe yeniden cekilib hele generik qalan foto - yeniden cekilmir, animasiyaya gedir."""
     gen = cb.Verdict(ok=False, problems=("generic",), fix_prompt="", fix_options=())
