@@ -2,7 +2,7 @@ import React from 'react';
 import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Item, Unit} from '../types';
 import {DUR, EASE, ease} from '../motion';
-import {AREA, Body, C, Count, GHOST, LiveHead, useEnter, TITLE_H, useIn} from './common';
+import {AREA, Body, C, Count, GHOST, Landing, LiveHead, storyT, useEnter, TITLE_H, useIn} from './common';
 
 const BODY_H = AREA.height - TITLE_H - 24;
 const at = (reveal: number[], i: number) => reveal[i] ?? reveal[reveal.length - 1] ?? 0;
@@ -56,7 +56,7 @@ export const Line: React.FC<{points: Item[]; unit: Unit; reveal: number[]}> = ({
     60 + (hi === lo ? plotH / 2 : (1 - (v - lo) / (hi - lo)) * plotH)] as const);
   // her seqment oz noqtesinin reveal-i ile 0.6 s-de cekilir
   const segs = xy.slice(1).map((pt, i) => {
-    const t = ease(frame, at(reveal, i + 1) - DUR.draw, DUR.draw, EASE.inOut);
+    const t = storyT(frame, reveal, i);             // #137: danisiq boyu noqteden noqteye
     const [x0, y0] = xy[i];
     return {t, x0, y0, x1: x0 + (pt[0] - x0) * t, y1: y0 + (pt[1] - y0) * t};
   });
@@ -79,22 +79,25 @@ export const Line: React.FC<{points: Item[]; unit: Unit; reveal: number[]}> = ({
             strokeLinecap="round" />))}
       </svg>
       {points.map((p, i) => <LinePoint key={p.label} item={p} unit={unit} x={xy[i][0]} y={xy[i][1]}
-        labelY={60 + plotH + 26} delay={at(reveal, i)} />)}
+        labelY={60 + plotH + 26} delay={at(reveal, i)} hideValue={i === points.length - 1 && points.length > 2} />)}
+      {points.length > 2 && points[points.length - 1].value !== null ? <Landing
+        value={points[points.length - 1].value ?? 0} unit={points[points.length - 1].unit ?? unit}
+        x={xy[xy.length - 1][0]} y={xy[xy.length - 1][1]} delay={at(reveal, points.length - 1)} color={C.accent} /> : null}
       {points.every((p) => p.value !== null) ? <LiveHead xy={xy} vals={vals} progress={segs.map((s) => s.t)}
         unit={unit} colorOf={() => C.accent} width={AREA.width} /> : null}
     </Body>
   );
 };
 
-const LinePoint: React.FC<{item: Item; unit: Unit; x: number; y: number; labelY: number; delay: number}> = (
-  {item, unit, x, y, labelY, delay}) => {
+const LinePoint: React.FC<{item: Item; unit: Unit; x: number; y: number; labelY: number; delay: number;
+  hideValue?: boolean}> = ({item, unit, x, y, labelY, delay, hideValue}) => {
   const enter = useEnter();
   const p = useIn(delay, 'snappy');
   return (
     <>
       <div style={{position: 'absolute', left: x - 14, top: y - 14, width: 28, height: 28, borderRadius: 14,
         background: C.accent, border: '5px solid #111A30', transform: `scale(${p})`}} />
-      {item.value !== null ? (
+      {item.value !== null && !hideValue ? (
         <div style={{position: 'absolute', left: x - 120, width: 240, top: y - 78, textAlign: 'center',
           fontSize: 40, fontWeight: 800, ...enter(p, 16)}}><Count value={item.value} unit={item.unit ?? unit} delay={delay} /></div>) : null}
       <div style={{position: 'absolute', left: x - 120, width: 240, top: labelY, textAlign: 'center', fontSize: 30,

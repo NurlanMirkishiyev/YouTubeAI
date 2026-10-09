@@ -3,7 +3,7 @@ import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Unit, Visual} from '../types';
 import {FONT} from '../fonts';
 import {DUR, EASE, ease} from '../motion';
-import {AREA, Body, C, Count, fmt, GHOST, LiveHead, useEnter, TITLE_H, useIn} from './common';
+import {AREA, Body, C, Count, fmt, GHOST, Landing, LiveHead, storyT, useEnter, TITLE_H, useIn} from './common';
 
 /** Faza 2 (istifadeci 2026-10-07): qerar vizuallari (table, threshold), zaman seriyasi, ABS xeritesi.
  *  Hamisi skeletle (GHOST + "—") 0-ci kadrdan gorunur; reqem oz sozunde acilir (reveal). */
@@ -162,7 +162,7 @@ export const Timeseries: React.FC<{v: SeriesV; reveal: number[]}> = ({v, reveal}
       <svg width={AREA.width} height={BODY_H} style={{position: 'absolute', overflow: 'visible'}}>
         {[0, 0.5, 1].map((g) => <line key={g} x1={pad} x2={pad + W2} y1={70 + g * H2} y2={70 + g * H2} stroke={C.line} />)}
         {v.segments.map((s) => {
-          const t = ease(frame, at(reveal, s.to) - DUR.draw, DUR.draw, EASE.inOut);
+          const t = storyT(frame, reveal, s.from);     // #137: danisiq boyu
           const [x0, y0] = xy[s.from];
           const [x1, y1] = xy[s.to];
           return <line key={s.from} x1={x0} y1={y0} x2={x0 + (x1 - x0) * t} y2={y0 + (y1 - y0) * t}
@@ -170,11 +170,15 @@ export const Timeseries: React.FC<{v: SeriesV; reveal: number[]}> = ({v, reveal}
         })}
       </svg>
       {v.points.map((q, i) => q.shown ? <SeriesPoint key={i} q={q} unit={v.unit} x={xy[i][0]} y={xy[i][1]}
-        labelY={70 + H2 + 26} delay={at(reveal, i)} down={i > 0 && q.value < v.points[i - 1].value} /> : null)}
+        labelY={70 + H2 + 26} delay={at(reveal, i)} down={i > 0 && q.value < v.points[i - 1].value}
+        hideValue={i === v.points.length - 1 && v.points.length > 2} /> : null)}
+      {v.points.length > 2 ? <Landing value={vals[vals.length - 1]} unit={v.unit} x={xy[xy.length - 1][0]}
+        y={xy[xy.length - 1][1]} delay={at(reveal, v.points.length - 1)}
+        color={vals[vals.length - 1] < vals[vals.length - 2] ? RED : GREEN} /> : null}
       {v.events.map((e) => <SeriesEvent key={e.index} label={e.label} x={xy[e.index][0]} y={xy[e.index][1]}
         labelY={70 + H2 + 70} delay={at(reveal, e.index)} />)}
       <LiveHead xy={xy} vals={vals} unit={v.unit} width={AREA.width}
-        progress={vals.slice(1).map((_, i) => ease(frame, at(reveal, i + 1) - DUR.draw, DUR.draw, EASE.inOut))}
+        progress={vals.slice(1).map((_, i) => storyT(frame, reveal, i))}
         colorOf={(i) => (v.points[i + 1].value < v.points[i].value ? RED : GREEN)} />
       {v.illustrative ? <div style={{position: 'absolute', right: 0, top: -6, fontSize: 26, fontWeight: 600,
         color: C.muted, letterSpacing: 2, textTransform: 'uppercase'}}>illustrative</div> : null}
@@ -183,7 +187,7 @@ export const Timeseries: React.FC<{v: SeriesV; reveal: number[]}> = ({v, reveal}
 };
 
 const SeriesPoint: React.FC<{q: {label: string; value: number}; unit: Unit; x: number; y: number; labelY: number;
-  delay: number; down: boolean}> = ({q, unit, x, y, labelY, delay, down}) => {
+  delay: number; down: boolean; hideValue?: boolean}> = ({q, unit, x, y, labelY, delay, down, hideValue}) => {
   const enter = useEnter();
   const p = useIn(delay, 'snappy');
   const color = down ? RED : GREEN;
@@ -191,8 +195,9 @@ const SeriesPoint: React.FC<{q: {label: string; value: number}; unit: Unit; x: n
     <>
       <div style={{position: 'absolute', left: x - 13, top: y - 13, width: 26, height: 26, borderRadius: 13,
         background: color, border: '5px solid #111A30', opacity: GHOST + (1 - GHOST) * p}} />
-      <div style={{position: 'absolute', left: x - 130, width: 260, top: y - 76, textAlign: 'center', fontSize: 40,
-        fontWeight: 800, color, ...enter(p, 14)}}><Count value={q.value} unit={unit} delay={delay} /></div>
+      {hideValue ? null : <div style={{position: 'absolute', left: x - 130, width: 260, top: y - 76,
+        textAlign: 'center', fontSize: 40, fontWeight: 800, color, ...enter(p, 14)}}>
+        <Count value={q.value} unit={unit} delay={delay} /></div>}
       <div style={{position: 'absolute', left: x - 120, width: 240, top: labelY, textAlign: 'center', fontSize: 30,
         fontWeight: 600, color: C.muted}}>{q.label}</div>
     </>
@@ -219,12 +224,18 @@ export const USMap: React.FC<{v: MapV; reveal: number[]}> = ({v, reveal}) => {
   let count = 0;
   let prev = 0;
   let label = '';
-  v.keys.forEach((k, i) => {
-    const t = ease(frame, at(reveal, i), DUR.draw * 2, EASE.inOut);
-    if (frame >= at(reveal, i)) {
+  // #137: ilk acar deyilende sayilir, sonra say novbeti acar deyilene qeder danisiq boyu artir/azalir
+  if (frame >= at(reveal, 0)) {
+    count = v.keys[0].value * ease(frame, at(reveal, 0), DUR.draw * 2, EASE.inOut);
+    label = v.keys[0].label;
+  }
+  v.keys.slice(1).forEach((k, j) => {
+    const i = j;
+    const t = storyT(frame, reveal, i);
+    if (t > 0) {
       prev = count;
-      count = count + (k.value - count) * t;
-      label = k.label;
+      count = count + (k.value - v.keys[i].value) * t;
+      if (frame >= at(reveal, i + 1)) label = k.label;
     }
   });
   const started = frame >= at(reveal, 0);

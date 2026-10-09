@@ -45,6 +45,30 @@ export const Count: React.FC<{value: number; unit: Unit; delay: number; style?: 
   return <span style={{fontVariantNumeric: 'tabular-nums', ...style}}>{text}</span>;
 };
 
+/** #137 (istifadeci 2026-10-10, reference Chart.progress): seqment i (noqte i -> i+1) noqte i deyilende baslayir ve
+ *  novbeti reqem deyilende catir - xett danisiq boyu arasikesilmeden gedir (qisa araliqda en azi DUR.draw). */
+export const storyT = (frame: number, reveal: number[], i: number) => {
+  const a = reveal[i] ?? 0;
+  const b = reveal[i + 1] ?? a;
+  const start = Math.min(a, b - DUR.draw);
+  return ease(frame, start, Math.max(1, b - start), EASE.inOut);
+};
+
+/** #137: son noqteye catanda boyuk "landing" reqemi (reference "$0.50") - back-overshoot pop, parilti. */
+export const Landing: React.FC<{value: number; unit: Unit; x: number; y: number; delay: number; color: string}> = (
+  {value, unit, x, y, delay, color}) => {
+  const frame = useCurrentFrame();
+  const p = ease(frame, delay, DUR.count, EASE.back);
+  if (frame < delay) return null;
+  return (
+    <div style={{position: 'absolute', left: x - 420, width: 400, top: Math.max(0, y - 150), textAlign: 'right',
+      fontSize: 84, fontWeight: 900, color, fontVariantNumeric: 'tabular-nums', transform: `scale(${0.6 + 0.4 * p})`,
+      transformOrigin: 'right bottom', textShadow: `0 0 40px ${color}88`, opacity: Math.min(1, p * 1.5)}}>
+      {fmt(value, unit, decimals(value))}
+    </div>
+  );
+};
+
 /** #134 (reference video_yarat_v4 Chart): xett cekilerken ucunda parlayan "bas" noqte ve onunla hereket eden canli
  *  deyer nisani. Yalniz seqment cekilerken gorunur (0 < t < 1) - noqteye catanda noqtenin oz etiketi acilir. */
 export const LiveHead: React.FC<{xy: readonly (readonly [number, number])[]; vals: number[]; progress: number[];

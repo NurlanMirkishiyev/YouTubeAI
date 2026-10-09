@@ -97,6 +97,8 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
   `owl/intro.png` (açılış) və `owl/outro.png` (qapanış, sağollaşır), eyni mövzu əşyası ilə. Test: `test_card_owls.py`.
 - Bayquş modeli **gpt-image-2** (istifadəçi 2026-09-30; başqa modelə keçmə). Şəffaf fon vermir → magenta fonda çəkilir,
   `render_owls.key_out` lokal silir. Test: `test_owl_keying.py`.
+- **Bayquş HƏR ZAMAN videoda görünür** (istifadəçi 2026-10-10) — chart/animasiya səhnəsində də gizlənmir, tam ekran
+  "hero" rejimi YOX (təklif rədd edildi). Animasiyalar danışıqla sinxron "hekayə" kimi oynanır (#137).
 - Bayquş həmişə sağda; hər səhnədə mətnə uyğun ChatGPT bayquşu, görünüşü
   (dəyirmi eynək, göy kostyum, sarı qalstuk) dəyişməz.
 - Musiqi: AI, lokal (Stable Audio Open), pulsuz, istinadsız. Stability Community License aktivdir (2026-09-28).

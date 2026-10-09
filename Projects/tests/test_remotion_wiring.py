@@ -81,3 +81,17 @@ def test_line_and_timeseries_draw_a_live_head_and_counter_pops():
     assert "<LiveHead" in charts and "<LiveHead" in dataviz
     assert "EASE.back(ease(frame, d, DUR.count))" in charts
     assert 'id="VisualProbe"' in root
+
+
+def test_charts_play_as_a_story_synced_with_the_narration():
+    """#137 (istifadeci 2026-10-10, reference video_yarat_v4 Chart.progress): xett noqteden noqteye danisiq boyu
+    ARASIKESILMEDEN gedir - seqment i oz reqemi deyilende baslayir, novbeti reqem deyilende catir (storyT);
+    son noqteye catanda boyuk "landing" reqemi; xeritede say acarlar arasinda danisiq boyu artir. Bayqus deyismir."""
+    common = open(os.path.join(SRC, "visuals", "common.tsx"), encoding="utf-8").read()
+    charts = open(os.path.join(SRC, "visuals", "Charts.tsx"), encoding="utf-8").read()
+    dataviz = open(os.path.join(SRC, "visuals", "DataViz.tsx"), encoding="utf-8").read()
+    assert "export const storyT" in common and "export const Landing" in common
+    for src in (charts, dataviz):
+        assert "storyT(frame, reveal," in src and "<Landing" in src
+        assert "at(reveal, i + 1) - DUR.draw" not in src and "at(reveal, s.to) - DUR.draw" not in src
+    assert "storyT(frame, reveal, i)" in dataviz.split("export const USMap")[1]
