@@ -208,6 +208,18 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 
 ## Növbəti dəqiq addım
 
+**2026-10-10 (gec, DAYANDIRILDI — istifadəçi: "video hələ yaratma, hərşeyi yaddaşa yaz, sonra davam edəcəyik"):**
+Plan `docs/superpowers/plans/2026-10-10-varied-live-animations.md` — Task 1–4 TAMAM (#133–#136), 777 test:
+#133 növ payı ≤ 20% + ardıcıl təkrar yox + `visual_variety` qapısı; #134 canlı xətt (LiveHead) + pop counter +
+`VisualProbe` kompozisiyası (renderStill QA); #135 6 yeni növ (waterfall, gauge, dotgrid, balance, funnel, versus);
+#136 qərar həddi/cavab koddan (break-even), testlər şəbəkəni bloklayır. Gemini kodu silindi (#132).
+**Task 5 (tam E2E) GÖZLƏYİR:** "Should You Raise Your Menu Prices?" run-u `[1/13] script_gen`-də əl ilə dayandırıldı
+(istifadəçi istəyi). Qismən qovluq `Episodes\should-you-raise-your-menu-prices\` (script.md yoxlanmayıb, series.json
+var) qalır. **Davam:** istifadəçi deyəndə `run.py --resume should-you-raise-your-menu-prices` (yoxlanmamış skript
+özü yenidən yazılır) və ya başqa mövzu; sonra addım 4–7 + əlavə yoxlama: timeseries kadrda real nöqtələr,
+`visual_variety`/`data_visuals` keçir, yeni növlərin kadrları, heç bir növ > 20%. Açıq: `.env`
+LEAD_MAGNET_URL/AFFILIATE_LINKS boş.
+
 **2026-10-10:** Faza 6 TAMAM (2 E2E təhvil, təsdiq, silindi). Sonra istifadəçi qərarı "Mənbədən real data" →
 #127–#131 TAMAM (`data_sources.py`, plan `docs/superpowers/plans/2026-10-10-real-data-visuals.md`), 758 test.
 Real probe ("Should You Raise Your Menu Prices?", yalnız script_gen + scene_plan, silindi): gpt-4o CPI restoran
@@ -463,6 +475,8 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | (2026-10-09, E2E №2) Qapılar keçdi deyə skriptə baxmadan render-ə buraxmaq | #118/#119: yanlış fakt ("that amount" = $17,400 yox $2,000) və boş ifadələr qapıdan keçdi, ancaq oxuyanda göründü. `render_bgs`-dən ƏVVƏL `script.md` + `scenes.json`-u özün oxu (pullu şəkil mərhələsindən əvvəl ucuz yoxlama). |
 | (2026-10-09) `progress.md`-ni CRLF sayıb skriptlə əvəzləmək | Fayl LF-dir; skriptdə sətir sonunu əvvəlcə yoxla (`file`), Python-da `open(..., newline='')`; ən yaxşısı Edit aləti. |
 | (2026-10-10) Git Bash-da `python -c "..."` içində Windows yolu `r'C:\...\\$M'` (DOQQUZUNCU dəfə — diaqnoz skripti) | Bash `\\` → `\`, son `'` qaçdı → SyntaxError. Diaqnoz skripti yalnız Write ilə scratchpad-a yazılır, yollar içində `r"C:\..."`. |
+| (2026-10-10) `python - 2>/dev/null \|\| venv/python - <<'EOF'` — heredoc yalnız ikinci əmrə bağlanır | Birinci `python -` stdin gözləyib 120 s asıldı (heç nə yazılmadı). Mətn əlavəsi yalnız Edit aləti ilə; heredoc-lu skriptdə bir interpretator. |
+| (2026-10-10) `remotion still` ilə tək səhnə probu public-dir-siz | Fontlar 404 → render düşdü. `VisualProbe` üçün `--public-dir` (içində `fonts/` Assets-dən) ver. |
 | (2026-10-10) Run gedərkən kodu düzəldib prosesi əl ilə öldürmək + `--resume` | Unudulanda retry köhnə kodla işləyirdi. İndi `code_watch` özü dayandırıb yeni kodla yenidən açır (#126) — əl ilə öldürmə lazım deyil, yalnız artıq bitmiş mərhələni yenidən etmək üçün `--from` lazımdır. |
 
 **Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
@@ -471,6 +485,15 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-10 — real data (#127–#131), Gemini silindi (#132), müxtəlif/canlı animasiyalar + case modeli (#133–#136)
+- İstifadəçi: "Mənbədən real data" → FRED kataloqu, sözbəsöz data cümləsi, LLM-siz timeseries/usmap, qapı + `Data:` linki.
+- İstifadəçi: "gemini hissəsini çıxart" → "Kodu tamam sil".
+- İstifadəçi: "eyni animasiyalar çoxdur ... reference kimi gözəl, bir-birinin eynisi olmayan" → #133–#135; E2E №2-nin
+  3 problemindən case modeli ziddiyyəti #136 ilə (outline ×5 reproduksiya, sonra 5/5 tutarlı).
+- Xətalar (hamısı qeydə alındı): #136 inkişaf zamanı testdən real OpenAI çağırışı (conftest qoruması); `python -c`
+  Windows yolu və stdin-siz `python -` (yanlış yollar); `VisualProbe` üçün `--public-dir` (fontlar) lazım idi.
+- Tam E2E (Task 5) istifadəçi istəyi ilə dayandırıldı — "Növbəti dəqiq addım"-a bax.
 
 ### 2026-10-05/06 — 12 addımlıq məzmun standartı (#54–#63), E2E davam edir
 - Yeni modullar: `speech.py`, `captions.py` (yeni `captions` mərhələsi), `research.py`, `script_qa.py`; dəyişən:
