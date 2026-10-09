@@ -159,25 +159,33 @@ def _refer_back(sent: str, pat: re.Pattern, lbl: str) -> str:
 def _settle_paragraph(par: str, lbl: str, drop: int) -> tuple[str, int]:
     """Paraqrafda lbl-in ilk `drop` deyilisini duzeldir: yeni reqemsiz cumle silinir, qalaninda reqem sozle."""
     pat = re.compile(r"(?<![\w$.,])" + re.escape(lbl) + r"(?![\d,]|\.\d)")
+    val = _label_value(lbl)
     out = []
     for sent in re.split(r"(?<=[.!?])\s+", par):
-        if drop > 0 and pat.search(sent):
+        if drop > 0 and (m := pat.search(sent)):
             drop -= 1
             rest = pat.sub("", sent)
-            if not _figures(rest):
-                continue                              # yalniz tekrar - cumle silinir
+            prior = _mentions(" ".join(out + [sent[:m.start()]]))
+            if not _figures(rest) or (prior and val is not None and abs(prior[-1] - val) > 1e-9):
+                continue                              # yalniz tekrar ve ya 'that amount' basqa reqeme isare ederdi (#118)
             sent = _refer_back(sent, pat, lbl)
         out.append(sent)
     return " ".join(s for s in out if s), drop
+
+
+def _label_value(lbl: str) -> float | None:
+    try:
+        return float(lbl.strip("$%").replace(",", ""))
+    except ValueError:
+        return None
 
 
 def _digits_for_words(body: str, lbl: str) -> str:
     """#117: repeated_figures sozle deyilisi de sayir ('three thousand dollars'); duzelis onu gorsun deye
     eyni deyerli soz formasi lbl-e cevrilir ('$3,000'). TTS reqemi yene sozle oxuyur (speech.to_speech)."""
     from math_check import find_numbers
-    try:
-        val = float(lbl.strip("$%").replace(",", ""))
-    except ValueError:
+    val = _label_value(lbl)
+    if val is None:
         return body
     unit = r"\s+dollars?" if lbl.startswith("$") else r"\s+percent" if lbl.endswith("%") else ""
     for s, e, v in sorted(find_numbers(body), reverse=True):

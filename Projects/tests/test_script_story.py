@@ -668,6 +668,19 @@ def test_settle_repeats_sees_spelled_out_mentions():
     assert "$3,000 more from 300 new customers" in out
 
 
+def test_settle_repeats_never_points_that_amount_at_a_different_figure():
+    """#118 (E2E №2 2026-10-09): '...she'll have $2,000 in profit. Currently ... yielding a monthly profit of $17,400'
+    -> 'of that amount' = $2,000 kimi esidilir (yanlis fakt). Araliqda basqa reqem varsa cumle silinir."""
+    md = _script(**{"Hook": "Sarah runs a coffee shop in Austin and earns $17,400 a month.",
+                    "Section 4: Decision": "After $1,000 in costs, she keeps $2,000 from the new spot. Currently, "
+                                           "she serves 300 customers, yielding $17,400 a month. Her profit goes "
+                                           "from $17,400 to $19,400."})
+    out = qa.sections(qa.settle_repeats(md))["Section 4: Decision"]
+    assert "that amount" not in out
+    assert "from $17,400 to $19,400" in out
+    assert not qa.repeated_figures(qa.sections(qa.settle_repeats(md)))
+
+
 def test_settle_script_clears_every_deterministic_case_problem():
     """#109 (istifadeci 2026-10-09: 'qeti sekilde hell et'): 21 cehdin son problemleri hamisi deterministik siniflerdir
     (modelde olmayan reqem, deyisen buraxilib, evvel/sonra cutu, esik, tekrar, kohne menbe ili). LLM-e buraxilmir:
