@@ -203,10 +203,13 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 
 ## Növbəti dəqiq addım
 
-**2026-10-10:** Faza 6-nın hər iki E2E-si TAMAM (təhvil, təsdiq, epizod yaddaşı silindi). Pipeline: 13 mərhələ,
-modellər OpenAI, Gemini yalnız `.env` ilə; 732 test. **Növbəti dəqiq addım:** istifadəçinin Faza 6 yekun hesabatına
-cavabı (timeseries/usmap üçün data mənbəyi qərarı); açıq: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş, Gemini açarı
-rotasiyası. Sonra yeni mövzu gözlənilir.
+**2026-10-10:** Faza 6 TAMAM (2 E2E təhvil, təsdiq, silindi). Sonra istifadəçi qərarı "Mənbədən real data" →
+#127–#131 TAMAM (`data_sources.py`, plan `docs/superpowers/plans/2026-10-10-real-data-visuals.md`), 758 test.
+Real probe ("Should You Raise Your Menu Prices?", yalnız script_gen + scene_plan, silindi): gpt-4o CPI restoran
+seriyasını seçdi, cümlə sözbəsöz Section 1-də, scene_plan timeseries (4 real nöqtə, illustrative yox) qurdu.
+Probe-da script_gen ayrıca səbəbdən fail-closed dayandı (case modeli "profit −$1,000 → −$16,000", redaktor
+"hekayə ziddiyyətli") — mövcud qapı tutdu, real run-da retry edir; təkrarlansa reyestrə. **Növbəti:** yeni mövzu
+gözlənilir; açıq: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş, Gemini açarı rotasiyası.
 
 **2026-10-08:** Faza 3, 4, 5 TAMAM. Növbəti: **Faza 6** — 2 yeni B2B mövzu ilə ardıcıl E2E (CLAUDE.md tetiki): (1) qiymət/xərc qərarı (table + threshold), (2) zaman/coğrafiya datası (timeseries/usmap); hər birində quality_gate keçir, self_audit təmiz, motion_sheet-lər fərqli, 10–12 dəq, −14 LUFS, təhvil paketi tam (mp4, thumbnail, youtube.txt, srt, script, midrolls, upload_checklist). Pullu (OpenAI) — istifadəçi təsdiqi lazımdır. `Episodes\_probe-raise-prices` probe qovluğudur (silinə bilər).
 
