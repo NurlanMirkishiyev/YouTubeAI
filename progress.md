@@ -213,7 +213,7 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 Plan `docs/superpowers/plans/2026-10-10-varied-live-animations.md` — Task 1–4 TAMAM (#133–#136), 777 test:
 #133 növ payı ≤ 20% + ardıcıl təkrar yox + `visual_variety` qapısı; #134 canlı xətt (LiveHead) + pop counter +
 `VisualProbe` kompozisiyası (renderStill QA); #135 6 yeni növ (waterfall, gauge, dotgrid, balance, funnel, versus);
-#136 qərar həddi/cavab koddan (break-even), testlər şəbəkəni bloklayır. Gemini kodu silindi (#132).
+#136 qərar həddi/cavab koddan (break-even), testlər şəbəkəni bloklayır. Gemini kodu silindi (#132). #137 (sonra): animasiyalar danışıqla sinxron hekayə (storyT, Landing), tam ekran YOX, bayquş HƏR ZAMAN görünür (778 test).
 **Task 5 (tam E2E) GÖZLƏYİR:** "Should You Raise Your Menu Prices?" run-u `[1/13] script_gen`-də əl ilə dayandırıldı
 (istifadəçi istəyi). Qismən qovluq `Episodes\should-you-raise-your-menu-prices\` (script.md yoxlanmayıb, series.json
 var) qalır. **Davam:** istifadəçi deyəndə `run.py --resume should-you-raise-your-menu-prices` (yoxlanmamış skript
