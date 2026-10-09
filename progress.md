@@ -198,6 +198,10 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 
 ## Növbəti dəqiq addım
 
+**2026-10-10:** E2E №2 `should-you-open-a-second-location` HAZIRDIR → istifadəçi təsdiqi (addım 7, `forget_episode`),
+sonra Faza 6 yekun hesabatı (reyestr #86–#126, iki E2E, açıq: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş, Gemini açarı
+rotasiyası, timeseries/usmap sualı).
+
 **2026-10-09 19:20:** E2E №1 TAMAM — təhvil verildi, istifadəçi təsdiqlədi, epizod yaddaşı silindi (`forget_episode`).
 Pipeline: 13 mərhələ, modellər OpenAI (gpt-image-2 / gpt-4o-mini / gpt-4o), Gemini yalnız `.env` ilə.
 **Növbəti dəqiq addım:** istifadəçinin yeni mövzusu = E2E №2 (Faza 6-nın ikinci videosu). CLAUDE.md tetiki ilə
@@ -448,6 +452,9 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | Git Bash-dan venv Python-a `/c/YouTubeAI/...` yolu ötürmək (2026-10-09, `checks.final_video_problems`) | Windows Python MSYS yolunu tanımır → ffprobe "No such file". Python-a həmişə `C:\...` (Windows) yolu ver. |
 | `.env` açarının dolu olduğunu `${v:+dolu}${v:-BOS}` ilə yoxlamaq (2026-10-09) | `${v:-BOS}` dolu olanda dəyəri ÇAP EDİR → OpenAI açarı transkriptə düşdü (rotasiya tövsiyə olundu). Sirri yoxlamaq üçün yalnız `[ -n "$v" ] && echo dolu \|\| echo BOS`. |
 | (2026-10-09) Bloklayan hook-lar (`guard-skill-check`, `yoxlama-guard`) | İstifadəçi tez-tez yanlış xəta verdiyi üçün settings.json-dan sildi; yalnız `skill-reminder` qalır. |
+| (2026-10-09, E2E №2) Qapılar keçdi deyə skriptə baxmadan render-ə buraxmaq | #118/#119: yanlış fakt ("that amount" = $17,400 yox $2,000) və boş ifadələr qapıdan keçdi, ancaq oxuyanda göründü. `render_bgs`-dən ƏVVƏL `script.md` + `scenes.json`-u özün oxu (pullu şəkil mərhələsindən əvvəl ucuz yoxlama). |
+| (2026-10-09) `progress.md`-ni CRLF sayıb skriptlə əvəzləmək | Fayl LF-dir; skriptdə sətir sonunu əvvəlcə yoxla (`file`), Python-da `open(..., newline='')`; ən yaxşısı Edit aləti. |
+| (2026-10-10) Git Bash-da `python -c "..."` içində Windows yolu `r'C:\...\\$M'` (DOQQUZUNCU dəfə — diaqnoz skripti) | Bash `\\` → `\`, son `'` qaçdı → SyntaxError. Diaqnoz skripti yalnız Write ilə scratchpad-a yazılır, yollar içində `r"C:\..."`. |
 | (2026-10-10) Run gedərkən kodu düzəldib prosesi əl ilə öldürmək + `--resume` | Unudulanda retry köhnə kodla işləyirdi. İndi `code_watch` özü dayandırıb yeni kodla yenidən açır (#126) — əl ilə öldürmə lazım deyil, yalnız artıq bitmiş mərhələni yenidən etmək üçün `--from` lazımdır. |
 
 **Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
@@ -456,6 +463,15 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
+
+### 2026-10-10 — E2E №2 `should-you-open-a-second-location` HAZIRDIR (təsdiq gözləyir)
+- `Hazir_Videolar\should-you-open-a-second-location\` — 11.27 dəq (676 s), −14.3 LUFS, `final_video_problems` = [].
+- Yoxlama: quality_gate passed, self_audit KEÇDİ; script_qa/captions_qa/math_check problems = []; bg_qa
+  generic_share 0.0, duplicates []; owl_qa 69/69 + intro/outro ok; musiqidə sükut yox; kadrlar + thumbnail baxıldı.
+- Animasiya 47/69 (68%, tavan 70%): compare 33, equation 8, stats 2, counter 2, table 1, threshold 1; motion theme `clean`.
+  timeseries/usmap YOXDUR — skriptdə zaman sırası / ABŞ məkan datası yoxdur, uydurulmadı (yekun hesabatda soruşulur).
+- Bu run-ın xətaları (hamısı qeydə alındı): reyestr #117–#126 (+ test + kod); yanlış yollar: skriptə baxmadan render,
+  progress.md LF, `python -c`-də Windows yolu, run gedərkən prosesi əl ilə öldürmək. 732 test keçir.
 
 ### 2026-10-05/06 — 12 addımlıq məzmun standartı (#54–#63), E2E davam edir
 - Yeni modullar: `speech.py`, `captions.py` (yeni `captions` mərhələsi), `research.py`, `script_qa.py`; dəyişən:
