@@ -12,7 +12,9 @@
 2. PowerShell ilə müstəqil proses aç (Claude sessiyası bağlansa da işləsin):
    `Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c "C:\YouTubeAI\Projects\.venv\Scripts\python.exe -u run.py "<Mövzu>" > C:\YouTubeAI\Episodes\_run_<slug>.log 2> C:\YouTubeAI\Episodes\_run_<slug>.log.err"'; CurrentDirectory='C:\YouTubeAI'}`
    (2026-10-08: alətdən `Start-Process` çağırış bitəndə ölür — WMI ilə aç, 20 s sonra prosesin sağ olduğunu yoxla.)
-3. Loqu Monitor ilə izlə (`[N/11]` mərhələ sətirləri + error/traceback). Ölsə: `run.py --resume <slug>`.
+3. Loqu Monitor ilə izlə (`[N/11]` mərhələ sətirləri + error/traceback). Ölsə: `run.py --resume <slug>`. Run gedərkən kod düzəlişi edilsə, run özü
+   20 s sonra işləyən mərhələni dayandırıb yeni kodla `--resume` edir (#126, `code_watch.py`); bitmiş mərhələni
+   yeni kodla təkrarlamaq üçün isə əl ilə `--from <mərhələ>` lazımdır.
 4. Bitəndə özün yoxla (istifadəçidən soruşma):
    - **`qa/quality_gate.json` → `"passed": true`** (pipeline-ın son mərhələsi; bütün hesabatlar skriptin sha256-sı
      ilə, fail-closed) + **`qa/self_audit.md`**-də bütün xəta sinifləri "yoxlandı: OK" (`docs/error_classes.md`);

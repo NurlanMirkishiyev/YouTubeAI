@@ -71,6 +71,39 @@ def photo_files(ctx: Ctx, sub: str, ext: str = ".png") -> list[str]:
     return [ctx.p(sub, f"sc{n:02d}{ext}") for n in photo_numbers(ctx)]
 
 
+PHOTO_DIRS = ("bg", "bg_hd")          # yalniz foto sehnelerinin fonu
+SCENE_DIRS = ("owl", "audio")         # her sehnenin oz fayli
+_SCENE_FILE = re.compile(r"^sc(\d+)\.\w+$")
+
+
+def stale_files(ctx: Ctx) -> list[str]:
+    """#125: scenes.json-a uygun gelmeyen sehne fayllari - animasiyaya kecmis sehnenin fonu, sehne sayindan
+    boyuk nomreli fayl. Onlar videoda gorunmur, amma yoxlamalari (tekrar kadr, olcu) aldadir."""
+    if not os.path.isfile(ctx.p("scenes.json")):
+        return []
+    total, photos = len(load_scenes(ctx)), set(photo_numbers(ctx))
+    out = []
+    for sub in PHOTO_DIRS + SCENE_DIRS:
+        d = ctx.p(sub)
+        if not os.path.isdir(d):
+            continue
+        for name in sorted(os.listdir(d)):
+            m = _SCENE_FILE.match(name)
+            if not m:
+                continue                      # intro/outro kartlari ve s.
+            n = int(m.group(1))
+            if not 1 <= n <= total or (sub in PHOTO_DIRS and n not in photos):
+                out.append(os.path.join(d, name))
+    return out
+
+
+def prune_stale(ctx: Ctx) -> list[str]:
+    removed = stale_files(ctx)
+    for p in removed:
+        os.remove(p)
+    return removed
+
+
 def all_exist(paths: list[str]) -> bool:
     return bool(paths) and all(os.path.isfile(p) for p in paths)
 

@@ -192,6 +192,12 @@ def apply_visuals(scenes_path: str, specs: dict[int, dict]) -> None:
         data["scenes"][n - 1]["visual"] = spec
     with open(scenes_path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    ep = os.path.dirname(scenes_path)
+    for n in specs:                # #125: kohne foto qalmasin - tekrar kadr yoxlamasini aldadir (#124)
+        for sub in ("bg", "bg_hd"):
+            p = os.path.join(ep, sub, f"sc{n:02d}.png")
+            if os.path.isfile(p):
+                os.remove(p)
 
 
 def to_animate(nums: list[int], verdicts: dict, tries: dict[int, int]) -> list[int]:

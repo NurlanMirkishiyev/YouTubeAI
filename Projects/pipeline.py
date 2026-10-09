@@ -18,13 +18,14 @@ import time
 from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import code_watch  # noqa: E402
 from checks import duration  # noqa: E402
 from comfy import ComfyGuard  # noqa: E402
 from llm import DEFAULT_PROVIDER  # noqa: E402
 from script_gen import (EFFECTIVE_WPM, EPISODES, slugify, word_count, words_for_seconds,  # noqa: E402
                         words_to_add, words_to_cut)
 from speech import to_speech  # noqa: E402
-from stages import PROJ, PY, ROOT, STAGES, Ctx, stage_index  # noqa: E402
+from stages import PROJ, PY, ROOT, STAGES, Ctx, prune_stale, stage_index  # noqa: E402
 from state import new_state, now_iso, read_state, with_stage, write_state  # noqa: E402
 
 # Istifadeci (2026-09-30): video 10-12 deq (evvel 8-10), 12 deq-den uzun olmamalidir.
@@ -47,16 +48,23 @@ class Gate:
     restart_at: str = ""
 
 
-def _logged_call(cmd: list[str], log: str) -> int:
+def _logged_call(cmd: list[str], log: str, watch=None) -> int:
+    """watch verilibse (#126): kod deyisib sabitlesende proses dayandirilir -> code_watch.CODE_CHANGED."""
     with open(log, "a", encoding="utf-8") as lf:
         lf.write(f"\n[{now_iso()}] $ {' '.join(cmd)}\n")
         lf.flush()
-        return subprocess.call(cmd, stdout=lf, stderr=subprocess.STDOUT, cwd=ROOT)
+        if watch is None:
+            return subprocess.call(cmd, stdout=lf, stderr=subprocess.STDOUT, cwd=ROOT)
+        proc = subprocess.Popen(cmd, stdout=lf, stderr=subprocess.STDOUT, cwd=ROOT)
+        return code_watch.wait_or_stop(proc, watch)
 
 
-def run_stage(stage, ctx: Ctx, force: bool, log_dir: str) -> list[str]:
+def run_stage(stage, ctx: Ctx, force: bool, log_dir: str, watch=None) -> list[str]:
     log = os.path.join(log_dir, f"{stage.name}.log")
-    rc = _logged_call(stage.command(ctx, force), log)
+    cmd = stage.command(ctx, force)
+    rc = _logged_call(cmd, log) if watch is None else _logged_call(cmd, log, watch)
+    if rc == code_watch.CODE_CHANGED:
+        return [code_watch.CODE_CHANGED_MSG]
     return [f"exit {rc}: {_last_line(log)} - bax: {log}"] if rc else stage.verify(ctx)
 
 
@@ -170,7 +178,8 @@ def _step_with_retries(stage, ctx, force, log_dir, runner, comfy, remaining, sle
     """Skriptler qaldigi yerden davam edir (hazir fayllari kecir) - tekrar cehd ucuzdur."""
     problems = _step(stage, ctx, force, log_dir, runner, comfy, remaining)
     for k in range(STAGE_RETRIES):
-        if not problems or any(NO_RETRY in p for p in problems):     # balans bitibse tekrar hec ne vermir
+        # balans bitibse tekrar hec ne vermir; kod deyisibse (#126) kohne kodla retry yox - run yeniden acilir
+        if not problems or any(NO_RETRY in p or p == code_watch.CODE_CHANGED_MSG for p in problems):
             break
         print(f"  {stage.name} ugursuz ({'; '.join(problems)[:200]}) - {RETRY_WAIT_S}s sonra "
               f"tekrar cehd {k + 1}/{STAGE_RETRIES}", flush=True)
@@ -179,8 +188,17 @@ def _step_with_retries(stage, ctx, force, log_dir, runner, comfy, remaining, sle
     return problems
 
 
+def _relaunch_from(stages, i: int, forced: set[int], force: bool) -> str | None:
+    """--from qorunur: mecburi tekrar olunmali merheleler hele qalibsa, yeni run onlari "hazir" sayib kecmesin."""
+    rest = sorted(forced | ({i} if force else set()))
+    return stages[rest[0]].name if rest else None
+
+
 def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None = None,
-                 runner=run_stage, gates=None, comfy=None, sleep=time.sleep) -> int:
+                 runner=run_stage, gates=None, comfy=None, sleep=time.sleep,
+                 prune=prune_stale, watch=lambda: False) -> int:
+    """prune (#125): her merheleden evvel scenes.json-a uygun olmayan kohne sehne fayllari silinir.
+    watch (#126): kod deyisibse merhele baslamazdan evvel code_watch.Relaunch qaldirilir."""
     gates = DEFAULT_GATES if gates is None else gates
     log_dir = ctx.p("logs")
     os.makedirs(log_dir, exist_ok=True)
@@ -192,6 +210,12 @@ def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None 
         while i < len(stages):
             st, force = stages[i], i in forced
             forced.discard(i)
+            if watch():
+                raise code_watch.Relaunch(_relaunch_from(stages, i, forced, force))
+            removed = prune(ctx)
+            if removed:
+                print(f"  kohne fayl silindi ({len(removed)}): "
+                      + ", ".join(os.path.relpath(p, ctx.ep_dir) for p in removed[:8]), flush=True)
             if not force and st.done(ctx) and not st.verify(ctx):
                 print(f"[{i + 1}/{len(stages)}] {st.name}: hazirdir - kecilir", flush=True)
                 problems = []
@@ -204,6 +228,9 @@ def run_pipeline(ctx: Ctx, state_path: str, stages=STAGES, from_idx: int | None 
                 gate = gates[st.name](ctx, log_dir, attempts.get(st.name, 0))
                 attempts[st.name] = attempts.get(st.name, 0) + 1
                 problems = [gate.message] if gate.status == "fail" else []
+            if code_watch.CODE_CHANGED_MSG in problems:
+                _save(state_path, state, st.name, status="restart", finished=now_iso(), error=None)
+                raise code_watch.Relaunch(_relaunch_from(stages, i, forced, force))
             if problems:
                 _save(state_path, state, st.name, status="failed", finished=now_iso(), error="; ".join(problems))
                 print(f"  XETA ({st.name}): " + "; ".join(problems), flush=True)
@@ -294,8 +321,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"FAZA F: {ctx.topic!r} -> {ctx.ep_dir}", flush=True)
     print(f"  musiqi: {ctx.music}", flush=True)
     guard = ComfyGuard(ctx.p("logs", "comfyui.log"))
-    rc = run_pipeline(ctx, ctx.p("state.json"),
-                      from_idx=stage_index(a.from_stage) if a.from_stage else None, comfy=guard)
+    watch = code_watch.CodeWatch()
+    try:
+        rc = run_pipeline(ctx, ctx.p("state.json"),
+                          from_idx=stage_index(a.from_stage) if a.from_stage else None, comfy=guard,
+                          runner=lambda s, c, f, l: run_stage(s, c, f, l, watch), watch=watch)
+    except code_watch.Relaunch as e:      # #126: butun modullar yeni koddan yuklensin
+        cmd = code_watch.relaunch_cmd(os.path.join(ROOT, "run.py"), ctx.slug, e.from_stage)
+        print(f"  {code_watch.CODE_CHANGED_MSG}: {' '.join(cmd[2:])}", flush=True)
+        return subprocess.call(cmd, cwd=ROOT)
     if rc == 0:
         mp4 = ctx.p(f"{ctx.slug}.mp4")
         folder = deliver(ctx.ep_dir, ctx.slug, DELIVERY_DIR)
