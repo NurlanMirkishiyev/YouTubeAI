@@ -18,7 +18,7 @@ from typing import Callable
 from llm import PROVIDERS, LLMError, _api_key, _post
 from math_check import find_numbers
 
-ALLOWED = ("fedsmallbusiness.org", "nber.org", "oecd.org", "worldbank.org", "imf.org", "bis.org", "pewresearch.org", "brookings.edu",
+ALLOWED = ("fedsmallbusiness.org", "stlouisfed.org", "nber.org", "oecd.org", "worldbank.org", "imf.org", "bis.org", "pewresearch.org", "brookings.edu",
            "ssrn.com", "doi.org", "jstor.org", "aeaweb.org", "nature.com", "sciencedirect.com", "nfib.com",
            "kauffman.org", "jpmorganchase.com")
 OFFICIAL_TLD = (".gov", ".edu", ".mil")
