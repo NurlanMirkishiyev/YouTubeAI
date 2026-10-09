@@ -135,3 +135,38 @@ def test_cards_do_not_reuse_scene_photos():
     scene_bgs = {s["bg"] for s in p["scenes"]}
     assert p["introBg"] is None and p["outroBg"] is None
     assert not scene_bgs & {p["introBg"], p["outroBg"]}
+
+
+# --- E2E hire-first-employee (2026-10-09): tek case biznesinde "yer" kadrlari tekrar olurdu ----------
+# "A photo of a bakery kitchen with ovens" (hero "photo") ve "a well-equipped bakery kitchen" (hero "kitchen")
+# hero-ya gore ferqli idi, CLIP + hakim ise eyni yer dedi; check_bgs 13 tekrar cutle dayandi.
+
+def test_place_shots_of_the_case_business_share_one_hero():
+    places = ["A photo of a bakery kitchen with ovens", "a well-equipped bakery kitchen with ovens",
+              "a cozy bakery with display cases", "an Interior of a bakery with pastries on display shelves",
+              "a simple training area in the bakery with tools"]
+    assert {scene_plan.hero(p) for p in places} == {"place"}
+
+
+def test_photo_of_prefix_is_not_the_hero():
+    assert scene_plan.hero("A photo of a wooden bread basket in the bakery") == "basket"
+    assert scene_plan.hero("an image of a stainless steel mixer") == "mixer"
+
+
+def test_duplicate_redraw_asks_for_a_new_case_object_not_the_generic_pool():
+    used = {"a cozy bakery with display cases", "a bakery counter with fresh bread"}
+    asked = []
+
+    def suggest(feedback):
+        asked.append(feedback)
+        return ("a stainless steel dough sheeter on a bakery workbench",)
+
+    got = cb.duplicate_prompt("a bakery counter with fresh bread", used, suggest)
+    assert got == "a stainless steel dough sheeter on a bakery workbench"
+    assert got not in scene_plan.FALLBACK_POOL and "counter" in asked[0]
+
+
+def test_duplicate_redraw_falls_back_to_the_pool_only_without_a_fresh_suggestion():
+    used = {"a cozy bakery with display cases", "a bakery counter with fresh bread"}
+    got = cb.duplicate_prompt("a bakery counter with fresh bread", used, lambda fb: ("a bakery counter at dawn",))
+    assert got in scene_plan.FALLBACK_POOL

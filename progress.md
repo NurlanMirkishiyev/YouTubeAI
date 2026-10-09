@@ -160,6 +160,7 @@ Qayda: istifadəçi yalnız mövzu verir. Aşağıdakı hər problem əvvəl ən
 | 107 | E2E (2026-10-09, GPT, #105/#106-dan sonra): redaktor + audit keçdi, yalnız "əvvəl/sonra cütü eyni cümlədə deyil" qaldı ($2,500 və $500 ayrı cümlələrdə) — 2 cəhd ardıcıl | cüt cümləsi LLM-ə buraxılırdı; rəqəm auditi abzası yenidən yaza bilir | `script_qa.settle_decision_pair`: cüt yoxdursa modeldən "<owner>'s <profit> goes from X to Y." sonra-dəyərli cümlədən sonra əlavə olunur; `quality_gate` auditdən sonra yenidən yoxlayır, dəyişərsə audit təkrar (sha). Test: `test_script_story.py::test_settle_decision_pair_states_before_and_after_in_one_sentence`, `test_script_story.py::test_quality_gate_reaudits_when_the_number_audit_splits_the_pair` |
 | 108 | E2E real probe (2026-10-09): `settle_repeats` say-rəqəmi "that amount" ilə əvəz edirdi → "those that amount extra clients", "$800 divided by $200 equals that amount" | əvəzləmə vahidi nəzərə almırdı | `_refer_back`: təyinedicidən sonra say silinir ("those extra tables"), pul/% → "that amount", say → "that many". Test: `test_script_story.py::test_settle_repeats_keeps_count_sentences_grammatical` |
 | 109 | İstifadəçi 2026-10-09: "qəti şəkildə həll et" — 21 cəhdin son problemlərinin hamısı deterministik siniflərdir (modeldə olmayan rəqəm, dəyişən buraxılıb, cüt, eşik, təkrar, köhnə mənbə ili) | hər sinif LLM düzəlişinə buraxılırdı (arxitektura xətası, #105-in ümumiləşməsi) | `script_qa.settle_script` (sabit nöqtəyə qədər): il əlavə, modeldən kənar rəqəmli cümlə silinir, cüt/eşik modeldən yazılır, təkrar həll olunur; `quality_gate` auditdən əvvəl və sonra çağırır. Test: `test_script_story.py::test_settle_script_clears_every_deterministic_case_problem`, `test_script_story.py::test_settle_script_says_the_year_of_an_old_source` |
+| 110 | E2E (2026-10-09, hire-first-employee): `check_bgs` 13 təsdiqlənmiş təkrar cütlə + generik 11% ilə dayandı | (a) tək case biznesində bütöv "yer" kadrları ("bakery kitchen with ovens" / "A photo of a bakery kitchen" / "cozy bakery") hero-da fərqli sayılırdı ("kitchen"/"photo"/"bakery"), CLIP+hakim isə eyni yer dedi; (b) təkrar kadr birbaşa `FALLBACK_POOL`-a (generik metafor) gedirdi → 16-sı "mismatch/generic", generik payı qalxdı, raund büdcəsi bitdi | `scene_plan.hero`: "photo/interior … of X" → X, bütöv yer → `PLACE` (epizodda 1 dəfə); `check_bgs.duplicate_prompt`: təkrar üçün case biznesinin yeni obyekti istənir, hovuz yalnız son çarə. Test: `test_no_repeats.py::test_place_shots_of_the_case_business_share_one_hero`, `test_no_repeats.py::test_photo_of_prefix_is_not_the_hero`, `test_no_repeats.py::test_duplicate_redraw_asks_for_a_new_case_object_not_the_generic_pool`, `test_no_repeats.py::test_duplicate_redraw_falls_back_to_the_pool_only_without_a_fresh_suggestion` |
 | — | Müşahidə (2026-10-06): `test_pipeline.py::test_run_pipeline_from_forces_rerun` tam suite-də 1 dəfə düşdü, sonra 7 dəfə keçdi | kök səbəb TAPILMADI (ehtimal: Windows-da `state.json` fayl kilidi — təsdiqlənməyib) | açıq; təkrar düşsə çıxışı saxla və araşdır |
 | 48 | İstifadəçi: yenə "eyni/təkrar şəkillər" | (#46-dan əlavə) CLIP namizəd pəncərəsi dar ola bilərdi — ölçülməyib | `DUP_SIM` 0.85 → 0.80 (hakim təsdiqi qalır); foto sayı ~60% azaldığı üçün təkrar ehtimalı da azalır. Test: `test_no_repeats.py::test_clip_candidate_threshold_is_wide_enough_for_same_kind_objects` |
 
@@ -181,6 +182,9 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 
 ## Növbəti dəqiq addım
 
+**2026-10-09 16:32:** E2E №1 WMI ilə `--resume` edildi (PID 7404), `[4/13] check_bgs`-dən davam edir; log
+`Episodes\_run_should-you-hire-your-first-employee.log`. `Projects/CLAUDE.md` (kod arxitekturası) yaradıldı, `f0ab716`.
+
 **2026-10-09 ~00:25 (İSTİFADƏÇİ "SAXLA" DEDİ — BURADAN DAVAM):** Faza 1–5 TAMAM, **Faza 6 icradadır**.
 - **Modellər (son qərar 2026-10-08 gec):** Gemini-dən İMTİNA — şəkil gpt-image-2, yazan gpt-4o-mini, yoxlayan gpt-4o
   (default `openai`). Gemini kodu qalır, yalnız `.env` `LLM_PROVIDER=gemini` ilə (istifadəçi istəmədən açma).
@@ -193,7 +197,7 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
   `run.py --resume should-you-hire-your-first-employee --provider openai` (CLAUDE.md addım 2; log `Episodes\_run_<slug>.log`),
   Monitor: `[N/13]` + Traceback/XETA/ugursuz. Qalan ~80 dəq (bgs yoxlaması, owl, TTS, render, quality_gate).
 - Açıq keyfiyyət müşahidəsi: keçən skriptdə LLM rəqəmləri "a specific amount"/"that same amount" ilə bulandırıb
-  (yoxlamalardan keçir, amma zəif) — #110 namizədi: qərar bölməsində qeyri-müəyyən məbləğ ifadəsi qadağası.
+  (yoxlamalardan keçir, amma zəif) — #111 namizədi: qərar bölməsində qeyri-müəyyən məbləğ ifadəsi qadağası.
 1. E2E №1 bitəndən sonra CLAUDE.md addım 4 yoxlamaları (quality_gate.json passed, self_audit.md, 10–12 dəq, −14 LUFS,
    kadrlar, owl, thumbnail, paket: mp4/thumbnail/youtube.txt/srt/script/midrolls/upload_checklist).
 2. E2E №2: "Should You Open a Second Location?" (timeseries/usmap) — motion_sheet №1-dən fərqli olmalıdır.

@@ -269,20 +269,46 @@ _HERO_STOP = {"with", "of", "on", "in", "at", "next", "beside", "near", "under",
 _QUANTITY = {"stack", "pile", "row", "pair", "set", "bunch", "handful", "heap", "couple", "group", "collection"}
 
 
+# "a photo of X" / "an interior of X" -> X (E2E hire-first-employee: hero "photo" tekrari gizledirdi)
+_FRAMING = {"photo", "photograph", "image", "picture", "view", "shot", "interior", "scene"}
+# Case biznesinin yeri (butov interyer) - hamisi bir "place" sayilir: tek biznesli epizodda "bakery kitchen" ve
+# "cozy bakery" CLIP + hakimde eyni yer idi (13 tekrar cut), hero ise ferqli ("kitchen"/"bakery")
+_VENUES = {"bakery", "kitchen", "shop", "store", "storefront", "restaurant", "cafe", "diner", "office",
+           "workshop", "warehouse", "studio", "salon", "room", "area", "showroom", "backroom", "garage", "factory"}
+PLACE = "place"
+
+
+def _is_place(words: list[str]) -> bool:
+    """Ilk isim birlesmesinin (on soz ile ayrilan) son sozu yer adidirsa ("a simple training area in ...")."""
+    phrase: list[str] = []
+    for w in words:
+        if w in _HERO_STOP:
+            break
+        phrase.append(w)
+    return bool(phrase) and phrase[-1].rstrip("s") in _VENUES
+
+
 def hero(prompt: str) -> str:
     """Promptun esas ismi: ilk isim birlesmesinin son sozu ("a glass jar slowly filling ..." -> "jar").
-    LLM subyekti mucerred adlandirir ("positive cash flow"), sekil ise eyni sikke bankasi olur."""
+    LLM subyekti mucerred adlandirir ("positive cash flow"), sekil ise eyni sikke bankasi olur.
+    Butov yer kadri (bakery, kitchen, office ...) -> PLACE."""
     chunk: list[str] = []
-    for w in re.findall(r"[a-z]+", prompt.split(",")[0].lower().replace("side by side", "")):
+    words = re.findall(r"[a-z]+", prompt.split(",")[0].lower().replace("side by side", ""))
+    for i, w in enumerate(words):
         if not chunk and w in _ARTICLES:
             continue
-        if w == "of" and chunk and (chunk[-1].rstrip("s") in _QUANTITY or chunk[-2:] == ["close", "up"]):
+        if w == "of" and chunk and (chunk[-1].rstrip("s") in _QUANTITY or chunk[-1] in _FRAMING
+                                    or chunk[-2:] == ["close", "up"]):
             chunk = []                      # "a stack of cookies" -> cookie (6 peceniye tutulmurdu)
             continue
         if w in _HERO_STOP or (chunk and (w.endswith("ing") or w.endswith("ly") or
                                           (w.endswith("ed") and len(w) > 4))):
+            if _is_place(chunk + words[i:]):
+                return PLACE
             break
         chunk.append(w)
+    if chunk and chunk[-1].rstrip("s") in _VENUES:
+        return PLACE
     return chunk[-1].rstrip("s") if chunk else ""
 
 

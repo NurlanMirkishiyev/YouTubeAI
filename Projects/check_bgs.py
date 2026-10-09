@@ -161,6 +161,14 @@ def choose_prompt(v: Verdict, attempt: int, used: set[str], suggest) -> str:
     return next_prompt(suggest(feedback), attempt, used)
 
 
+def duplicate_prompt(prompt: str, used: set[str], suggest) -> str:
+    """Tekrar kadr: case biznesinin YENI obyekti istenir (suggest(feedback) -> teklifler). E2E hire-first-employee:
+    tekrarlar birbasa FALLBACK_POOL-a (generik metafor) gedirdi -> 16-si "mismatch/generic", generik 11%."""
+    feedback = (f"{prompt} -> looks the same as another scene (main object '{hero(prompt)}'); show a different "
+                "single object of the case business in close-up, not the whole shop or room")
+    return next_prompt(suggest(feedback), 1, used)
+
+
 def apply_changes(scenes_path: str, changes: dict[int, str]) -> None:
     """changes: {sehne nomresi (1-esasli): yeni prompt}. Fayl tezeden oxunur - basqa saheler qorunur."""
     with open(scenes_path, encoding="utf-8") as f:
@@ -398,8 +406,10 @@ def main() -> None:
                 others = used - {scenes[n - 1]["bg_prompt"]}
                 p = choose_prompt(verdicts[n], tries[n], others,
                                   lambda fb, s=scenes[n - 1], o=others: suggest_again(s, fb, o, a.provider, case))
-            else:               # tekrar kadr: epizodda olmayan ehtiyat obyekt
-                p = next_prompt("", MAX_ATTEMPTS, used)
+            else:               # tekrar kadr: case biznesinin epizodda olmayan obyekti (hovuz yalniz son care)
+                others = used - {scenes[n - 1]["bg_prompt"]}
+                p = duplicate_prompt(scenes[n - 1]["bg_prompt"], used,
+                                     lambda fb, s=scenes[n - 1], o=others: suggest_again(s, fb, o, a.provider, case))
             used.add(p)
             changes[n] = p
             print(f"  sc{n:02d} -> {p}", flush=True)
