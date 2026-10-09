@@ -68,3 +68,16 @@ def test_caption_words_mark_spoken_figures():
 def test_captions_keep_figures_in_accent_colour():
     cap = _read("Captions.tsx")
     assert re.search(r"active\s*\|\|\s*w\.num", cap)
+
+
+def test_line_and_timeseries_draw_a_live_head_and_counter_pops():
+    """#134 (istifadeci 2026-10-10, reference video_yarat_v4 Chart/counter_events): xett cekilerken ucunda parlayan
+    noqte + hereket eden canli deyer; sayqac sayilarken back-overshoot ile boyuyur; VisualProbe QA kompozisiyasi."""
+    common = open(os.path.join(SRC, "visuals", "common.tsx"), encoding="utf-8").read()
+    charts = open(os.path.join(SRC, "visuals", "Charts.tsx"), encoding="utf-8").read()
+    dataviz = open(os.path.join(SRC, "visuals", "DataViz.tsx"), encoding="utf-8").read()
+    root = open(os.path.join(SRC, "Root.tsx"), encoding="utf-8").read()
+    assert "export const LiveHead" in common
+    assert "<LiveHead" in charts and "<LiveHead" in dataviz
+    assert "EASE.back(ease(frame, d, DUR.count))" in charts
+    assert 'id="VisualProbe"' in root

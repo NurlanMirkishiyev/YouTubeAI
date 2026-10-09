@@ -22,7 +22,7 @@ export const TITLE_H = 96;
 
 export type Unit = '$' | '%' | '';
 
-const decimals = (v: number) => (Number.isInteger(v) ? 0 : Math.min(2, (String(v).split('.')[1] ?? '').length));
+export const decimals = (v: number) => (Number.isInteger(v) ? 0 : Math.min(2, (String(v).split('.')[1] ?? '').length));
 
 export const fmt = (v: number, unit: Unit = '', digits = decimals(v)) => {
   const s = v.toLocaleString('en-US', {minimumFractionDigits: digits, maximumFractionDigits: digits});
@@ -43,6 +43,35 @@ export const Count: React.FC<{value: number; unit: Unit; delay: number; style?: 
   const t = ease(frame, delay, DUR.count);
   const text = frame < delay ? '—' : fmt(value * t, unit, decimals(value));
   return <span style={{fontVariantNumeric: 'tabular-nums', ...style}}>{text}</span>;
+};
+
+/** #134 (reference video_yarat_v4 Chart): xett cekilerken ucunda parlayan "bas" noqte ve onunla hereket eden canli
+ *  deyer nisani. Yalniz seqment cekilerken gorunur (0 < t < 1) - noqteye catanda noqtenin oz etiketi acilir. */
+export const LiveHead: React.FC<{xy: readonly (readonly [number, number])[]; vals: number[]; progress: number[];
+  unit: Unit; colorOf: (seg: number) => string; width: number}> = ({xy, vals, progress, unit, colorOf, width}) => {
+  const frame = useCurrentFrame();
+  const seg = progress.findIndex((t) => t > 0 && t < 1);
+  if (seg < 0) return null;
+  const t = progress[seg];
+  const [x0, y0] = xy[seg];
+  const [x1, y1] = xy[seg + 1];
+  const x = x0 + (x1 - x0) * t;
+  const y = y0 + (y1 - y0) * t;
+  const value = vals[seg] + (vals[seg + 1] - vals[seg]) * t;
+  const color = colorOf(seg);
+  const glow = 22 + 10 * Math.sin(frame / 3);
+  const left = Math.min(width - 260, x + 24);
+  return (
+    <>
+      <div style={{position: 'absolute', left: x - 16, top: y - 16, width: 32, height: 32, borderRadius: 16,
+        background: color, boxShadow: `0 0 ${glow}px ${color}, 0 0 ${glow * 2}px ${color}66`}} />
+      <div style={{position: 'absolute', left, top: y - 96, padding: '8px 18px', borderRadius: 14,
+        background: 'rgba(10,16,32,0.85)', border: `2px solid ${color}`, fontSize: 46, fontWeight: 800, color,
+        fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap'}}>
+        {fmt(value, unit, decimals(vals[seg + 1]))}
+      </div>
+    </>
+  );
 };
 
 /** Faza 2.5 (istifadeci 2026-10-07): bos chart baslangici yoxdur - element acilmamis skelet kimi (GHOST) gorunur. */

@@ -2,7 +2,7 @@ import React from 'react';
 import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Item, Unit} from '../types';
 import {DUR, EASE, ease} from '../motion';
-import {AREA, Body, C, Count, GHOST, useEnter, TITLE_H, useIn} from './common';
+import {AREA, Body, C, Count, GHOST, LiveHead, useEnter, TITLE_H, useIn} from './common';
 
 const BODY_H = AREA.height - TITLE_H - 24;
 const at = (reveal: number[], i: number) => reveal[i] ?? reveal[reveal.length - 1] ?? 0;
@@ -58,7 +58,7 @@ export const Line: React.FC<{points: Item[]; unit: Unit; reveal: number[]}> = ({
   const segs = xy.slice(1).map((pt, i) => {
     const t = ease(frame, at(reveal, i + 1) - DUR.draw, DUR.draw, EASE.inOut);
     const [x0, y0] = xy[i];
-    return {x0, y0, x1: x0 + (pt[0] - x0) * t, y1: y0 + (pt[1] - y0) * t};
+    return {t, x0, y0, x1: x0 + (pt[0] - x0) * t, y1: y0 + (pt[1] - y0) * t};
   });
   const area = `M ${xy[0][0]} ${60 + plotH} ` + segs.map((s) => `L ${s.x0} ${s.y0} L ${s.x1} ${s.y1}`).join(' ')
     + ` L ${segs[segs.length - 1].x1} ${60 + plotH} Z`;
@@ -80,6 +80,8 @@ export const Line: React.FC<{points: Item[]; unit: Unit; reveal: number[]}> = ({
       </svg>
       {points.map((p, i) => <LinePoint key={p.label} item={p} unit={unit} x={xy[i][0]} y={xy[i][1]}
         labelY={60 + plotH + 26} delay={at(reveal, i)} />)}
+      {points.every((p) => p.value !== null) ? <LiveHead xy={xy} vals={vals} progress={segs.map((s) => s.t)}
+        unit={unit} colorOf={() => C.accent} width={AREA.width} /> : null}
     </Body>
   );
 };
@@ -135,14 +137,18 @@ export const Ring: React.FC<{value: number; label: string; reveal: number[]}> = 
 /** Bir boyuk reqem: sayilir, altinda izah. */
 export const Counter: React.FC<{value: number; unit: Unit; label: string; reveal: number[]}> = (
   {value, unit, label, reveal}) => {
+  const frame = useCurrentFrame();
   const d = at(reveal, 0);
   const enter = useEnter();
   const p = useIn(d);
   const labelIn = useIn(d + DUR.staggerLoose);
+  // #134 (reference counter_events): sayilarken 75% -> 100% boyuyur (back overshoot), sonra parilti doyunur
+  const pop = 0.75 + 0.25 * EASE.back(ease(frame, d, DUR.count));
+  const glow = 40 + 30 * ease(frame, d, DUR.count);
   return (
     <Body style={{display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <div style={{fontSize: 230, fontWeight: 800, color: C.accent, lineHeight: 1,
-        textShadow: `0 0 60px ${C.accent}55`, transform: `scale(${0.8 + 0.2 * p})`, opacity: GHOST + (1 - GHOST) * p}}>
+        textShadow: `0 0 ${glow}px ${C.accent}66`, transform: `scale(${pop})`, opacity: GHOST + (1 - GHOST) * p}}>
         <Count value={value} unit={unit} delay={d} />
       </div>
       <div style={{fontSize: 54, fontWeight: 600, marginTop: 30, color: C.text, ...enter(labelIn)}}>{label}</div>

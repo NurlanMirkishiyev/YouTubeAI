@@ -3,7 +3,7 @@ import {interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {Unit, Visual} from '../types';
 import {FONT} from '../fonts';
 import {DUR, EASE, ease} from '../motion';
-import {AREA, Body, C, Count, fmt, GHOST, useEnter, TITLE_H, useIn} from './common';
+import {AREA, Body, C, Count, fmt, GHOST, LiveHead, useEnter, TITLE_H, useIn} from './common';
 
 /** Faza 2 (istifadeci 2026-10-07): qerar vizuallari (table, threshold), zaman seriyasi, ABS xeritesi.
  *  Hamisi skeletle (GHOST + "—") 0-ci kadrdan gorunur; reqem oz sozunde acilir (reveal). */
@@ -173,6 +173,9 @@ export const Timeseries: React.FC<{v: SeriesV; reveal: number[]}> = ({v, reveal}
         labelY={70 + H2 + 26} delay={at(reveal, i)} down={i > 0 && q.value < v.points[i - 1].value} /> : null)}
       {v.events.map((e) => <SeriesEvent key={e.index} label={e.label} x={xy[e.index][0]} y={xy[e.index][1]}
         labelY={70 + H2 + 70} delay={at(reveal, e.index)} />)}
+      <LiveHead xy={xy} vals={vals} unit={v.unit} width={AREA.width}
+        progress={vals.slice(1).map((_, i) => ease(frame, at(reveal, i + 1) - DUR.draw, DUR.draw, EASE.inOut))}
+        colorOf={(i) => (v.points[i + 1].value < v.points[i].value ? RED : GREEN)} />
       {v.illustrative ? <div style={{position: 'absolute', right: 0, top: -6, fontSize: 26, fontWeight: 600,
         color: C.muted, letterSpacing: 2, textTransform: 'uppercase'}}>illustrative</div> : null}
     </Body>
