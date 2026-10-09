@@ -298,6 +298,21 @@ def _numbered(user):
     return [int(n) for n in _re.findall(r"(?m)^(\d+)\. \[", user)]
 
 
+def _numberless(n):
+    kind = ("compare", "timeline", "equation")[n % 3]
+    title = f"Reaction path {chr(64 + n)}"
+    if kind == "compare":
+        return {"kind": kind, "title": title, "left": {"label": "Round price", "value": None, "note": "Feels exact"},
+                "right": {"label": "Odd ending", "value": None, "note": "Feels cheaper"}}
+    if kind == "timeline":
+        return {"kind": kind, "title": title, "events": [{"label": "Shopper sees tag", "when": "First"},
+                                                          {"label": "Shopper compares", "when": "Then"},
+                                                          {"label": "Shopper buys", "when": "Last"}]}
+    return {"kind": kind, "title": title, "op": "-", "terms": [{"label": "Revenue", "value": None},
+                                                               {"label": "Costs", "value": None}],
+            "result": {"label": "Profit", "value": None}}
+
+
 def test_plan_visuals_asks_again_without_keypoints_when_share_is_short():
     # why-9-99 2026-10-04: LLM 68 sehneden 33-e keypoints verdi, limit 12 -> pay 37% (hedef ~60%)
     scenes = [{"section": "S", "narration": f"Shoppers react to price endings in situation {w}."}
@@ -306,17 +321,17 @@ def test_plan_visuals_asks_again_without_keypoints_when_share_is_short():
 
     def fake_chat(system, user, **kw):
         calls.append(user)
-        if "Do NOT use bullet lists" in user:      # Faza 2.6: flow <= 1 - compare ile
-            return {"scenes": [{"n": n, "score": 6, "visual": {"kind": "compare", "title": f"Reaction path {chr(64 + n)}",
-                    "left": {"label": "Round price", "value": None, "note": "Feels exact"},
-                    "right": {"label": "Odd ending", "value": None, "note": "Feels cheaper"}}}
-                               for n in _numbered(user)]}
+        if "Do NOT use bullet lists" in user or "VARIETY" in user:   # #133: novler novbe ile (eyni nov ardicil yox)
+            return {"scenes": [{"n": n, "score": 6, "visual": _numberless(n)} for n in _numbered(user)]}
         return {"scenes": [{"n": n, "score": 5, "visual": {"kind": "keypoints", "title": f"Idea {chr(64 + n)}",
                 "points": ["Price endings matter", "Shoppers react"]}} for n in _numbered(user)]}
 
     out = plan_visuals(scenes, "Why prices", chat=fake_chat, share=ANIM_SHARE)
-    assert sum(v is not None for v in out) == round(ANIM_SHARE * len(scenes))
+    # #133: nov payi (kind_cap) payi bir qeder azalda biler - reqemsiz sehne foto qalir
+    assert round(ANIM_SHARE * len(scenes)) - 2 <= sum(v is not None for v in out) <= round(ANIM_SHARE * len(scenes))
     assert any("Do NOT use bullet lists" in u for u in calls)
+    kinds = [v["kind"] if v else None for v in out]
+    assert not visuals.variety_violations(kinds, protected=set())
 
 
 def test_plan_visuals_re_asks_scenes_the_llm_skipped():

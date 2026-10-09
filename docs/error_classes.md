@@ -17,6 +17,7 @@ Yeni xəta tapılanda əvvəlcə mövcud sinfə aid olub-olmadığı yoxlanır. 
 | Generik kart | flow/timeline addımı case-ə bağlı deyil (Analyze → Evaluate…) | chart_empty | `test_data_visuals.py::test_generic_flow_steps_are_rejected` |
 | Boş chart | chart-ın ilk saniyələrində yalnız başlıq görünür | chart_empty | `test_remotion_build.py::test_chart_scenes_render_a_skeleton_from_the_first_frame` |
 | Real data itkisi/uydurması | yüklənmiş rəsmi seriya qrafikə düşmür və ya qrafikdə deyilməyən/interpolasiya olunmuş real data var | data_visuals | `test_data_sources.py::test_series_in_the_episode_needs_its_data_visual`<br>`test_data_sources.py::test_split_series_sentence_with_too_few_points_is_not_drawn` |
+| Eyni animasiyalar | bir animasiya novu payi asir, ardicil eyni nov, nov sayi az | visual_variety | `test_visual_variety.py::test_quality_gate_fails_a_monotonous_video`<br>`test_visual_variety.py::test_one_kind_never_exceeds_its_share` |
 | Generik foto | case biznesinin literal kadrı olmayan foto > 10% | bg_qa | `test_literal_frames.py::test_stage_fails_when_more_than_ten_percent_of_photos_are_generic` |
 | Təkrar kadr | epizodda eyni obyekt/fon iki dəfə | bg_qa | `test_no_repeats.py::test_check_bgs_stage_fails_while_duplicates_remain` |
 | Uşaqsayağı görünüş | oyuncaq/cizgi fon, uşaq musiqisi | bg_qa | `test_adult_look.py::test_judge_rejects_childish_images` |

@@ -56,7 +56,8 @@ Kinds and JSON fields (labels <= 22 characters, titles <= 40, steps/points <= 32
 STRICT number rule: use ONLY numbers that are said in THAT scene's narration, exactly as said.
 Never compute, estimate, round or invent a number. EVERY figure said in the scene (dollar amounts, percentages,
 counts written in digits) must appear in the animation - if a chart cannot hold them all, use stats cards.
-If the narration has no numbers, use compare, timeline or equation WITHOUT values (value null).
+If the narration has no numbers, use a kind WITHOUT values (value null) - timeline, equation or compare -
+and vary it: never the same kind as the scene before, no kind in more than 1 of 5 animations.
 Never use bullet lists. No digits inside labels unless said.
 Flow steps and timeline events name the case (owner, business object, a figure) - never generic steps like
 "Analyze Changes" or "Evaluate Options". At most one flow in the whole video.
@@ -69,7 +70,7 @@ Prefer real analysis: bars, line, compare, ring, equation, counter whenever the 
 comparison; timeline for steps over time; stats cards when the scene states several unrelated figures.
 Every animation title must be different from all other titles in the video.
 
-Return JSON exactly, e.g.:
+Return JSON exactly, e.g. (example only - choose the kind that fits each scene):
 {{"scenes": [{{"n": 1, "score": 8, "visual": {{"kind": "compare", "title": "Rent vs coffee beans",
 "unit": "", "left": {{"label": "Fixed cost", "value": null, "note": "Same every month"}},
 "right": {{"label": "Variable cost", "value": null, "note": "Grows with each cup"}}}}}}]}}
@@ -551,8 +552,9 @@ def _candidate(item: dict, narration: str) -> tuple[float, dict | None]:
 
 
 # why-9-99 (2026-10-04): LLM mucerred movzuda cox bullet verirdi; #57-den bullet (keypoints) umumiyyetle yoxdur
-NO_KEYPOINTS = ("\n\nDo NOT use bullet lists for these scenes: choose compare, timeline or equation "
-                "(value null when the narration says no number).")
+NO_KEYPOINTS = ("\n\nDo NOT use bullet lists for these scenes: pick a kind without values (timeline, equation, "
+                "compare - value null when the narration says no number) and never the same kind as the scene "
+                "before.")
 ALL_FIGURES = ("\n\nShow EVERY figure the narration says in these scenes (each dollar amount, percentage and "
                "digit count) - use bars, compare, equation or stats cards so none is left out.")
 
@@ -613,6 +615,106 @@ def _cover_figures(scenes: list[dict], scores: list[float], specs: list[dict | N
     return {i for i in numeric if specs[i] is not None}
 
 
+# #133 (istifadeci 2026-10-10): E2E #2-de 47 animasiyanin 33-u compare idi - nov payi ve ardicilliq Python-da
+KIND_SHARE_MAX = 0.20      # bir nov animasiyalarin en cox 20%-i (azi 2)
+MIN_KINDS = 6              # quality_gate: >= 12 animasiyali videoda en azi bu qeder ferqli nov
+VARIETY_ROUNDS = 2
+
+
+def kind_cap(n_animated: int) -> int:
+    return max(2, math.floor(KIND_SHARE_MAX * n_animated))
+
+
+def variety_violations(kinds: list[str | None], protected: set[int], cap: int | None = None) -> list[int]:
+    """Deyismeli sehneler: novun payini asan (sonrakilar) ve evvelki sehne ile eyni nov. protected (qerar/real data,
+    reqemli mecburi) yerinden terpenmir, amma saya daxildir."""
+    cap = kind_cap(sum(1 for k in kinds if k)) if cap is None else cap
+    counts: dict[str, int] = {}
+    for i in protected:
+        if 0 <= i < len(kinds) and kinds[i]:
+            counts[kinds[i]] = counts.get(kinds[i], 0) + 1
+    bad: set[int] = set()
+    for i, k in enumerate(kinds):
+        if not k or i in protected:
+            continue
+        if counts.get(k, 0) >= cap:
+            bad.add(i)
+            continue
+        counts[k] = counts.get(k, 0) + 1
+    for i in range(1, len(kinds)):
+        if kinds[i] and kinds[i] == kinds[i - 1] and not {i, i - 1} & bad:
+            if i not in protected:
+                bad.add(i)
+            elif i - 1 not in protected:
+                bad.add(i - 1)
+    return sorted(bad)
+
+
+FIXED_KINDS = ("table", "threshold", "timeseries", "usmap", "stats")   # mecburi/reqem fallback - ardicil olar
+
+
+def variety_problems(kinds: list[str | None]) -> list[str]:
+    """quality_gate: nov payi kind_cap + 1-i asmir (reqemli sehneye 1 ehtiyat), ardicil eyni nov yoxdur
+    (FIXED_KINDS xaric), >= 12 animasiyada en azi MIN_KINDS nov."""
+    anim = [k for k in kinds if k]
+    cap = kind_cap(len(anim)) + 1
+    probs = [f"animasiya novu {k} {anim.count(k)}/{len(anim)} - payi coxdur (max {cap})"
+             for k in dict.fromkeys(anim) if anim.count(k) > cap]
+    probs += [f"sehne {i + 1}: {kinds[i]} evvelki sehne ile ardicil eyni nov" for i in range(1, len(kinds))
+              if kinds[i] and kinds[i] == kinds[i - 1] and kinds[i] not in FIXED_KINDS]
+    if len(anim) >= 12 and len(set(anim)) < MIN_KINDS:
+        probs.append(f"cemi {len(set(anim))} animasiya novu (min {MIN_KINDS})")
+    return probs
+
+
+def _avoid(kinds: list[str | None], i: int, cap: int) -> set[str]:
+    counts: dict[str, int] = {}
+    for j, k in enumerate(kinds):
+        if k and j != i:
+            counts[k] = counts.get(k, 0) + 1
+    near = {kinds[j] for j in (i - 1, i + 1) if 0 <= j < len(kinds) and kinds[j]}
+    return {k for k, c in counts.items() if c >= cap} | near | ({kinds[i]} if kinds[i] else set())
+
+
+def diversify(scenes: list[dict], specs: list[dict | None], protected: set[int], topic: str, chat: Callable,
+              llm_kw: dict, cap: int | None = None) -> list[dict | None]:
+    """Payi asan / ardicil tekrarlanan sehneler 'avoid' siyahisi ile yeniden sorusulur; yene kecmese reqemli
+    sehne data kartina (stats) kecir, reqemsiz sehne foto olur."""
+    specs = list(specs)
+
+    def kinds() -> list[str | None]:
+        return [s["kind"] if s else None for s in specs]
+
+    def limit() -> int:
+        return kind_cap(sum(1 for k in kinds() if k)) if cap is None else cap
+    for _ in range(VARIETY_ROUNDS):
+        bad = variety_violations(kinds(), protected, cap)
+        if not bad:
+            return specs
+        avoid = {i: _avoid(kinds(), i, limit()) for i in bad}
+        note = ("\n\nVARIETY: these scenes must use a DIFFERENT animation kind - avoid:\n"
+                + "\n".join(f"- scene {i + 1}: avoid {', '.join(sorted(avoid[i]))}" for i in bad))
+        got = _ask_all(scenes, [i + 1 for i in bad], topic, chat, llm_kw, note)
+        titles = {_title_key(s["title"]) for s in specs if s}
+        for i in bad:
+            narr = scenes[i]["narration"]
+            _, spec = _candidate(got.get(i + 1) or {}, narr)
+            if (spec and spec["kind"] not in avoid[i] and _title_key(spec["title"]) not in titles
+                    and (not figures(narr) or covers_figures(spec, narr))):
+                specs[i] = spec
+                titles.add(_title_key(spec["title"]))
+    while bad := variety_violations(kinds(), protected, cap):
+        i = bad[0]
+        narr = scenes[i]["narration"]
+        fallback = stats_fallback(narr, specs[i]["title"]) if figures(narr) else None
+        ok = fallback and "stats" not in _avoid(kinds(), i, limit())
+        if not ok and figures(narr):
+            protected = protected | {i}             # reqem ekranda qalmalidir - nov tekrari qebul olunur
+            continue
+        specs[i] = fallback if ok else None
+    return specs
+
+
 def plan_visuals(scenes: list[dict], topic: str, chat: Callable = chat_json, share: float = ANIM_SHARE,
                  plan: dict | None = None, **llm_kw) -> list[dict | None]:
     """Her sehne ucun animasiya spec-i ve ya None (foto). Reqemli sehneler hemise butun reqemleri gosteren
@@ -648,10 +750,12 @@ def _plan_visuals(scenes: list[dict], topic: str, chat: Callable, share: float, 
             if spec:
                 scores[n - 1], specs[n - 1] = score, spec
         picked = _pick(scores, specs, share, forced)
-    print(f"  animasiya: {len(picked)}/{len(scenes)} sehne, reqemli {len(forced)} ("
-          + ", ".join(f"{k}x{sum(1 for i in picked if specs[i]['kind'] == k)}" for k in KINDS
-                      if any(specs[i]["kind"] == k for i in picked)) + ")", flush=True)
-    return fix_card_labels([specs[i] if i in picked else None for i in range(len(scenes))], scenes, chat, llm_kw)
+    chosen = diversify(scenes, [specs[i] if i in picked else None for i in range(len(scenes))],
+                       set(decision) | set(data), topic, chat, llm_kw)        # #133
+    print(f"  animasiya: {sum(1 for s in chosen if s)}/{len(scenes)} sehne, reqemli {len(forced)} ("
+          + ", ".join(f"{k}x{sum(1 for s in chosen if s and s['kind'] == k)}" for k in KINDS
+                      if any(s and s["kind"] == k for s in chosen)) + ")", flush=True)
+    return fix_card_labels(chosen, scenes, chat, llm_kw)
 
 
 def finalize_maps(planned: list[dict], slug: str) -> list[dict]:
@@ -686,6 +790,12 @@ def animate_abstract(scenes: list[dict], numbers: list[int], topic: str, chat: C
                 continue
             if spec["kind"] == "flow" and flows >= FLOW_MAX:
                 continue
+            kinds = [(s.get("visual") or {}).get("kind") or None for s in scenes]
+            for j, sp in out.items():
+                kinds[j - 1] = sp["kind"]
+            kinds[n - 1] = spec["kind"]
+            if n - 1 in variety_violations(kinds, protected={i for i, k in enumerate(kinds) if k and i != n - 1}):
+                continue                                  # #133: nov payi / ardicil tekrar - sehne foto qalir
             flows += spec["kind"] == "flow"
             seen.add(_title_key(spec["title"]))
             out[n] = spec
