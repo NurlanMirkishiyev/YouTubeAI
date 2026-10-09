@@ -139,17 +139,16 @@ def decision_visuals(scenes: list[dict], plan: dict) -> dict[int, dict]:
     if not isinstance(plan.get("model_result"), dict):
         return {}
     idx = decision_section(scenes)
+    thr = [(i, sp) for i in idx if (sp := decision_threshold(plan, scenes[i]["narration"]))]
+    tab = [(i, sp) for i in idx if (sp := decision_table(plan["model_result"], scenes[i]["narration"]))]
+    # #122: ikisi eyni sehnede deyilirse table orada, threshold esiyin deyildiyi basqa sehnede
+    pairs = [(t, b) for t in thr for b in tab if t[0] != b[0]]
+    if pairs:
+        (ti, ts), (bi, bs) = pairs[0]
+        return {ti: ts, bi: bs}
     out: dict[int, dict] = {}
-    for i in idx:
-        spec = decision_threshold(plan, scenes[i]["narration"])
-        if spec:
-            out[i] = spec
-            break
-    for i in idx:
-        if i in out:
-            continue
-        spec = decision_table(plan["model_result"], scenes[i]["narration"])
-        if spec:
-            out[i] = spec
-            break
+    if thr:
+        out[thr[0][0]] = thr[0][1]
+    elif tab:
+        out[tab[0][0]] = tab[0][1]
     return out

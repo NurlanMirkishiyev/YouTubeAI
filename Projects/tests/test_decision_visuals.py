@@ -97,3 +97,13 @@ def test_scene_plan_passes_the_case_plan_to_the_visual_planner():
     import inspect
     import scene_plan
     assert "plan=" in inspect.getsource(scene_plan.main).split("plan_visuals(")[1].split(")")[0]
+
+
+def test_table_and_threshold_land_on_different_scenes_when_one_scene_says_both():
+    """#122 (E2E №2 2026-10-09): pair + threshold eyni sehnede idi; threshold onu tutdu, table yeri qalmadi
+    (threshold sonra da deyilirdi). Ikisi ferqli sehnelere yerlesir."""
+    scenes = _scenes("Profit climbs from $400 to $510, and Rosa needs at least 27 customers.",
+                     "If Rosa keeps at least 27 customers, the new price works.")
+    got = vz.decision_visuals(scenes, PLAN)
+    assert sorted(s["kind"] for s in got.values()) == ["table", "threshold"]
+    assert got[1]["kind"] == "table" and got[2]["kind"] == "threshold"

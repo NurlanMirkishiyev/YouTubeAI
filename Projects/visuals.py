@@ -56,7 +56,7 @@ Kinds and JSON fields (labels <= 22 characters, titles <= 40, steps/points <= 32
 STRICT number rule: use ONLY numbers that are said in THAT scene's narration, exactly as said.
 Never compute, estimate, round or invent a number. EVERY figure said in the scene (dollar amounts, percentages,
 counts written in digits) must appear in the animation - if a chart cannot hold them all, use stats cards.
-If the narration has no numbers, use flow, compare, timeline or equation WITHOUT values (value null).
+If the narration has no numbers, use compare, timeline or equation WITHOUT values (value null).
 Never use bullet lists. No digits inside labels unless said.
 Flow steps and timeline events name the case (owner, business object, a figure) - never generic steps like
 "Analyze Changes" or "Evaluate Options". At most one flow in the whole video.
@@ -66,7 +66,7 @@ a vivid object that a photo shows better)."""
 USER = """Video topic: {topic}
 
 Prefer real analysis: bars, line, compare, ring, equation, counter whenever the scene has numbers or a
-comparison; flow or timeline for processes; stats cards when the scene states several unrelated figures.
+comparison; timeline for steps over time; stats cards when the scene states several unrelated figures.
 Every animation title must be different from all other titles in the video.
 
 Return JSON exactly, e.g.:
@@ -551,7 +551,7 @@ def _candidate(item: dict, narration: str) -> tuple[float, dict | None]:
 
 
 # why-9-99 (2026-10-04): LLM mucerred movzuda cox bullet verirdi; #57-den bullet (keypoints) umumiyyetle yoxdur
-NO_KEYPOINTS = ("\n\nDo NOT use bullet lists for these scenes: choose flow, compare, timeline or equation "
+NO_KEYPOINTS = ("\n\nDo NOT use bullet lists for these scenes: choose compare, timeline or equation "
                 "(value null when the narration says no number).")
 ALL_FIGURES = ("\n\nShow EVERY figure the narration says in these scenes (each dollar amount, percentage and "
                "digit count) - use bars, compare, equation or stats cards so none is left out.")
@@ -563,6 +563,10 @@ def _ask(scenes: list[dict], numbers: list[int], topic: str, chat: Callable, llm
     try:
         data = chat(SYSTEM, USER.format(topic=topic, scenes=listing) + note, max_tokens=4000, **llm_kw)
     except LLMError as e:
+        if "max_tokens" in str(e) and len(numbers) > 1:      # #123: kesilen cavab - hisse yariya bolunur
+            half = len(numbers) // 2
+            return {**_ask(scenes, numbers[:half], topic, chat, llm_kw, note),
+                    **_ask(scenes, numbers[half:], topic, chat, llm_kw, note)}
         print(f"  animasiya plani xetasi: {str(e)[:120]} - bu sehneler foto qalir", flush=True)
         return {}
     out = {}

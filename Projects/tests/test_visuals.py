@@ -563,3 +563,29 @@ def test_animation_room_respects_the_70_percent_cap():
     scenes = [{"visual": {"kind": "flow"}}] * 6 + [{"visual": None}] * 4      # 10 sehne, 6 animasiya
     assert visuals.animation_room(scenes) == 1
     assert visuals.animation_room([{"visual": {"kind": "flow"}}] * 8 + [{"visual": None}] * 2) == 0
+
+
+def test_numberless_scene_guidance_does_not_push_flow():
+    """#121 (E2E 2 2026-10-09): reqemsiz sehneler ucun prompt 'flow' tovsiye edirdi -> 40/69 flow, video basina 1
+    flow + generik addim qadagasi ile 38-i redd, animasiya 20/69. Reqemsiz sehneye flow tovsiye olunmur."""
+    import visuals as V
+    no_num = [ln for ln in V.SYSTEM.splitlines() if "no numbers" in ln]
+    assert no_num and all("flow" not in ln for ln in no_num)
+    assert "flow" not in V.NO_KEYPOINTS
+
+
+def test_truncated_chunk_is_split_and_asked_again():
+    """#123 (E2E №2): 12 sehnelik cavab max_tokens-de kesildi -> butun hisse foto qaldi. Kesilende yariya bolunur."""
+    import visuals as V
+    from llm import LLMError
+    scenes = [{"section": "Section 1: X", "narration": f"Scene {i}."} for i in range(1, 13)]
+    calls = []
+
+    def chat(system, user, **kw):
+        ns = [int(l.split(".")[0]) for l in user.split("Scenes:\n", 1)[1].splitlines() if l[:1].isdigit()]
+        calls.append(len(ns))
+        if len(ns) > 6:
+            raise LLMError("cavab max_tokens-de kesildi")
+        return {"scenes": [{"n": n, "score": 5, "visual": {}} for n in ns]}
+    got = V._ask_all(scenes, list(range(1, 13)), "T", chat, {})
+    assert sorted(got) == list(range(1, 13)) and calls[0] == 12
