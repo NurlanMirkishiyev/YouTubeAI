@@ -184,36 +184,15 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 | 3 Motion + səs | TAMAM (2026-10-08, #86–#88): Episode.tsx planı oynadır (keçidlər, variantlar, backdrop, vurğu, editorial film), 9 Ken Burns, altyazıda rəqəm rəngi, geniş bayquş chart-ı örtmür; renderStill probu (editorial + dynamic) ilə vizual yoxlandı. 611 test, `tsc` təmiz |
 | 4 Publish (midrolls, lead magnet/affiliate, upload checklist) | TAMAM (2026-10-08, #89). Linklər `.env`-də `LEAD_MAGNET_URL` / `AFFILIATE_LINKS` (hələ boş — istifadəçi doldurmalıdır) |
 | 5 Default ON, quality_gate, reyestr↔test, error_classes.md, CLAUDE.md, self_audit | TAMAM (2026-10-08, #90–#91) |
-| 6 Yekun: testlər + 2 E2E (qiymət qərarı; zaman/coğrafiya) | İCRADADIR — E2E №1 4/13-də dayandırıldı (2026-10-09), №2 başlamayıb |
+| 6 Yekun: testlər + 2 E2E (qiymət qərarı; zaman/coğrafiya) | İCRADADIR — E2E №1 TAMAM (2026-10-09), №2 istifadəçinin mövzusunu gözləyir |
 
 ## Növbəti dəqiq addım
 
-**2026-10-09 18:20:** E2E №1 WMI ilə `--resume` edildi (17:40, #113 kodu ilə); `check_bgs` KEÇDİ (təkrar yox,
-generik 0%), `render_owls` keçdi, `[6/13] upscale_bgs` gedir; log `Episodes\_run_should-you-hire-your-first-employee.log`.
-Bu run-da tapılan xətalar həll olundu: #110–#116 (710 test). Qeyd: bu epizodun skripti #115-dən əvvəl yazılıb —
-"a specific amount" cümləsi videoda qalır (qapı köhnə hesabatı oxuyur); növbəti videolarda tutulur.
-Növbəti: 13/13 → addım 4 yoxlamaları → təhvil → AskUserQuestion → E2E №2.
-
-**2026-10-09 ~00:25 (İSTİFADƏÇİ "SAXLA" DEDİ — BURADAN DAVAM):** Faza 1–5 TAMAM, **Faza 6 icradadır**.
-- **Modellər (son qərar 2026-10-08 gec):** Gemini-dən İMTİNA — şəkil gpt-image-2, yazan gpt-4o-mini, yoxlayan gpt-4o
-  (default `openai`). Gemini kodu qalır, yalnız `.env` `LLM_PROVIDER=gemini` ilə (istifadəçi istəmədən açma).
-- **Ssenari problemi HƏLL OLUNDU:** 21 cəhdin son xətaları deterministik siniflər idi, LLM-ə buraxılırdı → #105–#109
-  (`script_qa.settle_script`: modeldən kənar rəqəmli cümlə silinir, əvvəl/sonra cütü + eşik modeldən yazılır, təkrar
-  həll olunur, köhnə mənbəyə il; `quality_gate` auditdən əvvəl+sonra). Retry #107/#108 kodu ilə `script_gen` KEÇDİ
-  (2026-10-09 00:08, "ssenari keyfiyyeti: OK"). #109 hələ real run-da sınanmayıb. 692 test keçir, son commit `958dacb`.
-- **E2E №1** `should-you-hire-your-first-employee`: 1–3 mərhələ TAMAM (script_gen, scene_plan, render_bgs), istifadəçi
-  `[4/13] check_bgs` zamanı DAYANDIRDI (proseslər öldürüldü). Davam: WMI ilə
-  `run.py --resume should-you-hire-your-first-employee --provider openai` (CLAUDE.md addım 2; log `Episodes\_run_<slug>.log`),
-  Monitor: `[N/13]` + Traceback/XETA/ugursuz. Qalan ~80 dəq (bgs yoxlaması, owl, TTS, render, quality_gate).
-- Açıq keyfiyyət müşahidəsi: keçən skriptdə LLM rəqəmləri "a specific amount"/"that same amount" ilə bulandırıb
-  (yoxlamalardan keçir, amma zəif) — #114 namizədi: qərar bölməsində qeyri-müəyyən məbləğ ifadəsi qadağası.
-1. E2E №1 bitəndən sonra CLAUDE.md addım 4 yoxlamaları (quality_gate.json passed, self_audit.md, 10–12 dəq, −14 LUFS,
-   kadrlar, owl, thumbnail, paket: mp4/thumbnail/youtube.txt/srt/script/midrolls/upload_checklist).
-2. E2E №2: "Should You Open a Second Location?" (timeseries/usmap) — motion_sheet №1-dən fərqli olmalıdır.
-   İstifadəçi 2026-10-09: niyə 2 video olduğu izah edildi → "qalsın" (2 E2E qalır, birə endirilmir).
-3. Xətaları qeyd et, "Cari vəziyyət" = HAZIR, commit, istifadəçiyə qısa hesabat (faza üzrə, reyestr #86–#109+, iki E2E,
-   açıq qalanlar: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş; Gemini açarı çatda göründü → rotasiya tövsiyəsi).
-   Hər video üçün AskUserQuestion: "Video təsdiqlənsin və pipeline-dakı yaddaşı silinsin?"
+**2026-10-09 19:20:** E2E №1 TAMAM — təhvil verildi, istifadəçi təsdiqlədi, epizod yaddaşı silindi (`forget_episode`).
+Pipeline: 13 mərhələ, modellər OpenAI (gpt-image-2 / gpt-4o-mini / gpt-4o), Gemini yalnız `.env` ilə.
+**Növbəti dəqiq addım:** istifadəçinin yeni mövzusu = E2E №2 (Faza 6-nın ikinci videosu). CLAUDE.md tetiki ilə
+WMI run → Monitor → addım 4–7. Sonra Faza 6 yekun hesabatı (reyestr #86–#116, iki E2E; açıq: `.env`
+LEAD_MAGNET_URL/AFFILIATE_LINKS boş, Gemini açarı rotasiyası).
 
 **2026-10-08:** Faza 3, 4, 5 TAMAM. Növbəti: **Faza 6** — 2 yeni B2B mövzu ilə ardıcıl E2E (CLAUDE.md tetiki): (1) qiymət/xərc qərarı (table + threshold), (2) zaman/coğrafiya datası (timeseries/usmap); hər birində quality_gate keçir, self_audit təmiz, motion_sheet-lər fərqli, 10–12 dəq, −14 LUFS, təhvil paketi tam (mp4, thumbnail, youtube.txt, srt, script, midrolls, upload_checklist). Pullu (OpenAI) — istifadəçi təsdiqi lazımdır. `Episodes\_probe-raise-prices` probe qovluğudur (silinə bilər).
 
@@ -457,6 +436,7 @@ avtomatik əlavə bölmə yazdırılır və TTS təkrarlanır.
 | Skill çağırışı ilə iş alətini (Bash/Edit) EYNİ mesajda paralel göndərmək (2026-10-09, 2 dəfə) | `guard-skill-check` Skill-i transkriptdə hələ görmür → alət rədd olunur. Əvvəl Skill-ləri ayrıca mesajda çağır, iş alətləri NÖVBƏTİ mesajda (hook-a retry əlavəsi auto-mode tərəfindən rədd edildi — istifadəçi qərarı). |
 | `bg_qa.json`-u əl ilə redaktə edib cəhd sayını sıfırlamaq (2026-10-09) | Əl ilə həll qadağandır — #114 bunu kodda həll etdi; retry/resume uğursuz səhnəyə özü təzə büdcə verir. |
 | Git Bash-dan venv Python-a `/c/YouTubeAI/...` yolu ötürmək (2026-10-09, `checks.final_video_problems`) | Windows Python MSYS yolunu tanımır → ffprobe "No such file". Python-a həmişə `C:\...` (Windows) yolu ver. |
+| `.env` açarının dolu olduğunu `${v:+dolu}${v:-BOS}` ilə yoxlamaq (2026-10-09) | `${v:-BOS}` dolu olanda dəyəri ÇAP EDİR → OpenAI açarı transkriptə düşdü (rotasiya tövsiyə olundu). Sirri yoxlamaq üçün yalnız `[ -n "$v" ] && echo dolu \|\| echo BOS`. |
 | (2026-10-09) Bloklayan hook-lar (`guard-skill-check`, `yoxlama-guard`) | İstifadəçi tez-tez yanlış xəta verdiyi üçün settings.json-dan sildi; yalnız `skill-reminder` qalır. |
 
 **Daimi qayda (2026-10-04):** hər videoda rast gəlinən HƏR xəta video təhvil verilməzdən əvvəl bu cədvələ və ya
@@ -465,13 +445,6 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
-
-### 2026-10-09 19:05 — E2E №1 `should-you-hire-your-first-employee` HAZIR (Faza 6)
-- 13/13 keçdi, `Hazir_Videolar\should-you-hire-your-first-employee\` (10:56, −14.3 LUFS, musiqi sükutu 0).
-- quality_gate passed, self_audit KEÇDİ; script_qa/captions_qa/math_check problems []; bg_qa generic 0.0, duplicates [];
-  owl_qa hamısı ok (intro/outro ok); `final_video_problems` []; midrolls 3, upload_checklist var; kadrlar + thumbnail vizual OK.
-- Run xətaları: #110–#115 (reyestr), alət səhvi MSYS yolu (yanlış yollar). Qalan qüsur: ssenaridə "a specific amount"
-  cümləsi (#115-dən əvvəl yazılıb; növbəti videolarda qapı tutur).
 
 ### 2026-10-05/06 — 12 addımlıq məzmun standartı (#54–#63), E2E davam edir
 - Yeni modullar: `speech.py`, `captions.py` (yeni `captions` mərhələsi), `research.py`, `script_qa.py`; dəyişən:
