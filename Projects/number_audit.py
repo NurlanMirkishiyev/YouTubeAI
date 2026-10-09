@@ -209,6 +209,8 @@ def trusted_numbers(ep_dir: str) -> list[float] | None:
     fig = load("research.json").get("figure")
     if fig is not None:
         out.append(float(fig))
+    from script_qa import series_figures
+    out += series_figures({"series": load("series.json")})       # #129: yuklenmis real data
     return out
 
 

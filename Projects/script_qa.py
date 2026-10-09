@@ -388,6 +388,44 @@ def settle_source_year(markdown: str, source: dict | None) -> str:
     return markdown
 
 
+def series_paragraphs(plan: dict) -> list[str]:
+    """#129: data_sources-dan gelen real data cumleleri (series.json) - ssenariye SOZBESOZ girir."""
+    s = plan.get("series") or {}
+    return [p for p in (s.get("sentence"), (s.get("state") or {}).get("sentence")) if p]
+
+
+def series_figures(plan: dict) -> list[float]:
+    s = plan.get("series") or {}
+    vals = [float(v) for _, v in s.get("points") or []]
+    return vals + ([float(s["state"]["value"])] if s.get("state") else [])
+
+
+def series_heading(markdown: str, plan: dict) -> str | None:
+    """Menbe faktinin bolmesi deyilse Section 1, o halda Section 2 (qerar bolmesine hec vaxt)."""
+    n = 1 if int(plan.get("source_section") or 2) != 1 else 2
+    return next((h for h in sections(markdown) if h.startswith(f"Section {n}:")), None)
+
+
+def ensure_series(markdown: str, plan: dict) -> str:
+    """Data cumlesi bolmenin ilk abzasindan sonra ayrica abzas; LLM raundu silse/deyisse yeniden qoyulur."""
+    paras, head = series_paragraphs(plan), series_heading(markdown, plan)
+    if not paras or not head:
+        return markdown
+    body = sections(markdown)[head]
+    missing = [p for p in paras if p not in body]
+    if not missing:
+        return markdown
+    pars = body.split("\n\n")
+    return replace_section(markdown, head, "\n\n".join(pars[:1] + missing + pars[1:]))
+
+
+def series_problems(markdown: str, plan: dict) -> list[str]:
+    head = series_heading(markdown, plan)
+    body = sections(markdown).get(head or "", "")
+    return [f"{head or 'Section'}: real data cumlesi yoxdur ({p[:60]}...)" for p in series_paragraphs(plan)
+            if p not in body]
+
+
 def settle_script(markdown: str, plan: dict, source: dict | None) -> str:
     """#105/#107/#109: LLM raundlarindan sonra qalan deterministik sinifler deterministik duzelir."""
     for _ in range(3):                                  # bir duzelis digerini poza biler -> sabit noqteye qeder
@@ -396,6 +434,7 @@ def settle_script(markdown: str, plan: dict, source: dict | None) -> str:
         markdown = drop_off_model_sentences(markdown, plan, source)
         markdown = settle_repeats(settle_threshold(settle_decision_pair(markdown, plan), plan))
         markdown = settle_analogies(markdown, plan)        # #120
+        markdown = ensure_series(markdown, plan)           # #129: son - diger duzelisler onu silse geri qoyulur
         if markdown == before:
             break
     return markdown
@@ -496,6 +535,7 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
     probs += vague_amount_problems(secs)
     probs += analogy_problems(secs, plan)                 # #120
     probs += legal_claim_problems(markdown, plan)
+    probs += series_problems(markdown, plan)              # #129
     if result:
         probs += cm.case_problems(markdown, {**plan, "model_result": result}, source)
     if source is None:
@@ -561,6 +601,8 @@ paragraphs only - no heading, no lists, no meta commentary. Write figures as dig
 def _review_user(markdown: str, plan: dict, topic: str, source: dict | None = None) -> str:
     year = f", {source.get('year')} report" if source and source.get("year") else ""    # #93: il skriptde deyilir
     fact = f"VERIFIED FACT ({source.get('cite_as')}{year}): {source.get('claim')}\n" if source else ""
+    fact += "".join(f"VERIFIED OFFICIAL DATA (inserted by the system - do not flag or change it): {p}\n"
+                    for p in series_paragraphs(plan))                                   # #129
     return (f"Video topic: {topic}\nPromised decision: {plan.get('decision')}\nIntended answer: {plan.get('answer')}\n"
             f"{fact}\nSCRIPT:\n{markdown}")
 
@@ -569,7 +611,10 @@ def _rewrite_user(markdown: str, plan: dict, heading: str, body: str, instructio
     case = plan.get("case") or {}
     return (f"Decision of the video: {plan.get('decision')}\nCase followed through the video: {case.get('owner')}, "
             f"{case.get('business')} in {case.get('city')}, {case.get('state')}.\n\nFULL SCRIPT (context only):\n"
-            f"{markdown}\n\nRewrite ONLY the section \"{heading}\". Instruction: {instruction}\n\nCurrent text:\n{body}")
+            f"{markdown}\n\nRewrite ONLY the section \"{heading}\". Instruction: {instruction}"
+            + "".join(f"\nKeep this verified data sentence word for word: {p}" for p in series_paragraphs(plan)
+                      if p in body)                                                     # #129
+            + f"\n\nCurrent text:\n{body}")
 
 
 def apply_fixes(markdown: str, plan: dict, fixes: list[dict], rewrite: Callable, **kw) -> str:

@@ -20,7 +20,8 @@ SFX = True               # whoosh/pop/tick/boom qati (remotion_build master)
 NUMBER_OVERLAY = True    # foto sehnesinde danisilan reqemin count-up overlay-i
 TYPEWRITER = True        # cold open typewriter (motion.plan_motion)
 MOTION_VARIANTS = True   # epizoda hereket plani: theme, variantlar, kecidler (motion.py)
-REQUIRED_KINDS = ("table", "threshold", "timeseries", "usmap")   # visuals.KINDS-de olmalidir
+REAL_DATA = True         # #129 (istifadeci 2026-10-10): timeseries/usmap resmi API seriyasindan (data_sources.py)
+REQUIRED_KINDS =("table", "threshold", "timeseries", "usmap")   # visuals.KINDS-de olmalidir
 
 
 def _env(name: str) -> str:

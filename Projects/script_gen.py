@@ -524,7 +524,8 @@ def generate(topic: str, words: int, plan: dict, source: dict | None, **llm_kw) 
                                "All four teaching sections are already written above. Never re-explain their "
                                "analogies, examples or numbers.", **llm_kw)]
 
-    return "\n\n".join(parts), domains
+    import script_qa
+    return script_qa.ensure_series("\n\n".join(parts), plan), domains     # #129: real data sozbesoz
 
 
 def extend(topic: str, markdown: str, words: int, domains: list[str], plan: dict | None = None,
@@ -598,6 +599,8 @@ def quality_gate(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     if plan and meta.get("domains"):                 # #120: uzatma bolmesinin analogiya sahesi de
         plan = {**plan, "domains": meta["domains"]}
     source = _load_json(os.path.join(out_dir, "research.json")) or None
+    if plan and (series := load_series(out_dir)):         # #129
+        plan = {**plan, "series": series}
     if not plan:
         raise SystemExit("meta.json-da plan yoxdur - skript --force ile yeniden yazilmalidir")
     kw = {"provider": a.provider, "model": a.model, "temperature": a.temperature}
@@ -712,6 +715,26 @@ def find_source(a: argparse.Namespace, plan: dict, out_dir: str) -> dict:
     return src
 
 
+def find_series(a: argparse.Namespace, plan: dict, out_dir: str) -> dict | None:
+    """#129: resmi API-den real data seriyasi (series.json; yoxdursa {"id": null} - vizual olmayacaq)."""
+    import config
+    import data_sources
+    path = os.path.join(out_dir, "series.json")
+    cached = _load_json(path)
+    if cached:
+        return cached if cached.get("id") else None
+    got = data_sources.pick_series(a.topic, str(plan.get("decision", "")), plan.get("case") or {}) \
+        if config.REAL_DATA else None
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(got or {"id": None}, f, indent=2, ensure_ascii=False)
+    return got
+
+
+def load_series(out_dir: str) -> dict | None:
+    got = _load_json(os.path.join(out_dir, "series.json"))
+    return got if got and got.get("id") else None
+
+
 def needs_regeneration(out_dir: str) -> bool:
     """Movcud script.md keyfiyyet/hesab qapisindan kecmeyibse (merhele retry-i --force-suz gelir) yeniden yazilir."""
     import script_qa
@@ -754,7 +777,8 @@ def main() -> None:
     try:
         plan = outline(a.topic, **kw)
         source = find_source(a, plan, out_dir)
-        script, domains = generate(a.topic, a.words, plan, source, **kw)
+        series = find_series(a, plan, out_dir)
+        script, domains = generate(a.topic, a.words, {**plan, "series": series} if series else plan, source, **kw)
     except LLMError as e:
         raise SystemExit("LLM xetasi: " + str(e)) from e
 

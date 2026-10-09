@@ -97,3 +97,48 @@ def test_state_value_only_for_a_known_case_state():
     none = ds.pick_series("T", "Should?", {"state": "Nowhere"}, ask=lambda *a, **k: {"id": "BABATOTALSAUS"},
                           fetch=_fetch_ok)
     assert "state" not in none
+
+
+# --- ssenari (#129) -----------------------------------------------------------------------------
+
+import script_qa as qa   # noqa: E402
+
+SERIES = {"id": "BABATOTALSAUS", "points": [[2022, 5100000.0], [2023, 5500000.0], [2024, 5200000.0],
+                                            [2025, 5600000.0]],
+          "sentence": "According to the U.S. Census Bureau, owners across the US filed 5.1 million new business "
+                      "applications in 2022, 5.5 million in 2023, 5.2 million in 2024 and 5.6 million in 2025.",
+          "state": {"name": "Texas", "value": 540000.0, "us_value": 5600000.0,
+                    "sentence": "In Texas, owners filed 540,000 of them in 2025, out of 5.6 million nationwide."}}
+SCRIPT = ("# T\n\n## Hook\n\nEmily runs a cafe.\n\n## Section 1: Costs\n\nEmily pays rent.\n\nShe also pays staff.\n\n"
+          "## Section 2: Source\n\nAccording to the SBA, 48.9% of firms grow.\n\n## Section 3: Decide\n\nEmily decides.\n")
+
+
+def test_series_paragraphs_go_into_their_section_once():
+    plan = {"source_section": 2, "series": SERIES}
+    out = qa.ensure_series(SCRIPT, plan)
+    body = qa.sections(out)["Section 1: Costs"]
+    assert body.split("\n\n")[0] == "Emily pays rent."
+    assert SERIES["sentence"] in body and SERIES["state"]["sentence"] in body
+    assert qa.ensure_series(out, plan) == out                 # idempotent
+    assert qa.series_problems(out, plan) == [] and qa.series_problems(SCRIPT, plan)
+
+
+def test_series_moves_to_section_2_when_section_1_holds_the_source():
+    out = qa.ensure_series(SCRIPT, {"source_section": 1, "series": SERIES})
+    assert SERIES["sentence"] in qa.sections(out)["Section 2: Source"]
+
+
+def test_no_series_changes_nothing():
+    assert qa.ensure_series(SCRIPT, {"source_section": 2}) == SCRIPT
+    assert qa.series_problems(SCRIPT, {"source_section": 2}) == []
+
+
+def test_series_values_are_allowed_figures():
+    assert qa.series_figures({"series": SERIES}) == [5100000.0, 5500000.0, 5200000.0, 5600000.0, 540000.0]
+
+
+def test_series_values_count_as_trusted_numbers_in_the_audit(tmp_path):
+    import number_audit
+    (tmp_path / "meta.json").write_text(json.dumps({"plan": {"model": {"variables": []}}}))
+    (tmp_path / "series.json").write_text(json.dumps(SERIES))
+    assert 540000.0 in number_audit.trusted_numbers(str(tmp_path))

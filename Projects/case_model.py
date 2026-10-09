@@ -447,7 +447,9 @@ def case_problems(markdown: str, plan: dict, source: dict | None = None) -> list
     allowed = allowed_numbers(result)
     if source and source.get("figure") is not None:
         allowed.append(float(source["figure"]))
-    naive = naive_values(plan.get("model") or {}) if plan.get("model") else {}
+    from script_qa import series_figures
+    allowed += series_figures(plan)                      # #129: real data seriyasi
+    naive =naive_values(plan.get("model") or {}) if plan.get("model") else {}
     secs = sections(markdown)
     body = [h for h in secs if h == "Hook" or h.startswith("Section ") or h == "Common Mistakes"]
     decision = [h for h in secs if h.startswith("Section ")][-1:]
