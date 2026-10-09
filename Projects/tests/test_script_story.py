@@ -681,6 +681,47 @@ def test_settle_repeats_never_points_that_amount_at_a_different_figure():
     assert not qa.repeated_figures(qa.sections(qa.settle_repeats(md)))
 
 
+def test_vague_reference_phrases_are_problems():
+    """#119 (E2E №2): 'every extra customer brings in that same cost' ($5 idi), 'a significant amount' -
+    reqem bos ifade ile evezlenmisdi, script_qa buraxdi."""
+    secs = {"Section 2: Revenue": "Each customer brings in that same cost. She makes a significant amount.",
+            "Section 3: Costs": "She earns that amount again."}
+    probs = qa.vague_amount_problems(secs)
+    assert any("that same cost" in p for p in probs) and any("a significant amount" in p for p in probs)
+    assert not any("Section 3" in p for p in probs)       # settle_repeats-in 'that amount' geri istinadi qalir
+
+
+def test_repeat_fix_instruction_does_not_suggest_placeholder_phrases():
+    """#119: telimat 'that amount', 'the same cost' numune verirdi -> gpt-4o-mini 'that same cost' yazdi."""
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin and earns $3,000 a month.",
+                    "Section 2: Costs": "Rosa earns $3,000 a month.",
+                    "Section 4: Decision": "Her profit goes from $3,000 to $1,000 if she hires."})
+    fixes = qa.story_fixes(md, PLAN, SOURCE, "Section 2: Costs")
+    text = " ".join(f["instruction"] for f in fixes if "restated" in f["problem"])
+    assert text and "the same cost" not in text and "'that amount'" not in text
+
+
+ANALOGY_PLAN = {**PLAN, "sections": [{"domain": "grocery shopping"}, {"domain": "fitness goals"}]}
+
+
+def test_settle_analogies_keeps_one_analogy_sentence_per_section():
+    """#120 (E2E №2): analogiya 4 cumle idi (grocery cart, shopping trip...) - qayda: bir cumle (2026-10-07)."""
+    md = _script(**{"Hook": "Rosa runs a 30-seat taqueria in Austin and earns $3,000 a month.",
+                    "Section 2: Revenue": "Think of revenue like the total at the grocery store. When you fill your "
+                                          "cart with groceries, the total climbs. That total is your shopping trip. "
+                                          "Rosa multiplies 300 guests by $10 each.",
+                    "Section 4: Decision": "Think of it like reaching your fitness goals. You need to know how many "
+                                           "hours you have to work out. Rosa needs 40 more guests. This is like the "
+                                           "calorie intake you need. Her profit goes from $3,000 to $1,000."})
+    out = qa.sections(qa.settle_analogies(md, ANALOGY_PLAN))
+    rev, dec = out["Section 2: Revenue"], out["Section 4: Decision"]
+    assert rev.startswith("Think of revenue like the total at the grocery store.")
+    assert "cart" not in rev and "shopping trip" not in rev and "Rosa multiplies 300 guests" in rev
+    assert "work out" not in dec and "calorie" not in dec and "Rosa needs 40 more guests" in dec
+    assert not qa.analogy_problems(out, ANALOGY_PLAN)
+    assert qa.analogy_problems(qa.sections(md), ANALOGY_PLAN)
+
+
 def test_settle_script_clears_every_deterministic_case_problem():
     """#109 (istifadeci 2026-10-09: 'qeti sekilde hell et'): 21 cehdin son problemleri hamisi deterministik siniflerdir
     (modelde olmayan reqem, deyisen buraxilib, evvel/sonra cutu, esik, tekrar, kohne menbe ili). LLM-e buraxilmir:

@@ -90,8 +90,10 @@ def _owner(plan: dict) -> str:
 _RULE = re.compile(r"\b(if|when|unless|once|as long as|only)\b", re.I)
 _EXAMPLE = re.compile(r"\b(for example|for instance|imagine|picture this|let's say|say you|like when|such as)\b", re.I)
 # #115: reqemin yerine qoyulan bos ifade ("a specific amount") - "that amount" kimi geri istinad DEYIL
-_VAGUE_QUALIFIED =re.compile(r"\b(?:a|some)\s+(?:specific|certain|particular|given)\s+"
-                              r"(?:amount|sum|number|figure|percentage|percent)\b|\bsome\s+amount\b", re.I)
+# #119: 'that same cost', 'a significant amount' - LLM reqemi bos ifade ile evezleyir ('that amount' #108 qalir)
+_VAGUE_QUALIFIED =re.compile(r"\b(?:a|some)\s+(?:specific|certain|particular|given|significant|considerable|"
+                              r"consistent)\s+(?:amount|sum|number|figure|percentage|percent)\b|\bsome\s+amount\b|"
+                              r"\bthat\s+same\s+(?:amount|cost|sum|number|figure|price|percentage)\b", re.I)
 
 
 def vague_amount_problems(secs: dict[str, str]) -> list[str]:
@@ -221,6 +223,68 @@ def settle_repeats(markdown: str) -> str:
     return markdown
 
 
+# #120: analogiya bir cumledir (istifadeci 2026-10-07); domain sozu, 'is like' ve ya ardinca gelen umumi 'you' cumlesi
+_GENERIC_DOMAIN_WORDS = {"goals", "goal", "bills", "home", "cost", "costs", "money", "budget", "plan", "target",
+                         "total", "amount", "business", "price", "time"}
+_LIKE = re.compile(r"\b(?:is|it's|are|just|feels)\s+like\b|^(?:think of|consider it|imagine|picture)\b", re.I)
+_YOU = re.compile(r"\b(?:you|your)\b", re.I)
+
+
+def _domain_stems(plan: dict) -> list[str]:
+    domains = [str(s.get("domain") or "") for s in plan.get("sections") or [] if isinstance(s, dict)]
+    domains += [str(d) for d in plan.get("domains") or []]
+    words = {w.lower() for d in domains for w in re.findall(r"[A-Za-z]{4,}", d)} - _GENERIC_DOMAIN_WORDS
+    return sorted({w[:5] for w in words})
+
+
+def _analogy_flags(sents: list[str], plan: dict) -> list[bool]:
+    stems = _domain_stems(plan)
+    owner = str((plan.get("case") or {}).get("owner") or "").strip()
+    flags: list[bool] = []
+    for s in sents:
+        hit = bool(_LIKE.search(s)) or any(re.search(rf"\b{st}", s, re.I) for st in stems)
+        cont = (bool(flags) and flags[-1] and bool(_YOU.search(s)) and not _figures(s)
+                and not (owner and owner in s))
+        flags.append(hit or cont)
+    return flags
+
+
+def _section_sentences(body: str) -> list[list[str]]:
+    return [re.split(r"(?<=[.!?])\s+", p.strip()) for p in body.split("\n\n") if p.strip()]
+
+
+def analogy_problems(secs: dict[str, str], plan: dict) -> list[str]:
+    out = []
+    for head, body in secs.items():
+        if not head.startswith("Section "):
+            continue
+        n = sum(sum(_analogy_flags(par, plan)) for par in _section_sentences(body))
+        if n > 1:
+            out.append(f"{head}: analogiya {n} cumledir - bir cumle olmalidir")
+    return out
+
+
+def settle_analogies(markdown: str, plan: dict) -> str:
+    """#120: bolmede ilk analogiya cumlesi qalir, qalan analogiya/davam cumleleri silinir (deterministik)."""
+    for head, body in sections(markdown).items():
+        if not head.startswith("Section "):
+            continue
+        seen, pars = False, []
+        for par in _section_sentences(body):
+            keep = []
+            for s, flag in zip(par, _analogy_flags(par, plan)):
+                if flag and seen:
+                    continue
+                seen = seen or flag
+                keep.append(s)
+            if keep:
+                pars.append(" ".join(keep))
+        new = "\n\n".join(pars)
+        if new != body.strip():
+            markdown = markdown.replace(body.strip(), new, 1)
+    return markdown
+
+
 def _pair_sentence(plan: dict, result: dict) -> tuple[str, float]:
     import case_model as cm
     key = next((k for k in result["delta"] if "profit" in k), next(iter(result["delta"])))
@@ -331,6 +395,7 @@ def settle_script(markdown: str, plan: dict, source: dict | None) -> str:
         markdown = settle_source_year(markdown, source)
         markdown = drop_off_model_sentences(markdown, plan, source)
         markdown = settle_repeats(settle_threshold(settle_decision_pair(markdown, plan), plan))
+        markdown = settle_analogies(markdown, plan)        # #120
         if markdown == before:
             break
     return markdown
@@ -429,6 +494,7 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
         probs.append("Recap: misal var - yalniz neticeler deyilmelidir")
     probs += repeated_figures(secs)
     probs += vague_amount_problems(secs)
+    probs += analogy_problems(secs, plan)                 # #120
     probs += legal_claim_problems(markdown, plan)
     if result:
         probs += cm.case_problems(markdown, {**plan, "model_result": result}, source)
@@ -573,8 +639,9 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
             quoted = (" Change exactly these sentences: " + " ".join(f'"{s}"' for s in drop)
                       + (f' Keep {lbl} in: "{kept[0]}"' if kept else "")) if drop else ""   # #101: sitat
             fixes.append({"section": head, "problem": f"{lbl} is restated",
-                          "instruction": keep + "refer to it in words (e.g. 'that amount', 'the same cost') without "
-                                         "the number, and do not re-introduce the business." + quoted})
+                          "instruction": keep + "delete a sentence that only restates it; otherwise rewrite the "
+                                         "sentence so it needs no figure at all. Never put a placeholder phrase "
+                                         "where the number was, and do not re-introduce the business." + quoted})
         elif "qeyri-mueyyen mebleg" in p:                       # #115
             result, _ = model_result(plan)
             import case_model as cm

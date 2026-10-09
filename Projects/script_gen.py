@@ -593,7 +593,10 @@ def quality_gate(a: argparse.Namespace, out_dir: str, script_path: str) -> None:
     """#59: deterministik hekaye/menbe/hook duzelisleri -> gpt-4o redaktor -> reqem auditi -> son yoxlama.
     script_qa.json (sha) yazilir; problem qalsa merhele dayanir."""
     import script_qa as qa
-    plan = _load_json(os.path.join(out_dir, "meta.json")).get("plan") or {}
+    meta = _load_json(os.path.join(out_dir, "meta.json"))
+    plan = meta.get("plan") or {}
+    if plan and meta.get("domains"):                 # #120: uzatma bolmesinin analogiya sahesi de
+        plan = {**plan, "domains": meta["domains"]}
     source = _load_json(os.path.join(out_dir, "research.json")) or None
     if not plan:
         raise SystemExit("meta.json-da plan yoxdur - skript --force ile yeniden yazilmalidir")
