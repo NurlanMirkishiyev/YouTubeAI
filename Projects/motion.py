@@ -33,6 +33,12 @@ VARIANTS: dict[str, tuple[str, ...]] = {
     "ring": ("sweep", "pop_sweep", "count_first"),
     "flow": ("step_chain", "slide_steps", "pop_steps"),
     "timeline": ("draw_line", "pop_events", "slide_events"),
+    "waterfall": ("stagger", "left_to_right", "pop_steps"),     # #135
+    "gauge": ("sweep", "pop_sweep", "count_first"),
+    "dotgrid": ("dot_wave", "center_burst", "region_sweep"),
+    "balance": ("face_off", "split", "flip"),
+    "funnel": ("stagger", "slide_steps", "pop_steps"),
+    "versus": ("face_off", "scale_pop", "split"),
     "title": ("slide_up", "typewriter", "mask_reveal"),
     "kicker": ("fade_slide", "typewriter", "track_in"),
     "lower_third": ("slide_in", "wipe", "typewriter"),

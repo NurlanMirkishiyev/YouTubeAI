@@ -5,6 +5,8 @@ import {Bars, Counter, Line, Ring, Stats} from './Charts';
 import {AREA, Kicker, Title} from './common';
 import {Table, Threshold, Timeseries, USMap} from './DataViz';
 import {Compare, Equation, Flow, Keypoints, Timeline} from './Diagrams';
+import {DotGrid, Gauge, Waterfall} from './Live';
+import {Balance, Funnel, Versus} from './Live2';
 import {StudioBackdrop} from './Studio';
 
 const Chart: React.FC<{v: Visual; reveal: number[]}> = ({v, reveal}) => {
@@ -23,6 +25,13 @@ const Chart: React.FC<{v: Visual; reveal: number[]}> = ({v, reveal}) => {
     case 'threshold': return <Threshold v={v} reveal={reveal} />;
     case 'timeseries': return <Timeseries v={v} reveal={reveal} />;
     case 'usmap': return <USMap v={v} reveal={reveal} />;
+    case 'waterfall': return <Waterfall start={v.start} steps={v.steps} end={v.end} reveal={reveal} />;
+    case 'gauge': return <Gauge value={v.value} max={v.max} target={v.target} unit={v.unit} label={v.label}
+      reveal={reveal} />;
+    case 'dotgrid': return <DotGrid value={v.value} label={v.label} reveal={reveal} />;
+    case 'balance': return <Balance left={v.left} right={v.right} heavier={v.heavier} reveal={reveal} />;
+    case 'funnel': return <Funnel stages={v.stages} unit={v.unit} reveal={reveal} />;
+    case 'versus': return <Versus left={v.left} right={v.right} reveal={reveal} />;
   }
 };
 

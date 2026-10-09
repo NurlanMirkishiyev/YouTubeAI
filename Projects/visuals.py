@@ -21,7 +21,8 @@ from math_check import find_numbers
 # "her reqem qrafik ve ya kartla" - reqemli sehne hemise animasiyadir (stats = data kartlari)
 KINDS = ("bars", "line", "compare", "ring", "equation", "flow", "timeline", "counter", "stats",
          "table", "threshold",         # Faza 2.1: table/threshold deterministik (decision_visuals), LLM teklif etmir
-         "timeseries", "usmap")        # Faza 2.2/2.3
+         "timeseries", "usmap",        # Faza 2.2/2.3
+         "waterfall", "gauge", "dotgrid", "balance", "funnel", "versus")   # #135 canli novler
 ANIM_SHARE = 0.6                # istifadeci 2026-10-03: ~60% animasiya (reqemli sehneler bundan asili deyil)
 ANIM_MAX = 0.70                # istifadeci 2026-10-07 (hibrid): generik foto animasiyaya yalniz bu tavana qeder
 MAX_RUN = 3                    # reqemsiz sehnelerde ardicil en cox 3 animasiya - arada foto nefes verir
@@ -31,7 +32,8 @@ CHUNK = 12
 TITLE_MAX, LABEL_MAX, LINE_MAX = 40, 22, 32
 UNITS = ("$", "%", "")
 OPS = {"+": "+", "-": "-", "−": "-", "×": "×", "x": "×", "*": "×", "÷": "÷", "/": "÷"}
-LIMITS = {"bars": (2, 5), "line": (3, 6), "flow": (3, 5), "timeline": (3, 5), "equation": (2, 3), "stats": (1, 4)}
+LIMITS = {"bars": (2, 5), "line": (3, 6), "flow": (3, 5), "timeline": (3, 5), "equation": (2, 3), "stats": (1, 4),
+          "waterfall": (1, 4), "funnel": (3, 4)}
 
 SYSTEM = """You are the motion designer of a premium business explainer video for US business owners.
 Most scenes get an ANALYTICAL ANIMATION (chart/diagram) drawn in code next to the host owl; the rest keep a photo.
@@ -52,11 +54,24 @@ Kinds and JSON fields (labels <= 22 characters, titles <= 40, steps/points <= 32
   "events":[{"index":point index,"label":..}] 0-3}   (numbers that change over TIME: years, months, quarters)
 - usmap: {"kind":"usmap","title":..,"unit_label":"Locations","keys":[{"value":number,"label":..}] 1-4}
   (a US location, branch, store or market spread: how many places and how the count grows or shrinks)
+- waterfall: {"kind":"waterfall","title":..,"start":{"label":..,"value":number},"steps":[{"label":..,
+  "value":number (negative = cost, positive = extra income)}] 1-4,"end":{"label":..,"value":number}}
+  (money flowing from revenue through costs to profit - start + steps must equal end)
+- gauge: {"kind":"gauge","title":..,"value":number,"max":number said in the scene (omit for a percent),
+  "target":number|null,"label":..}   (how close a figure is to a goal or capacity)
+- dotgrid: {"kind":"dotgrid","title":..,"value":percent 0-100,"label":..}   (a share as 100 dots, X lit)
+- balance: {"kind":"balance","title":..,"left":{"label":..,"value":number|null,"note":..},"right":{...},
+  "heavier":"left"|"right"}   (a trade-off: which side weighs more; works without numbers)
+- funnel: {"kind":"funnel","title":..,"stages":[{"label":..,"value":number}] 3-4 shrinking}
+  (people dropping off step by step: visitors -> buyers -> regulars)
+- versus: {"kind":"versus","title":..,"left":{"label":..,"value":number|null},"right":{...}}
+  (two options or two figures face off; works without numbers)
 
 STRICT number rule: use ONLY numbers that are said in THAT scene's narration, exactly as said.
 Never compute, estimate, round or invent a number. EVERY figure said in the scene (dollar amounts, percentages,
 counts written in digits) must appear in the animation - if a chart cannot hold them all, use stats cards.
-If the narration has no numbers, use a kind WITHOUT values (value null) - timeline, equation or compare -
+If the narration has no numbers, use a kind WITHOUT values (value null) - balance, versus, timeline, equation or
+compare -
 and vary it: never the same kind as the scene before, no kind in more than 1 of 5 animations.
 Never use bullet lists. No digits inside labels unless said.
 Flow steps and timeline events name the case (owner, business object, a figure) - never generic steps like
@@ -66,8 +81,8 @@ a vivid object that a photo shows better)."""
 
 USER = """Video topic: {topic}
 
-Prefer real analysis: bars, line, compare, ring, equation, counter whenever the scene has numbers or a
-comparison; timeline for steps over time; stats cards when the scene states several unrelated figures.
+Prefer real analysis: bars, line, waterfall, funnel, gauge, dotgrid, ring, equation, counter, versus whenever the
+scene has numbers or a comparison; timeline for steps over time; stats cards when the scene states several unrelated figures.
 Every animation title must be different from all other titles in the video.
 
 Return JSON exactly, e.g. (example only - choose the kind that fits each scene):
@@ -230,6 +245,8 @@ def _build(kind: str, v: dict, narration: str) -> dict | None:
         return {"events": out} if good else None
     if kind in ("table", "threshold"):
         return _build_decision(kind, v, narration)
+    if kind in LIVE_KINDS:
+        return _build_live(kind, v, narration)
     if kind == "timeseries":
         return build_timeseries(v, narration, _said, _label_ok, LABEL_MAX)
     if kind == "usmap":
@@ -239,6 +256,71 @@ def _build(kind: str, v: dict, narration: str) -> dict | None:
         return cards and {"cards": cards} if cards and all(c["value"] is not None for c in cards) else None
     lines = _lines(v.get("steps"), *LIMITS[kind], narration)
     return lines and {"steps": lines}
+
+
+LIVE_KINDS = ("waterfall", "gauge", "dotgrid", "balance", "funnel", "versus")    # #135
+
+
+def _signed_step(d: object, narration: str) -> dict | None:
+    """waterfall addimi: ekranda modul (deyilen "$4,000"), isare ayrica ("-" xerc, "+" gelir)."""
+    if not isinstance(d, dict):
+        return None
+    raw, label = _num(d.get("value")), _text(d.get("label"))
+    if raw is None or not _said(abs(raw), narration) or not _text_ok(label, LABEL_MAX, narration):
+        return None
+    sign = "-" if raw < 0 or d.get("sign") == "-" else "+"
+    return {"label": label, "value": abs(raw), "sign": sign, "unit": unit_of(abs(raw), narration)}
+
+
+def _build_live(kind: str, v: dict, narration: str) -> dict | None:
+    """#135: yeni canli novler - her reqem deyilib, hesab Python-da yoxlanir."""
+    if kind == "waterfall":
+        start = _labelled([v.get("start")], 1, 1, narration)
+        end = _labelled([v.get("end")], 1, 1, narration)
+        raw = v.get("steps")
+        if not start or not end or not isinstance(raw, list) or not LIMITS["waterfall"][0] <= len(raw) <= LIMITS["waterfall"][1]:
+            return None
+        steps = [_signed_step(s, narration) for s in raw]
+        if not all(steps):
+            return None
+        total = start[0]["value"] + sum(s["value"] * (-1 if s["sign"] == "-" else 1) for s in steps)
+        if not math.isclose(total, end[0]["value"], rel_tol=0.005, abs_tol=0.005):
+            return None
+        return {"start": start[0], "steps": steps, "end": end[0]}
+    if kind in ("gauge", "dotgrid"):
+        ok, val = _value_ok(v.get("value"), narration)
+        label = _text(v.get("label"))
+        if not ok or not _text_ok(label, LABEL_MAX, narration):
+            return None
+        pct = _said(val, narration, percent_values(narration))
+        if kind == "dotgrid":
+            return {"value": val, "label": label} if pct and 0 < val <= 100 else None
+        if pct:
+            top = 100.0
+        else:
+            ok_max, top = _value_ok(v.get("max"), narration)
+            if not ok_max:
+                return None
+        ok_t, target = _value_ok(v.get("target"), narration, optional=True)
+        if not ok_t or not 0 <= val <= top or (target is not None and not 0 < target <= top):
+            return None
+        return {"value": val, "max": top, "target": target, "unit": "%" if pct else unit_of(val, narration),
+                "label": label}
+    if kind in ("balance", "versus"):
+        left, right = _side(v.get("left"), narration), _side(v.get("right"), narration)
+        if not left or not right:
+            return None
+        if kind == "versus":
+            return {"left": left, "right": right}
+        if left["value"] is not None and right["value"] is not None:
+            heavier = "left" if left["value"] >= right["value"] else "right"
+        else:
+            heavier = v.get("heavier")
+        return {"left": left, "right": right, "heavier": heavier} if heavier in ("left", "right") else None
+    stages = _labelled(v.get("stages"), *LIMITS["funnel"], narration)       # funnel
+    if not stages or any(b["value"] > a["value"] for a, b in zip(stages, stages[1:])):
+        return None
+    return {"stages": stages, "unit": stages[0]["unit"]}
 
 
 def _opt_said(v: object, narration: str, absolute: bool = False) -> bool:

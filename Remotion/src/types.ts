@@ -76,7 +76,15 @@ export type Visual =
       points: {label: string; value: number; shown: boolean}[]; events: {index: number; label: string}[];
       segments: {from: number; to: number; down: boolean}[]}
   | {kind: 'usmap'; title: string; unit_label: string; keys: {value: number; label: string}[];
-      outline: [number, number][]; dots: [number, number][]; per_dot: number; counter: [number, number, number, number]};
+      outline: [number, number][]; dots: [number, number][]; per_dot: number; counter: [number, number, number, number]}
+  // #135 (istifadeci 2026-10-10): canli novler - Live.tsx / Live2.tsx
+  | {kind: 'waterfall'; title: string; start: Item; steps: (Item & {sign: '+' | '-'})[]; end: Item}
+  | {kind: 'gauge'; title: string; value: number; max: number; target: number | null; unit: Unit; label: string}
+  | {kind: 'dotgrid'; title: string; value: number; label: string}
+  | {kind: 'balance'; title: string; left: Item & {note: string}; right: Item & {note: string};
+      heavier: 'left' | 'right'}
+  | {kind: 'funnel'; title: string; unit: Unit; stages: Item[]}
+  | {kind: 'versus'; title: string; left: Item & {note: string}; right: Item & {note: string}};
 
 // Faza 2.7: foto sehnesinde danisilan reqemin count-up overlay-i
 export type Overlay = {value: number; unit: Unit; from: number; frames: number; box: [number, number, number, number]};

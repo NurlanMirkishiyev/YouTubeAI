@@ -115,6 +115,15 @@ def visual_elements(v: dict) -> list[dict]:
                 for p in v.get("points") or []]
     if k == "usmap":
         return list(v.get("keys") or [])
+    if k == "waterfall":                 # #135 canli novler
+        return [v.get("start") or {}, *(v.get("steps") or []), v.get("end") or {}]
+    if k in ("gauge", "dotgrid"):
+        tgt = [{"value": v["target"], "label": ""}] if v.get("target") is not None else []
+        return [{"value": v.get("value"), "label": v.get("label", "")}, *tgt]
+    if k in ("balance", "versus"):
+        return [v.get("left") or {}, v.get("right") or {}]
+    if k == "funnel":
+        return list(v.get("stages") or [])
     if k == "timeline":
         return [{"label": e.get("label", "")} for e in v.get("events") or []]
     return [{"label": t} for t in v.get("steps" if k == "flow" else "points") or []]
