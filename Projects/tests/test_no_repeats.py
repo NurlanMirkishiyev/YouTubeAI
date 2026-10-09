@@ -85,7 +85,7 @@ def test_clip_threshold_is_a_candidate_filter_below_real_repeats():
 
 def test_clip_candidate_threshold_is_wide_enough_for_same_kind_objects():
     # Reyestr #48 (2026-10-03): istifadeci yene "eyni/tekrar sekiller" gordu. Ehtiyat tedbiri: CLIP namized
-    # penceresi genislenir ki, ferqli gorunuslu eyni nov obyekt hakime catsin (dəqiq oxsarliq olculmeyib).
+    # penceresi genislenir ki, ferqli gorunuslu eyni nov obyekt hakime catsin (deqiq oxsarliq olculmeyib).
     assert bg_dedupe.DUP_SIM <= 0.80
 
 

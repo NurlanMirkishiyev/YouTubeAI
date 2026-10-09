@@ -15,7 +15,7 @@ def _write_scenes(path, prompts):
 # --- hakimin cavabi -------------------------------------------------------------------------
 
 # Hakim her yoxlamaya ayrica beli/xeyr verir; umumi "ok" sualinda gpt-4o-mini 97 fonun 84-une
-# "human" demisdi (narration-daki "you" sozunden). Yalniz acıq True problem sayilir.
+# "human" demisdi (narration-daki "you" sozunden). Yalniz aciq True problem sayilir.
 def test_verdict_counts_only_checks_answered_true():
     v = cb.parse_verdict({"description": "a blender", "people": False, "writing": True,
                           "collage": False, "no_subject": False, "deformed": False, "off_topic": False,
@@ -95,7 +95,7 @@ def test_judge_all_gives_up_after_retries_without_blocking():
     assert res[1] is cb.JUDGE_ERROR and res[1].ok
 
 
-# --- reyestr #32: hakim teklifi rədd olunur -> movzudan kenar ehtiyat fon -> yene "mismatch" dovresi ----
+# --- reyestr #32: hakim teklifi redd olunur -> movzudan kenar ehtiyat fon -> yene "mismatch" dovresi ----
 
 def test_judge_text_stays_small_without_the_used_object_list():
     # pricing E2E-3: siyahi her sorguya ~1400 token elave etdi, 56 paralel sorgu gpt-4o TPM (30k) limitini
@@ -129,6 +129,16 @@ def test_attempts_survive_a_resume_while_the_prompt_is_unchanged(tmp_path):
         "1": {"attempts": 3, "prompt": "a lighthouse"}, "2": {"attempts": 2, "prompt": "old prompt"}}}))
     scenes = [{"bg_prompt": "a lighthouse"}, {"bg_prompt": "new prompt"}]
     assert cb.load_tries(str(tmp_path), scenes) == {1: 3}
+
+
+def test_failed_scenes_get_a_fresh_budget_on_stage_retry_or_resume(tmp_path):
+    """#114 (E2E hire-first-employee): generik qalan sehnelerin cehdi MAX idi - pipeline retry 2/2 ve --resume
+    onlari hec yeniden cekmirdi (merhele eyni xeta ile yene dusurdu), bg_qa.json el ile sifirlanmali oldu."""
+    (tmp_path / "bg_qa.json").write_text(json.dumps({"passed": False, "scenes": {
+        "1": {"ok": True, "attempts": 2, "prompt": "a lighthouse"},
+        "2": {"ok": False, "problems": ["generic"], "attempts": 6, "prompt": "a silver stopwatch"}}}))
+    scenes = [{"bg_prompt": "a lighthouse"}, {"bg_prompt": "a silver stopwatch"}]
+    assert cb.load_tries(str(tmp_path), scenes) == {1: 2}
 
 
 def test_load_tries_without_report_is_empty(tmp_path):

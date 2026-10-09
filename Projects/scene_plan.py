@@ -17,7 +17,7 @@ from llm import LLMError, add_provider_arg, chat_json  # noqa: E402
 from visuals import animate_abstract, animation_room, finalize_maps, plan_visuals  # noqa: E402
 
 SPRITES_JSON = r"C:\YouTubeAI\Character\ELI5_Owl\sprites\sprites.json"
-WPM = 199.0   # olculmus; hər halda add. 25-de gercek audio uzunlugu ile evez olunur
+WPM = 199.0   # olculmus; her halda add. 25-de gercek audio uzunlugu ile evez olunur
 # Istifadeci: "sekiller tekrardir" - 20 s bir sekil darixdirir. Sehne ~4-10 s, her sehneye oz sekli.
 MIN_WORDS, MAX_WORDS = 14, 32
 PLAN_CHUNK = 24                    # LLM-e bir defede verilen sehne sayi (uzun JSON pozulmasin)
@@ -26,7 +26,7 @@ REPEAT_WINDOW = 8                  # eyni esas obyekt bu qeder sehne erzinde tek
 MIN_PROMPT_WORDS = 5               # "a smartphone" - temizlemeden sonra cilpaq qalan prompt -> yeniden
 # Istifadeci (2026-09-28): tekrar kadrlar QETI olmasin - eyni esas obyekt epizodda yalniz 1 defe
 MAX_SAME_HERO = 1
-# Busт sprite-lerin bir yani kesikdir - kenara yapisdirilmali olur ve tam beden pozlarla
+# Bust sprite-lerin bir yani kesikdir - kenara yapisdirilmali olur ve tam beden pozlarla
 # olcu/yer uygunsuzlugu yaradir ("sekilsiz yerlesdirilib"). Videoda yalniz tam beden.
 VIDEO_POSES = ("front", "three_q", "side", "box", "chart")
 MIN_DUR, MAX_DUR = 6.0, 45.0   # klemp yalniz emniyyet ucun; gercek muddet add. 25-de TTS-den gelir

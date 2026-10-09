@@ -89,7 +89,18 @@ def _owner(plan: dict) -> str:
 
 _RULE = re.compile(r"\b(if|when|unless|once|as long as|only)\b", re.I)
 _EXAMPLE = re.compile(r"\b(for example|for instance|imagine|picture this|let's say|say you|like when|such as)\b", re.I)
-MAX_FIGURE_MENTIONS = 2     # eyni reqem: bir defe deyilir, bir defe hesabda islenir - qalani tekrardir
+# #115: reqemin yerine qoyulan bos ifade ("a specific amount") - "that amount" kimi geri istinad DEYIL
+_VAGUE_QUALIFIED =re.compile(r"\b(?:a|some)\s+(?:specific|certain|particular|given)\s+"
+                              r"(?:amount|sum|number|figure|percentage|percent)\b|\bsome\s+amount\b", re.I)
+
+
+def vague_amount_problems(secs: dict[str, str]) -> list[str]:
+    return [f"{head}: qeyri-mueyyen mebleg ifadesi \"{m.group(0)}\" - case reqemi deyilmelidir"
+            for head, body in secs.items() if head not in ("Recap", "Call to Action")
+            for m in _VAGUE_QUALIFIED.finditer(body)]
+
+
+MAX_FIGURE_MENTIONS = 2    # eyni reqem: bir defe deyilir, bir defe hesabda islenir - qalani tekrardir
 
 
 def _label(v: float, text: str) -> str:
@@ -389,6 +400,7 @@ def story_problems(markdown: str, plan: dict, source: dict | None) -> list[str]:
     if _EXAMPLE.search(recap):
         probs.append("Recap: misal var - yalniz neticeler deyilmelidir")
     probs += repeated_figures(secs)
+    probs += vague_amount_problems(secs)
     probs += legal_claim_problems(markdown, plan)
     if result:
         probs += cm.case_problems(markdown, {**plan, "model_result": result}, source)
@@ -535,6 +547,15 @@ def story_fixes(markdown: str, plan: dict, source: dict | None, source_section: 
             fixes.append({"section": head, "problem": f"{lbl} is restated",
                           "instruction": keep + "refer to it in words (e.g. 'that amount', 'the same cost') without "
                                          "the number, and do not re-introduce the business." + quoted})
+        elif "qeyri-mueyyen mebleg" in p:                       # #115
+            result, _ = model_result(plan)
+            import case_model as cm
+            phrase = p.split('"')[1]
+            fixes.append({"section": head, "problem": "a figure is hidden behind a vague phrase",
+                          "instruction": f'Replace "{phrase}" with the exact figure of the case model it stands for. '
+                                         "If that figure is already said twice in the script, rewrite the sentence "
+                                         "so it does not need the figure. Never write 'a specific/certain amount'."
+                                         + ("\nCASE MODEL:\n" + cm.figures_text(result) if result else "")})
         elif "evvel/sonra cutu" in p or "threshold deyeri" in p:
             result, _ = model_result(plan)
             import case_model as cm

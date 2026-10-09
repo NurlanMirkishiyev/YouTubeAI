@@ -270,7 +270,7 @@ def test_number_from_the_title_restated_in_hook_is_not_flagged():
     md = "# Why $9.99 Feels Cheaper Than $10\n\n## Hook\n\nOne item is priced at $9.99, the other at $10.\n"
     n999 = _find(md, "$9.99")
     assert na._vote(n999, {"role": "result", "expr": "10 - 0.01"})[0] == "ok"
-    # kicik tam ededler hər yerde var - onlarin "tekrari" sübut deyil
+    # kicik tam ededler her yerde var - onlarin "tekrari" subut deyil
     md2 = "## S\n\nYou buy four apples. Two plus one is four.\n"
     assert na._vote(_nums(md2)[-1], {"role": "result", "expr": "2 + 1"})[0] != "ok"
 

@@ -256,7 +256,7 @@ STAGES: tuple[Stage, ...] = (
                         c.p("narration.wav"), c.p("narration")],
           lambda c: os.path.isfile(c.p("narration.srt")) and os.path.isfile(c.p("narration.words.json")),
           verify_srt),
-    # #54: altyazi ssenaridən ("$4,000"), whisper yalniz vaxt; reqem sehv oxunubsa kecmir
+    # #54: altyazi ssenariden ("$4,000"), whisper yalniz vaxt; reqem sehv oxunubsa kecmir
     Stage("captions", lambda c, f: _proj("captions.py", c.ep_dir),
           lambda c: os.path.isfile(c.p("captions_qa.json")), verify_captions),
     # lisenziyasiz/pulsuz AI fon musiqisi (Stable Audio Open, lokal GPU); --music verilibse atlanir

@@ -25,3 +25,17 @@ def test_no_backspace_characters_in_source():
              *root.glob("*.md"), *root.glob("docs/**/*.md")]
     bad = [str(f) for f in files if control.search(f.read_text(encoding="utf-8"))]
     assert bad == []
+
+
+def test_code_comments_are_ascii_transliterated():
+    # #116 (2026-10-09): serhe "e"/"i" ve hetta kiril "t" dusmusdu - Windows konsolunda pozulur, qayda ASCII-dir
+    import io
+    import pathlib
+    import tokenize
+    root = pathlib.Path(__file__).resolve().parents[2]
+    letters = set("əƏıİöÖüÜğĞşŞçÇ") | {chr(c) for c in range(0x400, 0x500)}
+    bad = []
+    for f in [*root.glob("Projects/*.py"), *root.glob("Projects/tests/*.py")]:
+        toks = tokenize.generate_tokens(io.StringIO(f.read_text(encoding="utf-8")).readline)
+        bad += [f"{f.name}:{t.start[0]}" for t in toks if t.type == tokenize.COMMENT and letters & set(t.string)]
+    assert bad == []

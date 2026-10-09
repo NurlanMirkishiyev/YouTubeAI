@@ -159,7 +159,7 @@ def test_cold_open_is_spoken_on_the_intro_card_not_as_a_scene():
     assert all(s["section"] != "Cold Open" for s in scene_plan.split_scenes(md))
 
 
-# --- E2E raise-your-prices (2026-10-05): redaktor "OK" dedi, amma cavab qeyri-muəyyen idi ("Aim for a balance
+# --- E2E raise-your-prices (2026-10-05): redaktor "OK" dedi, amma cavab qeyri-mueyyen idi ("Aim for a balance
 #     between value and profitability"), "$2,000 per project" 4 bolmede, agentlik 2 defe yeniden tanidildi ---
 
 def test_answer_must_be_a_concrete_conditional_rule():
@@ -742,3 +742,24 @@ def test_plan_and_repair_prompts_carry_the_model_example(monkeypatch):
     with pytest.raises(sg.LLMError):
         sg.repair_model(_model_plan(), ["x"], provider="openai")
     assert len(seen) == 2 and all("EXAMPLE of a correct case model" in u for u in seen)
+
+
+# #115 (E2E hire-first-employee): "her monthly profit stands at a specific amount" - yazan reqemi bulandirdi,
+# yoxlamalar kecdi, izleyici qerar reqemini esitmedi
+@pytest.mark.parametrize("phrase", ["a specific amount", "a certain amount", "some amount of money",
+                                    "a particular number", "a certain percentage"])
+def test_vague_placeholder_amount_is_a_problem(phrase):
+    sec = f"Rosa keeps {phrase} of every sale. That is her margin."
+    probs = qa.story_problems(_script(**{"Section 1: Margin": sec}), PLAN, SOURCE)
+    assert any("Section 1: Margin" in p and "qeyri-mueyyen" in p for p in probs)
+
+
+def test_back_reference_to_a_said_figure_is_not_vague():
+    sec = "Rosa keeps $8 of every $100 in sales. That amount is her margin."
+    assert qa.story_problems(_script(**{"Section 1: Margin": sec}), PLAN, SOURCE) == []
+
+
+def test_vague_amount_fix_asks_for_the_exact_case_figure():
+    md = _script(**{"Section 1: Margin": "Rosa keeps a specific amount of every sale. That is her margin."})
+    fix = next(f for f in qa.story_fixes(md, PLAN, SOURCE, "Section 2: Demand") if f["section"] == "Section 1: Margin")
+    assert "a specific amount" in fix["instruction"] and "CASE MODEL" in fix["instruction"]

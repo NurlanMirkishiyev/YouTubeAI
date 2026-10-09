@@ -279,8 +279,10 @@ def load_tries(ep: str, scenes: list[dict]) -> dict[int, int]:
             old = json.load(f).get("scenes", {})
     except (OSError, ValueError):
         return {}
+    # #114: ugursuz qalan sehne (ok=False) yeni merhele cehdinde teze budce alir - yoxsa retry/resume onu hec
+    # yeniden cekmir ve merhele eyni xeta ile yene dusur (budce merhele cehdleri ile mehduddur)
     return {int(n): r["attempts"] for n, r in old.items()
-            if r.get("attempts") and 0 < int(n) <= len(scenes)
+            if r.get("attempts") and r.get("ok") is not False and 0 < int(n) <= len(scenes)
             and scenes[int(n) - 1].get("bg_prompt") == r.get("prompt")}
 
 

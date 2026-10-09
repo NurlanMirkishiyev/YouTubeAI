@@ -32,7 +32,7 @@ def test_scene_director_and_fallbacks_are_not_for_kids():
 def test_fallback_pool_is_large_enough_for_unique_scenes():
     pool = scene_plan.FALLBACK_POOL
     assert len(pool) >= 40
-    assert len({scene_plan.hero(p) for p in pool}) == len(pool)      # hər ehtiyat fon ayri obyekt
+    assert len({scene_plan.hero(p) for p in pool}) == len(pool)      # her ehtiyat fon ayri obyekt
 
 
 def test_clean_bg_prompt_drops_toys_and_kid_things():
