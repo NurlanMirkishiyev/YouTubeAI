@@ -113,6 +113,17 @@ Faylı oxuyub-yazan kod diskdən təzə oxuyub yalnız öz açarını yazır (re
   videoda flow ≤ 1.
 - Foto səhnəsində danışılan pul/faiz rəqəmi `captions.words.json` vaxtında count-up overlay
   (`NumberOverlay.tsx`, ≤ 2.5 s, səhnədə ≤ 1).
+- Müxtəliflik (#133): bir növ animasiyaların ≤ 20%-i (`visuals.kind_cap`), ardıcıl eyni növ yox — `diversify`
+  ("avoid" ilə yenidən soruşur; rəqəmli → stats, rəqəmsiz → foto), `animate_abstract` da limitə baxır;
+  `quality_gate` `visual_variety`.
+- Canlı növlər (#134–#135, reference `docs/reference/video_yarat_v4.py` ruhunda): `waterfall`, `gauge`, `dotgrid`,
+  `balance`, `funnel`, `versus` (`visuals._build_live`, Remotion `Live.tsx`/`Live2.tsx`); xətt/timeseries-də
+  `LiveHead` (parlayan baş + canlı dəyər), `counter` pop. #137: xətt danışıqla sinxron hekayə kimi gedir
+  (`common.storyT` — seqment öz rəqəmindən növbəti rəqəmə qədər), sonda `Landing` böyük rəqəm. Tam ekran YOX —
+  bayquş hər səhnədə görünür. Yeni növü yoxlamaq: `VisualProbe` kompozisiyası (`remotion still src/index.ts
+  VisualProbe out.png --props=... --public-dir=<fonts/ olan qovluq>`).
+- Qərar həddi (#136): `decision_visuals.decision_rule` — LLM həddi həqiqi kəsişmədirsə saxlanır, yoxsa təsir
+  dəyişəninin break-even nöqtəsi; `script_gen.apply_decision_rule` threshold + cavabı koddan yazır (LLM cavabı yox).
 
 **Faza 3 — Motion + səs** (`Remotion/src/motion.ts`, `Projects/motion.py`, `Projects/sfx.py`)
 - Tokenlər: giriş 300–600 ms, çıxış 200–400 ms, stagger 60–120 ms, spring soft/snappy/bouncy, bezier. Chart/kart/

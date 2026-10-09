@@ -67,7 +67,8 @@ export const Funnel: React.FC<{stages: Item[]; unit: Unit; reveal: number[]}> = 
         return (
           <div key={s.label} style={{display: 'flex', alignItems: 'center', height: rowH}}>
             <div style={{width: maxW, display: 'flex', justifyContent: 'center'}}>
-              <div style={{width: w * grow, height: rowH, borderRadius: 18, opacity: GHOST + (1 - GHOST) * grow,
+              <div style={{width: 160 + (w - 160) * grow, height: rowH, borderRadius: 18,
+                opacity: GHOST + (1 - GHOST) * grow,
                 background: `linear-gradient(90deg, ${color}55, ${color}, ${color}55)`, boxShadow: `0 0 36px ${color}44`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 52, fontWeight: 800,
                 color: '#0B1222'}}>

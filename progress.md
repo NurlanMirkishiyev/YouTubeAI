@@ -209,17 +209,15 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 
 ## Növbəti dəqiq addım
 
-**2026-10-10 (gec, DAYANDIRILDI — istifadəçi: "video hələ yaratma, hərşeyi yaddaşa yaz, sonra davam edəcəyik"):**
-Plan `docs/superpowers/plans/2026-10-10-varied-live-animations.md` — Task 1–4 TAMAM (#133–#136), 777 test:
-#133 növ payı ≤ 20% + ardıcıl təkrar yox + `visual_variety` qapısı; #134 canlı xətt (LiveHead) + pop counter +
-`VisualProbe` kompozisiyası (renderStill QA); #135 6 yeni növ (waterfall, gauge, dotgrid, balance, funnel, versus);
-#136 qərar həddi/cavab koddan (break-even), testlər şəbəkəni bloklayır. Gemini kodu silindi (#132). #137 (sonra): animasiyalar danışıqla sinxron hekayə (storyT, Landing), tam ekran YOX, bayquş HƏR ZAMAN görünür (778 test).
-**Task 5 (tam E2E) GÖZLƏYİR:** "Should You Raise Your Menu Prices?" run-u `[1/13] script_gen`-də əl ilə dayandırıldı
-(istifadəçi istəyi). Qismən qovluq `Episodes\should-you-raise-your-menu-prices\` (script.md yoxlanmayıb, series.json
-var) qalır. **Davam:** istifadəçi deyəndə `run.py --resume should-you-raise-your-menu-prices` (yoxlanmamış skript
-özü yenidən yazılır) və ya başqa mövzu; sonra addım 4–7 + əlavə yoxlama: timeseries kadrda real nöqtələr,
-`visual_variety`/`data_visuals` keçir, yeni növlərin kadrları, heç bir növ > 20%. Açıq: `.env`
-LEAD_MAGNET_URL/AFFILIATE_LINKS boş.
+**2026-10-10 (son) — PIPELINE HAZIRDIR, yarımçıq iş YOXDUR. Növbəti sessiya: istifadəçi mövzu verir → CLAUDE.md
+tetiki (WMI run → Monitor → addım 4–7).** Bütün dəyişikliklər default AÇIQ və hər yeni videoya avtomatik tətbiq olunur:
+real data (#127–#131, FRED), Gemini silindi (#132), növ müxtəlifliyi ≤ 20% + `visual_variety` (#133), canlı xətt/
+counter (#134), 6 yeni növ (#135), qərar həddi/cavab koddan (#136), danışıqla sinxron hekayə + `Landing`, bayquş
+hər zaman görünür (#137). 778 test, Remotion tsc təmiz, 4 venv + ComfyUI yeri + OpenAI açarı yerində; outline
+probu 3 mövzuda (menu prices, hire, second location) tutarlı qayda verdi. Dayandırılmış menu-prices run-u silindi.
+İlk real videoda əlavə yoxla: timeseries kadrında real nöqtələr (seriya seçilibsə), `visual_variety`/`data_visuals`
+keçir, yeni növlərin kadrları, heç bir növ > 20%, qərar cavabı modelin break-even-i ilə uyğun. Açıq (istifadəçinin
+öz işi, bloklamır): `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş; `.env`-də istifadəsiz GEMINI_API_KEY sətri.
 
 **2026-10-10:** Faza 6 TAMAM (2 E2E təhvil, təsdiq, silindi). Sonra istifadəçi qərarı "Mənbədən real data" →
 #127–#131 TAMAM (`data_sources.py`, plan `docs/superpowers/plans/2026-10-10-real-data-visuals.md`), 758 test.
