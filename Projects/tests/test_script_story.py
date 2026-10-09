@@ -657,6 +657,17 @@ def test_settle_repeats_keeps_count_sentences_grammatical():
     assert not qa.repeated_figures(qa.sections(qa.settle_repeats(md)))
 
 
+def test_settle_repeats_sees_spelled_out_mentions():
+    """#117 (E2E №2 2026-10-09): 'three thousand dollars' sayilirdi (find_numbers), amma duzelis yalniz '$3,000'
+    regexini axtarirdi -> drop=0, tekrar qalirdi, script_gen dusdu."""
+    md = _script(**{"Hook": "Emily runs a coffee shop in Austin and the new spot costs $3,000 a month.",
+                    "Section 4: Decision": "The new site costs three thousand dollars each month. She would earn "
+                                           "$3,000 more from 300 new customers."})
+    out = qa.settle_repeats(md)
+    assert not qa.repeated_figures(qa.sections(out))
+    assert "$3,000 more from 300 new customers" in out
+
+
 def test_settle_script_clears_every_deterministic_case_problem():
     """#109 (istifadeci 2026-10-09: 'qeti sekilde hell et'): 21 cehdin son problemleri hamisi deterministik siniflerdir
     (modelde olmayan reqem, deyisen buraxilib, evvel/sonra cutu, esik, tekrar, kohne menbe ili). LLM-e buraxilmir:

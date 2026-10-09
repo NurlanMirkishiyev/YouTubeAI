@@ -171,6 +171,23 @@ def _settle_paragraph(par: str, lbl: str, drop: int) -> tuple[str, int]:
     return " ".join(s for s in out if s), drop
 
 
+def _digits_for_words(body: str, lbl: str) -> str:
+    """#117: repeated_figures sozle deyilisi de sayir ('three thousand dollars'); duzelis onu gorsun deye
+    eyni deyerli soz formasi lbl-e cevrilir ('$3,000'). TTS reqemi yene sozle oxuyur (speech.to_speech)."""
+    from math_check import find_numbers
+    try:
+        val = float(lbl.strip("$%").replace(",", ""))
+    except ValueError:
+        return body
+    unit = r"\s+dollars?" if lbl.startswith("$") else r"\s+percent" if lbl.endswith("%") else ""
+    for s, e, v in sorted(find_numbers(body), reverse=True):
+        if abs(v - val) > 1e-9 or any(ch.isdigit() for ch in body[s:e]):
+            continue
+        m = re.match(unit, body[e:], re.I) if unit else None
+        body = body[:s] + lbl + body[e + (m.end() if m else 0):]
+    return body
+
+
 def settle_repeats(markdown: str) -> str:
     """#105: LLM raundlarindan sonra qalan 'reqem N defe' tekrarini deterministik duzeldir (son deyilisler - qerar
     qaydasi - qalir). gpt-4o-mini sitatli telimata da emel etmirdi: 14 cehdin 7-si bu xeta ile dusdu."""
@@ -181,7 +198,10 @@ def settle_repeats(markdown: str) -> str:
         for m in probs:
             head, lbl, quota = m[1], m[2], int(m[3] or 0)
             body = sections(markdown).get(head, "")
-            pat = re.compile(r"(?<![\w$.,])" + re.escape(lbl) + r"(?![\d,]|\.\d)")
+            if body:
+                spelled = _digits_for_words(body, lbl)
+                markdown, body = markdown.replace(body, spelled, 1), spelled
+            pat =re.compile(r"(?<![\w$.,])" + re.escape(lbl) + r"(?![\d,]|\.\d)")
             drop = max(0, len(pat.findall(body)) - quota)
             pars = []
             for par in body.split("\n\n"):
