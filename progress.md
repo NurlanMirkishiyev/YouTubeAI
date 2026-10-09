@@ -198,15 +198,10 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 
 ## Növbəti dəqiq addım
 
-**2026-10-10:** E2E №2 `should-you-open-a-second-location` HAZIRDIR → istifadəçi təsdiqi (addım 7, `forget_episode`),
-sonra Faza 6 yekun hesabatı (reyestr #86–#126, iki E2E, açıq: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş, Gemini açarı
-rotasiyası, timeseries/usmap sualı).
-
-**2026-10-09 19:20:** E2E №1 TAMAM — təhvil verildi, istifadəçi təsdiqlədi, epizod yaddaşı silindi (`forget_episode`).
-Pipeline: 13 mərhələ, modellər OpenAI (gpt-image-2 / gpt-4o-mini / gpt-4o), Gemini yalnız `.env` ilə.
-**Növbəti dəqiq addım:** istifadəçinin yeni mövzusu = E2E №2 (Faza 6-nın ikinci videosu). CLAUDE.md tetiki ilə
-WMI run → Monitor → addım 4–7. Sonra Faza 6 yekun hesabatı (reyestr #86–#116, iki E2E; açıq: `.env`
-LEAD_MAGNET_URL/AFFILIATE_LINKS boş, Gemini açarı rotasiyası).
+**2026-10-10:** Faza 6-nın hər iki E2E-si TAMAM (təhvil, təsdiq, epizod yaddaşı silindi). Pipeline: 13 mərhələ,
+modellər OpenAI, Gemini yalnız `.env` ilə; 732 test. **Növbəti dəqiq addım:** istifadəçinin Faza 6 yekun hesabatına
+cavabı (timeseries/usmap üçün data mənbəyi qərarı); açıq: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş, Gemini açarı
+rotasiyası. Sonra yeni mövzu gözlənilir.
 
 **2026-10-08:** Faza 3, 4, 5 TAMAM. Növbəti: **Faza 6** — 2 yeni B2B mövzu ilə ardıcıl E2E (CLAUDE.md tetiki): (1) qiymət/xərc qərarı (table + threshold), (2) zaman/coğrafiya datası (timeseries/usmap); hər birində quality_gate keçir, self_audit təmiz, motion_sheet-lər fərqli, 10–12 dəq, −14 LUFS, təhvil paketi tam (mp4, thumbnail, youtube.txt, srt, script, midrolls, upload_checklist). Pullu (OpenAI) — istifadəçi təsdiqi lazımdır. `Episodes\_probe-raise-prices` probe qovluğudur (silinə bilər).
 
@@ -463,15 +458,6 @@ reyestrə yazılır (CLAUDE.md addım 5). Xəta yoxdursa jurnalda "xəta yoxdur"
 ---
 
 ## İcra jurnalı (ən yeni yuxarıda)
-
-### 2026-10-10 — E2E №2 `should-you-open-a-second-location` HAZIRDIR (təsdiq gözləyir)
-- `Hazir_Videolar\should-you-open-a-second-location\` — 11.27 dəq (676 s), −14.3 LUFS, `final_video_problems` = [].
-- Yoxlama: quality_gate passed, self_audit KEÇDİ; script_qa/captions_qa/math_check problems = []; bg_qa
-  generic_share 0.0, duplicates []; owl_qa 69/69 + intro/outro ok; musiqidə sükut yox; kadrlar + thumbnail baxıldı.
-- Animasiya 47/69 (68%, tavan 70%): compare 33, equation 8, stats 2, counter 2, table 1, threshold 1; motion theme `clean`.
-  timeseries/usmap YOXDUR — skriptdə zaman sırası / ABŞ məkan datası yoxdur, uydurulmadı (yekun hesabatda soruşulur).
-- Bu run-ın xətaları (hamısı qeydə alındı): reyestr #117–#126 (+ test + kod); yanlış yollar: skriptə baxmadan render,
-  progress.md LF, `python -c`-də Windows yolu, run gedərkən prosesi əl ilə öldürmək. 732 test keçir.
 
 ### 2026-10-05/06 — 12 addımlıq məzmun standartı (#54–#63), E2E davam edir
 - Yeni modullar: `speech.py`, `captions.py` (yeni `captions` mərhələsi), `research.py`, `script_qa.py`; dəyişən:
