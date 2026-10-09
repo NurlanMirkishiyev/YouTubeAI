@@ -103,6 +103,11 @@ Faylı oxuyub-yazan kod diskdən təzə oxuyub yalnız öz açarını yazır (re
 - `table` + `threshold` LLM-siz `model_result`-dan, qərar bölməsinə məcburi (`DataViz.tsx::Table/Threshold`).
 - `timeseries` (interpolasiya → ekranda "illustrative"; eniş ayrı rəng) və `usmap` (seed = slug hash; sayğac bayquş
   və altyazı zonasından kənar) — `DataViz.tsx::Timeseries/USMap`; sabit kodlanmış data yox.
+- Real data (#127–#131, `config.REAL_DATA`): `data_sources.py` sabit `CATALOG` (FRED açarsız CSV, əsl nəşriyyatçı
+  `cite_as`-da) → gpt-4o yalnız katalog id-si seçir → `script_gen.find_series` → `series.json`. Data cümləsi
+  `script_qa.ensure_series` ilə ssenariyə SÖZBƏSÖZ (Section 1/2, mənbə bölməsi olmayan); `data_visuals.series_visuals`
+  timeseries/usmap-ı LLM-siz qurur (yalnız deyilən nöqtələr, interpolasiya yox); `data_visual_problems`
+  scene_plan verify + quality_gate `data_visuals`; description-da `Data:` linki.
 - Chart 0-cı kadrdan skelet (dəyər yerində "—"), "yalnız başlıq" kadr payı ≤ 3%.
 - Generik flow/timeline addımı (Analyze/Evaluate/Review…) rədd; addım case adı/obyekti/dəyişəni/rəqəmi daşıyır;
   videoda flow ≤ 1.

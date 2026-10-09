@@ -173,7 +173,17 @@ def verify_script(ctx: Ctx) -> list[str]:
 def verify_scenes(ctx: Ctx) -> list[str]:
     bad = [i for i, s in enumerate(load_scenes(ctx), 1)
            if not (s.get("narration") and (s.get("bg_prompt") or s.get("visual")) and s.get("sprite_token"))]
-    return [f"natamam sehneler: {bad}"] if bad else []
+    from data_visuals import data_visual_problems           # #131: real data vizuali erken (render-den evvel)
+    series = _json_or_none(ctx.p("series.json"))
+    return ([f"natamam sehneler: {bad}"] if bad else []) + data_visual_problems(series, load_scenes(ctx))
+
+
+def _json_or_none(path: str) -> dict | None:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 
 
 def verify_tts(ctx: Ctx) -> list[str]:

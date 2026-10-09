@@ -23,7 +23,7 @@ MIN_SECONDS, MAX_SECONDS = 600.0, 720.0       # istifadeci: 10-12 deq
 CATALOG = r"C:\YouTubeAI\docs\error_classes.md"
 
 CHECKS = ("script_qa", "math_check", "case_model", "captions_qa", "bg_qa", "owl_qa", "chart_empty", "motion", "sfx",
-          "overlay", "decision_visuals", "publish", "video")
+          "overlay", "decision_visuals", "data_visuals", "publish", "video")
 
 # 5.5: xeta sinifleri - teyin -> hansi qapi tutur -> hansi test. Yeni xeta: evvel movcud sinfe aiddirmi yoxla;
 # aiddirse hemin qapinin niye buraxdigini duzelt (yalniz simptom yox).
@@ -55,6 +55,11 @@ ERROR_CLASSES: list[dict] = [
     {"name": "Boş chart", "definition": "chart-ın ilk saniyələrində yalnız başlıq görünür",
      "checks": ["chart_empty"],
      "tests": ["test_remotion_build.py::test_chart_scenes_render_a_skeleton_from_the_first_frame"]},
+    {"name": "Real data itkisi/uydurması", "definition": "yüklənmiş rəsmi seriya qrafikə düşmür və ya qrafikdə "
+                                                          "deyilməyən/interpolasiya olunmuş real data var",
+     "checks": ["data_visuals"],
+     "tests": ["test_data_sources.py::test_series_in_the_episode_needs_its_data_visual",
+               "test_data_sources.py::test_split_series_sentence_with_too_few_points_is_not_drawn"]},
     {"name": "Generik foto", "definition": "case biznesinin literal kadrı olmayan foto > 10%",
      "checks": ["bg_qa"],
      "tests": ["test_literal_frames.py::test_stage_fails_when_more_than_ten_percent_of_photos_are_generic"]},
@@ -189,6 +194,11 @@ def _decision(ep: str) -> list[str]:
     return [f"qerar movzusunda {k} sehnesi yoxdur" for k in ("table", "threshold") if k not in kinds]
 
 
+def _series(ep: str) -> list[str]:
+    from data_visuals import data_visual_problems
+    return data_visual_problems(_load(ep, "series.json"), (_load(ep, "scenes.json") or {}).get("scenes") or [])
+
+
 def _video(path: str, lo: float = MIN_SECONDS, hi: float = MAX_SECONDS) -> list[str]:
     import checks
     if not os.path.isfile(path):
@@ -220,6 +230,7 @@ def gate(ep: str, slug: str, video: Callable[[str], list[str]] | None = None,
         "sfx": _sfx(ep),
         "overlay": _overlay(ep),
         "decision_visuals": _decision(ep),
+        "data_visuals": _series(ep),                               # #131
         "publish": pack(os.path.join(ep, "youtube")),
         "video": video(os.path.join(ep, f"{slug}.mp4")),
     }

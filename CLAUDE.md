@@ -86,7 +86,9 @@ Bir neçə mövzu → ardıcıl (paralel yox: gpt-image limiti 5 şəkil/dəq). 
 - **Keyfiyyət + imkan yeniləməsi — BÜTÜN videolarda default AÇIQ** (istifadəçi 2026-10-07, 6 faza; reyestr #73–#91):
   case modeli + deterministik qərar hesabı (`config.CASE_MODEL`), data vizualları (table/threshold/timeseries/usmap
   `visuals.KINDS`-də), motion variantları (`MOTION_VARIANTS`), SFX (`SFX`), foto rəqəm overlay-i (`NUMBER_OVERLAY`),
-  cold open typewriter (`TYPEWRITER`), mid-roll + upload checklist. Söndürmək YALNIZ istifadəçi qərarı ilə.
+  cold open typewriter (`TYPEWRITER`), mid-roll + upload checklist, **real data** (`REAL_DATA`, istifadəçi
+  2026-10-10: timeseries/usmap yalnız rəsmi API seriyasından — `data_sources.py`, FRED; uyğun seriya yoxdursa
+  vizual yox, uydurma yox; reyestr #127–#131). Söndürmək YALNIZ istifadəçi qərarı ilə.
   Test: `test_defaults.py`, `test_case_model.py`, `test_decision_visuals.py`, `test_data_visuals.py`, `test_motion.py`,
   `test_sfx.py`, `test_publish_pack.py`, `test_quality_gate.py`, `test_registry.py` (reyestrin hər sətri testə bağlı).
   Yeni xəta → əvvəl `docs/error_classes.md`-dəki sinfə aiddirmi yoxla; aiddirsə qapının niyə buraxdığını düzəlt.

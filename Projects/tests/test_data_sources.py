@@ -149,7 +149,8 @@ def test_series_values_count_as_trusted_numbers_in_the_audit(tmp_path):
 import data_visuals as dv   # noqa: E402
 import visuals             # noqa: E402
 
-TS_SERIES = {**SERIES, "title": "New business applications", "unit": "", "unit_label": "Applications"}
+TS_SERIES = {**SERIES, "title": "New business applications", "unit": "", "unit_label": "Applications",
+             "cite_as": "the U.S. Census Bureau", "url": "https://fred.stlouisfed.org/series/BABATOTALSAUS"}
 
 
 def _scenes(*narrations):
@@ -189,3 +190,33 @@ def test_episode_plan_carries_the_series(tmp_path):
     assert scene_plan.episode_plan(str(tmp_path))["series"]["id"] == "BABATOTALSAUS"
     (tmp_path / "series.json").write_text(json.dumps({"id": None}))
     assert "series" not in scene_plan.episode_plan(str(tmp_path))
+
+
+# --- qapi + paket (#131) ------------------------------------------------------------------------
+
+def test_series_in_the_episode_needs_its_data_visual(tmp_path):
+    import quality_gate as qg
+    (tmp_path / "series.json").write_text(json.dumps(TS_SERIES))
+    (tmp_path / "scenes.json").write_text(json.dumps({"scenes": [{"visual": {"kind": "compare"}}]}))
+    probs = qg._series(str(tmp_path))
+    assert any("timeseries" in p for p in probs) and any("usmap" in p for p in probs)
+    (tmp_path / "scenes.json").write_text(json.dumps({"scenes": [{"visual": {"kind": "timeseries"}},
+                                                                 {"visual": {"kind": "usmap"}}]}))
+    assert qg._series(str(tmp_path)) == []
+    (tmp_path / "series.json").write_text(json.dumps({"id": None}))
+    (tmp_path / "scenes.json").write_text(json.dumps({"scenes": []}))
+    assert qg._series(str(tmp_path)) == []
+    assert "data_visuals" in qg.CHECKS
+
+
+def test_description_links_the_data_series(tmp_path):
+    import publish_pack
+    (tmp_path / "series.json").write_text(json.dumps({**TS_SERIES, "url": "https://fred.stlouisfed.org/series/X"}))
+    line = publish_pack.series_line(publish_pack.load_series(str(tmp_path)))
+    assert line.startswith("Data: the U.S. Census Bureau") and line.endswith("https://fred.stlouisfed.org/series/X")
+    assert publish_pack.series_line({}) == ""
+
+
+def test_real_data_flag_is_on_by_default():
+    import config
+    assert config.REAL_DATA is True

@@ -129,6 +129,15 @@ def series_visuals(scenes: list[dict], series: dict, validate, said=None) -> dic
     return out
 
 
+def data_visual_problems(series: dict | None, scenes: list[dict]) -> list[str]:
+    """#131: yuklenmis seriya varsa onun vizuali sehnelerde olmalidir (scene_plan verify + quality_gate)."""
+    if not isinstance(series, dict) or not series.get("id"):
+        return []
+    kinds = {(s.get("visual") or {}).get("kind") for s in scenes}
+    need = ["timeseries"] + (["usmap"] if series.get("state") else [])
+    return [f"real data seriyasi ({series['id']}) var, amma {k} sehnesi yoxdur" for k in need if k not in kinds]
+
+
 def _in_poly(x: float, y: float, poly: list[tuple[float, float]]) -> bool:
     inside, j = False, len(poly) - 1
     for i in range(len(poly)):

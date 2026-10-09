@@ -5,7 +5,7 @@ import motion
 import remotion_build as rb
 import visuals
 
-FLAGS = ("CASE_MODEL", "SFX", "NUMBER_OVERLAY", "TYPEWRITER", "MOTION_VARIANTS")
+FLAGS = ("CASE_MODEL", "SFX", "NUMBER_OVERLAY", "TYPEWRITER", "MOTION_VARIANTS", "REAL_DATA")
 DATA = {"intro_seconds": 3.5, "outro_seconds": 4.0,
         "scenes": [{"section": "Section 1: A", "duration": 8.0, "sprite": "three_q", "pos": "right",
                     "spoken_title": "A"}]}

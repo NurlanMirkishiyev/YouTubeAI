@@ -215,6 +215,22 @@ def load_source(ep: str) -> dict:
         return json.load(f)
 
 
+def series_line(series: dict) -> str:
+    """#131: ssenaride sozbesoz deyilen real data seriyasinin linki."""
+    if not series.get("url"):
+        return ""
+    return f"Data: {series.get('cite_as') or 'official data'} ({series.get('title', '')}) - {series['url']}"
+
+
+def load_series(ep: str) -> dict:
+    path = os.path.join(ep, "series.json")
+    if not os.path.isfile(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        got = json.load(f)
+    return got if got.get("id") else {}
+
+
 def pick_thumb_bg(paths: list[str]) -> str:
     """En kontrastli fon (parlaqliq standart kenarlasmasi en boyuk olan)."""
     def score(p: str) -> float:
@@ -305,7 +321,7 @@ def main() -> None:
                                                   chapters="\n".join(t for _, t in chaps),
                                                   hook=scenes[0]["narration"][:600]),
                          max_tokens=900, provider=a.provider, model=a.model, temperature=0.7)
-        credit = "\n".join(x for x in (source_line(load_source(ep)), music_credit(a.music, load_credits())) if x)
+        credit = "\n".join(x for x in (source_line(load_source(ep)), series_line(load_series(ep)), music_credit(a.music, load_credits())) if x)
         extra = monetization_block(config.lead_magnet_url(), config.affiliate_links())
         ydir = write_pack(ep, meta["topic"], data, chaps, credit, mids=midrolls(scenes, intro_s, total), extra=extra)
     except (LLMError, ValueError) as e:
