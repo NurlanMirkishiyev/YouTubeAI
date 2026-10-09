@@ -142,3 +142,50 @@ def test_series_values_count_as_trusted_numbers_in_the_audit(tmp_path):
     (tmp_path / "meta.json").write_text(json.dumps({"plan": {"model": {"variables": []}}}))
     (tmp_path / "series.json").write_text(json.dumps(SERIES))
     assert 540000.0 in number_audit.trusted_numbers(str(tmp_path))
+
+
+# --- vizual (#130) ------------------------------------------------------------------------------
+
+import data_visuals as dv   # noqa: E402
+import visuals             # noqa: E402
+
+TS_SERIES = {**SERIES, "title": "New business applications", "unit": "", "unit_label": "Applications"}
+
+
+def _scenes(*narrations):
+    return [{"section": "Section 1: Costs", "narration": n} for n in narrations]
+
+
+def test_series_becomes_a_timeseries_on_the_scene_that_speaks_it():
+    scenes = _scenes("Emily pays rent.", SERIES["sentence"], SERIES["state"]["sentence"])
+    got = dv.series_visuals(scenes, TS_SERIES, visuals.validate_visual)
+    ts = got[1]
+    assert ts["kind"] == "timeseries" and ts["illustrative"] is False
+    assert [p["value"] for p in ts["points"]] == [5100000.0, 5500000.0, 5200000.0, 5600000.0]
+    assert [p["label"] for p in ts["points"]] == ["2022", "2023", "2024", "2025"]
+    m = got[2]
+    assert m["kind"] == "usmap" and [k["value"] for k in m["keys"]] == [540000.0, 5600000.0]
+
+
+def test_series_not_spoken_gives_no_visual():
+    assert dv.series_visuals(_scenes("Emily pays rent."), TS_SERIES, visuals.validate_visual) == {}
+
+
+def test_split_series_sentence_with_too_few_points_is_not_drawn():
+    half = "Owners filed 5.1 million applications in 2022 and 5.5 million in 2023."
+    assert dv.series_visuals(_scenes(half), TS_SERIES, visuals.validate_visual) == {}
+
+
+def test_plan_visuals_forces_the_series_visual(monkeypatch):
+    scenes = _scenes("Emily pays rent.", SERIES["sentence"], "Emily decides.")
+    out = visuals.plan_visuals(scenes, "T", chat=lambda *a, **k: {"scenes": []}, plan={"series": TS_SERIES})
+    assert out[1] and out[1]["kind"] == "timeseries"
+
+
+def test_episode_plan_carries_the_series(tmp_path):
+    import scene_plan
+    (tmp_path / "meta.json").write_text(json.dumps({"plan": {"decision": "Should?"}}))
+    (tmp_path / "series.json").write_text(json.dumps(TS_SERIES))
+    assert scene_plan.episode_plan(str(tmp_path))["series"]["id"] == "BABATOTALSAUS"
+    (tmp_path / "series.json").write_text(json.dumps({"id": None}))
+    assert "series" not in scene_plan.episode_plan(str(tmp_path))

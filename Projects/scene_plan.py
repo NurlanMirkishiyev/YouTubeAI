@@ -569,9 +569,15 @@ def episode_topic(episode_dir: str) -> str:
 def episode_plan(episode_dir: str) -> dict:
     try:
         with open(os.path.join(episode_dir, "meta.json"), encoding="utf-8") as f:
-            return json.load(f).get("plan") or {}
+            plan = json.load(f).get("plan") or {}
     except (OSError, ValueError):
         return {}
+    try:                                                    # #130: real data seriyasi (series.json)
+        with open(os.path.join(episode_dir, "series.json"), encoding="utf-8") as f:
+            series = json.load(f)
+    except (OSError, ValueError):
+        series = None
+    return {**plan, "series": series} if isinstance(series, dict) and series.get("id") else plan
 
 
 def main() -> None:

@@ -32,6 +32,7 @@ class Series:
     noun: str
     tags: str
     state_prefix: str = ""   # FRED stat seriyasi: prefix + poct kodu (BABATOTALSA + TX)
+    unit_label: str = ""     # usmap sayqac etiketi (visuals.LABEL_MAX-a sigir)
 
     @property
     def url(self) -> str:
@@ -42,7 +43,7 @@ CATALOG: tuple[Series, ...] = (
     Series("BABATOTALSAUS", "New business applications", "", "level", "sum", "the U.S. Census Bureau",
            "owners across the US filed", "new business applications",
            "competition, new competitors, opening, expansion, second location, starting a business, market",
-           state_prefix="BABATOTALSA"),
+           state_prefix="BABATOTALSA", unit_label="Applications"),
     Series("CUSR0000SEFV", "Restaurant prices, yearly rise", "%", "yoy", "mean", "the Bureau of Labor Statistics",
            "prices at US restaurants and cafes rose", "",
            "restaurant, cafe, coffee shop, bakery, food service, menu prices, raising prices, pricing"),
@@ -202,7 +203,7 @@ def pick_series(topic: str, decision: str, case: dict, ask: Callable | None = No
     if not pts:
         print(f"  data seriyasi {s.id}: kifayet qeder tam il yoxdur", flush=True)
         return None
-    out = {"id": s.id, "title": s.title, "unit": s.unit, "cite_as": s.cite_as, "url": s.url,
+    out = {"id": s.id, "title": s.title, "unit": s.unit, "cite_as": s.cite_as, "url": s.url, "unit_label": s.unit_label,
            "points": [[y, v] for y, v in pts], "sentence": sentence(s, pts)}
     if state:
         out["state"] = state

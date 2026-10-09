@@ -88,6 +88,47 @@ def build_usmap(v: dict, narration: str, said, text_ok, label_max: int) -> dict 
     return {"unit_label": unit_label, "keys": out}
 
 
+US_LABEL = "United States"
+
+
+def _best_scene(scenes: list[dict], values: list[float], said) -> tuple[int, list[bool]] | None:
+    best = None
+    for i, s in enumerate(scenes):
+        hits = [said(v, s["narration"]) for v in values]
+        if any(hits) and (best is None or sum(hits) > sum(best[1])):
+            best = (i, hits)
+    return best
+
+
+def series_visuals(scenes: list[dict], series: dict, validate, said=None) -> dict[int, dict]:
+    """#130: series.json-dan LLM-siz timeseries (+ stat varsa usmap). Yalniz sehnede DEYILEN noqteler; real
+    datada interpolasiya yoxdur - DENSE-den az noqte deyilibse qrafik cekilmir (uydurma forma yox)."""
+    if said is None:
+        from visuals import _said as said
+    out: dict[int, dict] = {}
+    pts = [(int(y), float(v)) for y, v in series.get("points") or []]
+    found = _best_scene(scenes, [v for _, v in pts], said)
+    if found and sum(found[1]) >= DENSE:
+        i, hits = found
+        v = {"kind": "timeseries", "title": series.get("title", ""), "unit": series.get("unit", ""),
+             "points": [{"label": str(y), "value": val} for (y, val), ok in zip(pts, hits) if ok]}
+        spec = validate(v, scenes[i]["narration"])
+        if spec and not spec.get("illustrative"):
+            out[i] = spec
+    st = series.get("state")
+    if st:
+        found = _best_scene(scenes, [float(st["value"]), float(st["us_value"])], said)
+        if found and all(found[1]) and found[0] not in out:
+            i = found[0]
+            v = {"kind": "usmap", "title": f"{st['name']} and the US", "unit_label": series.get("unit_label") or series.get("title", ""),
+                 "keys": [{"label": st["name"], "value": float(st["value"])},
+                          {"label": US_LABEL, "value": float(st["us_value"])}]}
+            spec = validate(v, scenes[i]["narration"])
+            if spec:
+                out[i] = spec
+    return out
+
+
 def _in_poly(x: float, y: float, poly: list[tuple[float, float]]) -> bool:
     inside, j = False, len(poly) - 1
     for i in range(len(poly)):

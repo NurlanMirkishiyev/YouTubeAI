@@ -14,7 +14,7 @@ import re
 from typing import Callable
 
 from llm import LLMError, chat_json
-from data_visuals import build_timeseries, build_usmap, place_map  # noqa: F401
+from data_visuals import build_timeseries, build_usmap, place_map, series_visuals  # noqa: F401
 from math_check import find_numbers
 
 # #57 (istifadeci 2026-10-05): "generik bullet-ler olmasin" - keypoints artiq teklif/qebul olunmur;
@@ -634,6 +634,11 @@ def _plan_visuals(scenes: list[dict], topic: str, chat: Callable, share: float, 
     for i, spec in decision.items():
         scores[i], specs[i] = 10.0, spec
     forced |= set(decision)
+    data = series_visuals(scenes, (plan or {}).get("series") or {}, validate_visual)   # #130: real data
+    for i, spec in data.items():
+        if i not in decision:
+            scores[i], specs[i] = 10.0, spec
+            forced.add(i)
     picked = _pick(scores, specs, share, forced)
     if len(picked) < round(share * len(scenes)):
         retry = [i + 1 for i in range(1, len(scenes)) if i not in picked and specs[i] is None]
