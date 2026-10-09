@@ -113,3 +113,9 @@ def test_a_truncated_answer_is_an_error_not_silent_text(monkeypatch):
         "choices": [{"message": {"content": "which begins the moment you"}, "finish_reason": "length"}]})
     with pytest.raises(llm.LLMError, match="kesildi"):
         llm.chat("s", "u", provider="openai")
+
+
+def test_tests_never_reach_the_network():
+    """#136: conftest real sebekeni bloklayir - unudulmus monkeypatch pullu API cagirisina cevrilmir."""
+    with pytest.raises((RuntimeError, llm.LLMError), match="sebekeye"):
+        llm.chat("s", "u", provider="openai")

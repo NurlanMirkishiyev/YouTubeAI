@@ -201,19 +201,20 @@ def test_outline_is_asked_again_until_the_plan_is_valid(monkeypatch):
     monkeypatch.setattr(sg, "chat_json", lambda system, user, **kw: {"ok": True} if kw.get("model") == "gpt-4o"
                         else calls.append(user) or plans[len(calls) - 1])
     plan = sg.outline("T")
-    assert plan["answer"] == PLAN["answer"] and len(calls) == 2 and "Pricing basics" in calls[1]
+    # #136: cavab koddan - modelin break-even noqtesi (LLM-in cavab metni evez olunur)
+    assert plan["answer"] == "Make the change only if price rise stays at 10% or more." and len(calls) == 2
+    assert "Pricing basics" in calls[1]
     assert qa.plan_problems(plan) == []
 
 
 def test_vague_answer_is_rewritten_from_the_computed_threshold(monkeypatch):
-    """Real probe 2026-10-07: LLM threshold-u ozu hesablaya bilmir - cavab hesablanmis deyerle yazdirilir."""
+    """Real probe 2026-10-07: LLM threshold-u ozu hesablaya bilmir. #136 (2026-10-10): cavab artiq LLM-siz,
+    koddan - break-even noqtesi ve istiqameti ile (LLM cavabi menani tersine yazirdi)."""
     monkeypatch.setattr(sg, "chat_json", lambda *a, **k: {"ok": True} if k.get("model") == "gpt-4o"
                         else {**PLAN, "answer": "Find a balance.", "sections": [{}] * 4})
-    seen = {}
-    monkeypatch.setattr(sg, "chat", lambda system, user, **kw: seen.setdefault("u", user) and
-                        "Make the change if your margin is under 10%.")
+    monkeypatch.setattr(sg, "chat", lambda *a, **k: pytest.fail("cavab ucun LLM cagirilmamalidir"))
     plan = sg.outline("T")
-    assert plan["answer"] == "Make the change if your margin is under 10%." and "10%" in seen["u"]
+    assert plan["answer"] == "Make the change only if price rise stays at 10% or more."
 
 
 def test_failed_script_is_regenerated_on_stage_retry(tmp_path):
@@ -334,7 +335,9 @@ def test_outline_stores_the_model_result(monkeypatch):
     monkeypatch.setattr(sg, "chat_json", lambda *a, **k: {"ok": True} if k.get("model") == "gpt-4o"
                         else {**plan, "sections": [{}] * 4})
     got = sg.outline("T")
-    assert got["model_result"]["threshold"]["value"] == 27
+    # #136: esik koddan - qalan musteri payinin menfeet break-even-i (27/40 musteri = 66.7%)
+    t = got["model_result"]["threshold"]
+    assert t["value"] == 66.7 and t["unit"] == "%" and "66.7% or more" in got["answer"]
 
 
 def test_outline_prompt_has_no_numeric_example_answers():
@@ -419,7 +422,7 @@ def test_model_is_reviewed_by_gpt4o_and_rejected_plans_are_asked_again(monkeypat
         return good
     monkeypatch.setattr(sg, "chat_json", fake)
     plan = sg.outline("T")
-    assert len(seen) == 2 and "$1,870" in seen[0] and plan["model_result"]["threshold"]["value"] == 27
+    assert len(seen) == 2 and "$1,870" in seen[0] and plan["model_result"]["threshold"]["value"] == 66.7
 
 
 def test_rejected_model_is_repaired_without_replanning(monkeypatch):

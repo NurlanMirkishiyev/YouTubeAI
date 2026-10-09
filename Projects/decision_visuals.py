@@ -93,6 +93,109 @@ def find_curve(model: dict, result: dict) -> dict | None:
     return None
 
 
+# #136 (2026-10-10 reproduksiya: 5 plandan 3-4-u ziddiyyetli): LLM threshold-un menasini bir, expr-ini basqa
+# kemiyyet kimi yazirdi. Qerar qaydasi artiq koddan: deyisikliyin tesir deyiseni (yalniz "after"-de olan) ucun
+# neticenin bugunku seviyyeye beraber oldugu noqte.
+RULE_SAMPLES = 400
+_TOKEN = re.compile(r"[A-Za-z_]\w*")
+
+
+def _expr_names(exprs: dict) -> set[str]:
+    return {n for e in (exprs or {}).values() for n in _TOKEN.findall(str(e))}
+
+
+def _root(g, lo: float, hi: float, near: float) -> float | None:
+    """g-nin [lo, hi]-da isare deyisdiyi koklerden near-a en yaxini (bisection)."""
+    xs = [lo + (hi - lo) * i / RULE_SAMPLES for i in range(RULE_SAMPLES + 1)]
+    ys = [g(x) for x in xs]
+    roots = []
+    for (a, ya), (b, yb) in zip(zip(xs, ys), zip(xs[1:], ys[1:])):
+        if ya is None or yb is None:
+            continue
+        if ya == 0:
+            roots.append(a)
+        elif ya * yb < 0:
+            for _ in range(60):
+                m = (a + b) / 2
+                ym = g(m)
+                if ym is None:
+                    break
+                a, ya, b = (m, ym, b) if ya * ym > 0 else (a, ya, m)
+            roots.append((a + b) / 2)
+    return min(roots, key=lambda r: abs(r - near)) if roots else None
+
+
+def _rounded(x: float, unit: str, direction: str) -> float:
+    if unit == cm.UNIT_SHARE:                       # 0.1 faiz deqiqliyi, qayda terefine (min -> yuxari)
+        k = x * 1000
+        return (math.ceil(k - 1e-9) if direction == "min" else math.floor(k + 1e-9)) / 1000
+    if unit == cm.UNIT_MONEY:
+        return round(x, 2)
+    return float(math.ceil(x - 1e-9) if direction == "min" else math.floor(x + 1e-9))
+
+
+def decision_rule(model: dict, result: dict) -> dict | None:
+    """Deyisikliyin tesir deyiseni (yalniz "after"-de; say/pay vahidi evvel, pul sonra) neticeni bugunku seviyyeye
+    getirdiyi noqte -> {"var", "value", "direction" (min/max), "label", "unit", "text"}; yoxdursa None."""
+    curve = find_curve(model, result)          # LLM-in esiyi heqiqi kesismedirse o saxlanir, menasi koddan
+    if curve:
+        rule = _rule_at(model, result, curve["var"], curve["result"], float(result["threshold"]["raw"]),
+                        float(result["threshold"]["value"]))
+        if rule:
+            return rule
+    after_only = _expr_names(model.get("after")) - _expr_names(model.get("before"))
+    units = result["var_units"]
+    # tesir deyiseni (say/pay: itirilen musteri, qalan pay) deyisikliyin ozunden (%, $: yeni qiymet) evvel
+    rank = {cm.UNIT_SHARE: 0, cm.UNIT_PCT: 2, cm.UNIT_MONEY: 3}
+    cands = sorted((n for n in after_only if n in result["variables"]), key=lambda n: (rank.get(units.get(n), 1), n))
+    keys = list(result["delta"])                 # son xett (menfeet/gelir-xerc) gelirden evvel
+    keys = sorted(keys, key=lambda k: (not re.search(r"profit|income|earn|net|cash", k), -keys.index(k)))
+    for key in keys:
+        base = result["before"][key]
+        for name in cands:
+            value = result["variables"][name]
+
+            def g(x: float) -> float | None:
+                try:
+                    return cm.evaluate(_with(model, name, x))["after"][key] - base
+                except (cm.CaseModelError, ZeroDivisionError):
+                    return None
+            hi = 1.0 if units.get(name) == cm.UNIT_SHARE else 4 * max(abs(value), 1.0)
+            root = _root(g, 0.0, hi, value)
+            if root is None or root <= 0:
+                continue
+            others = [v for n, v in result["variables"].items() if n != name]
+            if units.get(name) == cm.UNIT_MONEY and any(math.isclose(root, v, rel_tol=1e-3) for v in others):
+                continue                      # qiymet kohne qiymete qayidanda beraberdir - qerar deyil
+            rule = _rule_at(model, result, name, key, root, None)
+            if rule:
+                return rule
+    return None
+
+
+def _rule_at(model: dict, result: dict, name: str, key: str, root: float, value: float | None) -> dict | None:
+    """Kesisme noqtesinde istiqamet (deyisen artanda netice yaxsilasir -> min) ve qayda metni."""
+    base = result["before"][key]
+
+    def g(x: float) -> float | None:
+        try:
+            return cm.evaluate(_with(model, name, x))["after"][key] - base
+        except (cm.CaseModelError, ZeroDivisionError):
+            return None
+    step = max(abs(root) * 0.05, 1e-6)
+    up, down = g(root + step), g(root - step)
+    if up is None or down is None or up == down:
+        return None
+    direction = "min" if up > down else "max"
+    unit = result["var_units"].get(name, "")
+    val = _rounded(root, unit, direction) if value is None else value
+    label = cm._label(result, name)
+    bound = "or more" if direction == "min" else "or less"
+    text = f"Make the change only if {label} {cm._verb(label, 'stays')} at {cm.fmt(val, unit)} {bound}."
+    return {"var": name, "value": val, "raw": root, "direction": direction, "label": label, "unit": unit,
+            "result": key, "text": text}
+
+
 def _current(result: dict, narration: str, threshold: float) -> dict | None:
     """Esikle eyni kemiyyetin bugunku deyeri (mes. 40 customers vs 27 lazim) - yalniz deyilibse."""
     words = set(re.findall(r"[a-z]+", (result["threshold"]["name"] + " " + result["threshold"]["meaning"]).lower()))

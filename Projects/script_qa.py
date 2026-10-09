@@ -440,6 +440,12 @@ def settle_script(markdown: str, plan: dict, source: dict | None) -> str:
     return markdown
 
 
+def _no_break_even(model: dict, result: dict) -> bool:
+    """#136: qerar qaydasi koddan hesablanir (decision_visuals.decision_rule) - hesablanmirsa model natamamdir."""
+    from decision_visuals import decision_rule
+    return decision_rule(model, result) is None
+
+
 def plan_problems(plan: dict) -> list[str]:
     """Plan seviyyesi (#59): ssenari yazilmazdan evvel - pozulsa outline yeniden istenir."""
     probs: list[str] = []
@@ -463,6 +469,10 @@ def plan_problems(plan: dict) -> list[str]:
                      f"threshold.expr so that it computes: {t['meaning']}")
     elif plan.get("model") and (link := cm.threshold_link_problem(plan["model"], result)):
         probs.append(link)                             # #98: esik qerarin neticesini terpetmelidir
+    elif plan.get("model") and _no_break_even(plan["model"], result):
+        probs.append("case model has no break-even point: 'after' must depend on a variable for the downside or "
+                     "the effect of the change (customers lost, share who leave, extra jobs, extra cost) so that "
+                     "the result returns to today's level at some value of it - add that variable to the model")
     elif _figures(answer):
         allowed = cm.allowed_numbers(result) + [float(x) for x in plan.get("source_figures") or []]
         bad = _outside(_figures(answer), allowed)

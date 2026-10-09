@@ -345,3 +345,57 @@ def test_model_example_for_added_cost_decisions_passes_every_rule():
     r = cm.evaluate(sg.MODEL_EXAMPLE)
     assert cm.threshold_link_problem(sg.MODEL_EXAMPLE, r) is None and r["threshold"]["value"] > 0
     assert "structure only" in sg.model_example_text().lower()
+
+
+# --- #136 (2026-10-10 reproduksiya: 5 plandan 3-4-u ziddiyyetli) ------------------------------------------------
+# Real probe planlari ("Should You Raise Your Menu Prices?"): LLM threshold-un adini/menasini bir kemiyyet, expr-ini
+# basqa kemiyyet kimi yazirdi ("customers_lost" = saxlanmali musteri), cavab bu menadan yazilirdi.
+
+def _menu(after, extra=None, before="weekly_customers * (price_per_meal - cost_per_meal)"):
+    variables = [{"name": "weekly_customers", "value": 200, "unit": "customers", "label": "customers served each week"},
+                 {"name": "price_per_meal", "value": 15, "unit": "$", "label": "current menu price per meal"},
+                 {"name": "cost_per_meal", "value": 8, "unit": "$", "label": "cost to prepare each meal"},
+                 {"name": "new_price", "value": 18, "unit": "$", "label": "new menu price per meal"}] + (extra or [])
+    return {"variables": variables, "before": {"weekly_profit": before}, "after": {"weekly_profit": after},
+            "threshold": {"name": "customers_lost", "expr": "before_weekly_profit / (new_price - cost_per_meal)",
+                          "rounding": "ceil", "meaning": "customers lost that keep profit the same"}}
+
+
+LOST = [{"name": "expected_customers_lost", "value": 20, "unit": "customers", "label": "customers lost each week"}]
+SHARE = [{"name": "customer_loss_rate", "value": 0.1, "unit": "share", "label": "share of customers who leave"}]
+
+
+def test_decision_rule_is_the_break_even_of_the_change_variable():
+    from decision_visuals import decision_rule
+    m = _menu("(weekly_customers - expected_customers_lost) * (new_price - cost_per_meal)", LOST)
+    rule = decision_rule(m, cm.evaluate(m))
+    assert rule["var"] == "expected_customers_lost" and rule["value"] == 60 and rule["direction"] == "max"
+    assert rule["text"] == "Make the change only if customers lost each week stays at 60 or less."
+
+
+def test_share_threshold_is_spoken_as_a_percent():
+    from decision_visuals import decision_rule
+    m = _menu("weekly_customers * (1 - customer_loss_rate) * (new_price - cost_per_meal)", SHARE)
+    rule = decision_rule(m, cm.evaluate(m))
+    assert rule["var"] == "customer_loss_rate" and abs(rule["value"] - 0.3) < 1e-9
+    assert "30% or less" in rule["text"]
+
+
+def test_price_rise_without_a_downside_has_no_decision_rule():
+    from decision_visuals import decision_rule
+    m = _menu("weekly_customers * (new_price - cost_per_meal)")
+    m["threshold"] = {**m["threshold"], "expr": "new_price * 10"}      # esik kesisme deyil, mensi tesir yoxdur
+    assert decision_rule(m, cm.evaluate(m)) is None
+    import script_qa
+    plan = {"decision": "Should I raise my menu prices?", "answer": "Make the change if 140 customers stay.",
+            "case": {"owner": "Lisa", "business": "cafe", "city": "Austin", "state": "Texas"}, "model": m}
+    assert any("break-even" in p for p in script_qa.plan_problems(plan))
+
+
+def test_settled_plan_gets_the_computed_threshold_and_answer():
+    import script_gen
+    m = _menu("(weekly_customers - expected_customers_lost) * (new_price - cost_per_meal)", LOST)
+    plan = script_gen.apply_decision_rule({"model": m, "answer": "Make the change if you lose under 140."})
+    r = cm.evaluate(plan["model"])
+    assert r["threshold"]["value"] == 60 and "60 or less" in plan["answer"]
+    assert "customers lost each week" in r["threshold"]["meaning"]

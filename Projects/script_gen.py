@@ -219,26 +219,6 @@ def insert_before(markdown: str, anchor: str, block: str) -> str:
     return markdown[:idx].rstrip() + "\n\n" + block.strip() + "\n" + markdown[idx:]
 
 
-_ANSWER_PROBLEM = "cavab"     # plan_problems-in cavaba aid qeydleri ("cavabdaki reqem", "cavab ... threshold")
-ANSWER_USER = """Decision: {decision}
-Case: {owner}, {business}. {situation}
-The case model computed this threshold: {meaning} = {value}.
-Write the rule the video ends with: ONE sentence that starts with "Make the change if" or "Make the change when"
-and uses exactly {value} as the condition the owner can check. No other numbers. Return only the sentence."""
-
-
-def answer_from_model(plan: dict, **llm_kw) -> str:
-    """Faza 1.1 (real probe 2026-10-07): cavab modelin HESABLANMIS threshold-u ile yazilir."""
-    import case_model
-    r = case_model.evaluate(plan["model"])
-    t = r["threshold"]
-    case = plan.get("case") or {}
-    return " ".join(chat(SYSTEM, ANSWER_USER.format(
-        decision=plan.get("decision"), owner=case.get("owner"), business=case.get("business"),
-        situation=case.get("situation", ""), meaning=t["meaning"], value=case_model.fmt(t["value"], t["unit"])),
-        max_tokens=120, **llm_kw).strip().strip('"').split())
-
-
 MODEL_REVIEW_MODEL = "gpt-4o"      # yoxlama modeli (istifadeci: metn gpt-4o-mini, yoxlamalar gpt-4o)
 MODEL_REVIEW_SYSTEM = """You check the numeric case model behind a business explainer video for US small-business
 owners. A program already computed the values; you judge only whether the model is RIGHT for the decision.
@@ -254,6 +234,7 @@ objective ERROR:
   "after" uses all customers);
 - a formula uses an unexplained constant that is not a unit conversion (4 weeks, 12 months, 100 for percent);
 - the threshold formula does not compute what its meaning says.
+A threshold whose expr is a plain number was computed by the program as the break-even point - never reject it.
 Never reject for missing extra factors that have no variable, profit vs break-even, "at least" vs "more than", or
 realism. Never ask to use the threshold inside before/after (the threshold is computed from them).
 problems: one short concrete fix per error (empty when ok)."""
@@ -320,16 +301,35 @@ def repair_model(plan: dict, why: list[str], **llm_kw) -> dict:
     return got.get("model") if isinstance(got.get("model"), dict) else plan.get("model")
 
 
+def apply_decision_rule(data: dict) -> dict:
+    """#136: threshold ve cavab LLM-in menasindan yox, koddan - deyisikliyin tesir deyiseninin break-even noqtesi
+    (decision_visuals.decision_rule). Hesablanmirsa plan deyismir (plan_problems modeli redd edir)."""
+    import case_model
+    from decision_visuals import decision_rule
+    model = data.get("model")
+    try:
+        rule = decision_rule(model, case_model.evaluate(model)) if isinstance(model, dict) else None
+    except case_model.CaseModelError:
+        rule = None
+    if not rule:
+        return data
+    share = rule["unit"] == case_model.UNIT_SHARE           # pay skriptde faizle deyilir ("30%")
+    value = round(rule["value"] * 100, 1) if share else rule["value"]
+    th = {"name": f"{rule['var']}_break_even", "expr": repr(value), "rounding": "none",
+          "unit": case_model.UNIT_PCT if share else rule["unit"] if rule["unit"] == case_model.UNIT_MONEY else "",
+          "meaning": f"{rule['label']} at which {rule['result'].replace('_', ' ')} after the change equals "
+                     f"today's - {'at least' if rule['direction'] == 'min' else 'at most'} this"}
+    return {**data, "model": {**model, "threshold": th}, "answer": rule["text"]}
+
+
 def settle_plan(data: dict, **llm_kw) -> tuple[dict, list[str]]:
     """Plan yoxlamalari: deterministik (plan_problems) -> cavab hesablanmis threshold ile -> gpt-4o model
     yoxlamasi; model xetasinda en cox MODEL_REPAIRS defe yalniz model duzeldilir. -> (plan, qalan problemler)."""
     from script_qa import plan_problems
     why: list[str] = []
     for r in range(MODEL_REPAIRS + 1):
+        data = apply_decision_rule(data)                  # #136: esik + cavab koddan
         why = plan_problems(data)
-        if why and all(_ANSWER_PROBLEM in p for p in why):
-            data = {**data, "answer": answer_from_model(data, **llm_kw)}   # LLM threshold-u ozu hesablaya bilmir
-            why = plan_problems(data)
         if not why:
             why = review_model(data, **llm_kw)
         if not why or r == MODEL_REPAIRS or not any("model" in w for w in why):
