@@ -155,8 +155,9 @@ def suggest_again(scene: dict, feedback: str, used: set[str], provider: str, cas
 def choose_prompt(v: Verdict, attempt: int, used: set[str], suggest) -> str:
     """Reyestr #32: hakimin teklifleri redd olunanda derhal movzudan kenar ehtiyat fona kecilmir -
     sebebler bildirilib bir defe yeni teklif alinir (suggest(feedback) -> teklifler).
-    #112: yalniz "mismatch" olanda son cehdde de teze case kadri hovuzdan ustundur (hovuz terife gore generikdir)."""
-    if set(v.problems) <= {"mismatch"}:
+    #112/#113: "mismatch" ve/ve ya "generic" olanda son cehdde de teze case kadri hovuzdan ustundur - hovuz terife
+    gore generikdir, generik payini azalda bilmez (hovuz yalniz teze teklif olmayanda)."""
+    if set(v.problems) <= {"mismatch", "generic"}:
         attempt = min(attempt, MAX_ATTEMPTS - 1)
     p = next_prompt(v.fix_options, attempt, used)
     if attempt >= MAX_ATTEMPTS or p not in FALLBACK_POOL:

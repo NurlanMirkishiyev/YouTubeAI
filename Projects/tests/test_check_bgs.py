@@ -187,8 +187,17 @@ def test_last_attempt_mismatch_only_keeps_a_case_frame_not_the_generic_pool():
     assert p == "a bakery dough proofer cabinet"
 
 
-def test_last_attempt_generic_still_goes_to_the_pool():
-    v = cb.Verdict(ok=False, problems=("generic",), fix_prompt="", fix_options=("a bakery dough proofer cabinet",))
+def test_last_attempt_generic_keeps_a_case_frame_not_the_generic_pool():
+    """#113 (E2E hire-first-employee): "mismatch/generic" sehneler son cehdde hovuza dusub yene generik qalirdi
+    (12% > 10%: 7, 38, 41, 63, 66) - hovuz generik payini hec vaxt azalda bilmez."""
+    v = cb.Verdict(ok=False, problems=("mismatch", "generic"), fix_prompt="",
+                   fix_options=("a bakery dough proofer cabinet",))
+    p = cb.choose_prompt(v, attempt=cb.MAX_ATTEMPTS, used=set(), suggest=lambda fb: ())
+    assert p == "a bakery dough proofer cabinet"
+
+
+def test_last_attempt_other_problems_still_go_to_the_pool():
+    v = cb.Verdict(ok=False, problems=("childish",), fix_prompt="", fix_options=("a bakery dough proofer cabinet",))
     p = cb.choose_prompt(v, attempt=cb.MAX_ATTEMPTS, used=set(), suggest=lambda fb: ())
     assert p in scene_plan.FALLBACK_POOL
 
