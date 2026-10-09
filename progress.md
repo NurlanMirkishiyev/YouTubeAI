@@ -203,7 +203,7 @@ Reference (yalnız ideya, icra olunmur): `docs/reference/video_yarat_v4.py`.
 | 1 Məzmun dəqiqliyi (case model, cold open=insight, uydurma rəqəm, mənbə ili, tək case) | TAMAM (#73–#80); real skript probu son run-da 2 problem qaldı (düzəldildi #79/model 1-ci qat), təkrar prob lazımdır |
 | 2 Data vizualları (table, threshold, timeseries, usmap, skelet chart, generik kart, overlay) | TAMAM (#81–#85), renderStill ilə vizual yoxlandı |
 | 3 Motion + səs | TAMAM (2026-10-08, #86–#88): Episode.tsx planı oynadır (keçidlər, variantlar, backdrop, vurğu, editorial film), 9 Ken Burns, altyazıda rəqəm rəngi, geniş bayquş chart-ı örtmür; renderStill probu (editorial + dynamic) ilə vizual yoxlandı. 611 test, `tsc` təmiz |
-| 4 Publish (midrolls, lead magnet/affiliate, upload checklist) | TAMAM (2026-10-08, #89). Linklər `.env`-də `LEAD_MAGNET_URL` / `AFFILIATE_LINKS` (hələ boş — istifadəçi doldurmalıdır) |
+| 4 Publish (midrolls, lead magnet/affiliate, upload checklist) | TAMAM (2026-10-08, #89). Linklər `.env`-də `LEAD_MAGNET_URL` / `AFFILIATE_LINKS` (boşdursa description-a yazılmır) |
 | 5 Default ON, quality_gate, reyestr↔test, error_classes.md, CLAUDE.md, self_audit | TAMAM (2026-10-08, #90–#91) |
 | 6 Yekun: testlər + 2 E2E (qiymət qərarı; zaman/coğrafiya) | İCRADADIR — E2E №1 TAMAM (2026-10-09), №2 istifadəçinin mövzusunu gözləyir |
 
@@ -216,8 +216,8 @@ counter (#134), 6 yeni növ (#135), qərar həddi/cavab koddan (#136), danışı
 hər zaman görünür (#137). 778 test, Remotion tsc təmiz, 4 venv + ComfyUI yeri + OpenAI açarı yerində; outline
 probu 3 mövzuda (menu prices, hire, second location) tutarlı qayda verdi. Dayandırılmış menu-prices run-u silindi.
 İlk real videoda əlavə yoxla: timeseries kadrında real nöqtələr (seriya seçilibsə), `visual_variety`/`data_visuals`
-keçir, yeni növlərin kadrları, heç bir növ > 20%, qərar cavabı modelin break-even-i ilə uyğun. Açıq (istifadəçinin
-öz işi, bloklamır): `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş; `.env`-də istifadəsiz GEMINI_API_KEY sətri.
+keçir, yeni növlərin kadrları, heç bir növ > 20%, qərar cavabı modelin break-even-i ilə uyğun. Açıq iş yoxdur (istifadəçi 2026-10-10:
+.env linkləri və GEMINI sətri siyahıdan çıxarıldı - xatırlatma lazım deyil).
 
 **2026-10-10:** Faza 6 TAMAM (2 E2E təhvil, təsdiq, silindi). Sonra istifadəçi qərarı "Mənbədən real data" →
 #127–#131 TAMAM (`data_sources.py`, plan `docs/superpowers/plans/2026-10-10-real-data-visuals.md`), 758 test.
@@ -225,7 +225,7 @@ Real probe ("Should You Raise Your Menu Prices?", yalnız script_gen + scene_pla
 seriyasını seçdi, cümlə sözbəsöz Section 1-də, scene_plan timeseries (4 real nöqtə, illustrative yox) qurdu.
 Probe-da script_gen ayrıca səbəbdən fail-closed dayandı (case modeli "profit −$1,000 → −$16,000", redaktor
 "hekayə ziddiyyətli") — mövcud qapı tutdu, real run-da retry edir; təkrarlansa reyestrə. **Növbəti:** yeni mövzu
-gözlənilir; açıq: `.env` LEAD_MAGNET_URL/AFFILIATE_LINKS boş (istifadəçinin öz linkləri).
+gözlənilir.
 
 **2026-10-08:** Faza 3, 4, 5 TAMAM. Növbəti: **Faza 6** — 2 yeni B2B mövzu ilə ardıcıl E2E (CLAUDE.md tetiki): (1) qiymət/xərc qərarı (table + threshold), (2) zaman/coğrafiya datası (timeseries/usmap); hər birində quality_gate keçir, self_audit təmiz, motion_sheet-lər fərqli, 10–12 dəq, −14 LUFS, təhvil paketi tam (mp4, thumbnail, youtube.txt, srt, script, midrolls, upload_checklist). Pullu (OpenAI) — istifadəçi təsdiqi lazımdır. `Episodes\_probe-raise-prices` probe qovluğudur (silinə bilər).
 
