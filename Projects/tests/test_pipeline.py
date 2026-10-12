@@ -188,3 +188,13 @@ def test_resume_accepts_a_path_and_uses_only_the_slug(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as ei:
         pipeline.main(["--resume", ".."])
     assert ei.value.code == 2
+
+
+def test_images_done_also_needs_intro_and_outro_backgrounds(tmp_path):
+    done = pipeline._all("img", "png", photo_only=True)
+    _scenes_json(tmp_path, [{"n": 0, "type": "intro"}, {"n": 1, "type": "photo"}, {"n": 2, "type": "outro"}])
+    _write(tmp_path / "img" / "sc01.png")
+    assert not done(str(tmp_path))
+    _write(tmp_path / "img" / "sc00.png")
+    _write(tmp_path / "img" / "sc02.png")
+    assert done(str(tmp_path))

@@ -27,7 +27,7 @@ def _png():
 def test_photos_are_rendered_only_for_photo_scenes(tmp_path):
     ep = _ep(tmp_path, ["photo", "anim", "photo"])
     calls = []
-    images.render_photos(ep, gen=lambda p: calls.append(p) or _png(), workers=1, limiter=None)
+    images.render_photos(ep, gen=lambda p: calls.append(p) or _noise(len(calls)), workers=1, limiter=None)
     assert sorted(c[:2] for c in calls) == ["p0", "p2"]
     assert (tmp_path / "img" / "sc01.png").exists() and not (tmp_path / "img" / "sc02.png").exists()
 
@@ -71,3 +71,51 @@ def test_empty_openai_balance_is_not_swallowed(tmp_path):
 
 def test_photo_style_forbids_the_mascot():
     assert "owl" in images.STYLE.lower() and "cartoon" in images.STYLE.lower()
+
+
+def _noise(seed):
+    import numpy as np
+    a = (np.random.default_rng(seed).random((48, 64, 3)) * 255).astype("uint8")
+    buf = io.BytesIO()
+    Image.fromarray(a).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_dhash_separates_different_photos_and_matches_the_same_one():
+    a, b = images.dhash(_noise(1)), images.dhash(_noise(2))
+    assert bin(a ^ images.dhash(_noise(1))).count("1") == 0
+    assert bin(a ^ b).count("1") > images.DUP_BITS
+
+
+def test_near_duplicate_photo_is_redrawn_with_a_different_composition(tmp_path):
+    ep = _ep(tmp_path, ["photo", "photo"])
+    seen = []
+
+    def gen(p):
+        seen.append(p)
+        return _noise(len(seen)) if images.VARY.strip() in p else _noise(0)
+    images.render_photos(ep, gen=gen, workers=1, limiter=None, rewrite=None)
+    assert any(images.VARY.strip() in p for p in seen)
+    h1 = images.dhash((tmp_path / "img" / "sc01.png").read_bytes())
+    h2 = images.dhash((tmp_path / "img" / "sc02.png").read_bytes())
+    assert bin(h1 ^ h2).count("1") > images.DUP_BITS
+
+
+def test_duplicate_of_an_existing_episode_photo_is_detected(tmp_path):
+    ep = _ep(tmp_path, ["photo", "photo"])
+    (tmp_path / "img").mkdir()
+    (tmp_path / "img" / "sc01.png").write_bytes(_noise(0))
+    seen = []
+
+    def gen(p):
+        seen.append(p)
+        return _noise(5) if images.VARY.strip() in p else _noise(0)
+    images.render_photos(ep, gen=gen, workers=1, limiter=None, rewrite=None)
+    assert len(seen) == 2
+
+
+def test_intro_and_outro_backgrounds_are_drawn(tmp_path):
+    ep = _ep(tmp_path, ["intro", "photo", "outro"])
+    n = iter(range(100))
+    images.render_photos(ep, gen=lambda p: _noise(next(n)), workers=1, limiter=None, rewrite=None)
+    assert all((tmp_path / "img" / f"sc{i:02d}.png").exists() for i in (1, 2, 3))

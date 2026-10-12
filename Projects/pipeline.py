@@ -51,7 +51,7 @@ def _all(sub: str, ext: str, photo_only: bool = False) -> Callable[[str], bool]:
         if not os.path.isfile(os.path.join(ep, "scenes.json")):
             return False
         return all(os.path.isfile(os.path.join(ep, sub, f"sc{s['n']:02d}.{ext}")) for s in _scenes(ep)["scenes"]
-                   if not photo_only or s["type"] == "photo")
+                   if not photo_only or s["type"] in images.PHOTO_TYPES)
     return done
 
 
