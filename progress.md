@@ -20,7 +20,7 @@ Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenis
   60 səhnə: 36 foto + 24 animasiya, bayquş hər kadrda, thumbnail, youtube.txt fəsillərlə). Flow düzəlişi üçün
   render+mix+publish yenidən işlədi (00:06): −14.2 LUFS, peak −1.0 dBFS, 12:30, kadrlar yoxlanıb.
 
-- **2026-10-13: unikal şəkillər + intro/outro** (branch `intro-outro`, spec `docs/superpowers/specs/2026-10-13-unique-images-intro-outro-design.md`,
+- **2026-10-13: unikal şəkillər + intro/outro — master-də, BÜTÜN videolar üçün standart (istifadəçi təsdiqi)** ( spec `docs/superpowers/specs/2026-10-13-unique-images-intro-outro-design.md`,
   plan `docs/superpowers/plans/2026-10-13-unique-images-intro-outro.md`): plan buraxılan səhnələri yenidən soruşur,
   ALREADY USED + DUPLICATE təmiri + `unique_guard`; images dHash (≤8 bit = eyni) → "fərqli kompozisiya" ilə yenidən;
   intro (≥6 s, salam) / outro (≥10 s, sağollaşma + SUBSCRIBE düyməsi) — `plan.add_bookends`, Remotion `Bookend.tsx`.
