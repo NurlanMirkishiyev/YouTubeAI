@@ -10,6 +10,7 @@ import subprocess
 from PIL import Image
 
 import generate
+from images import PHOTO_TYPES
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REMOTION = os.path.join(ROOT, "Remotion")
@@ -28,17 +29,17 @@ def props(data: dict, caps: list[dict], fps: int = 30) -> dict:
     bounds[-1] = max(bounds[-1], math.ceil(round(cum * fps, 6)))
     scenes = []
     for i, s in enumerate(data["scenes"]):
-        scenes.append({"n": s["n"], "type": s["type"], "img": f"img/sc{s['n']:02d}.jpg" if s["type"] == "photo" else None,
+        scenes.append({"n": s["n"], "type": s["type"], "img": f"img/sc{s['n']:02d}.jpg" if s["type"] in PHOTO_TYPES else None,
                        "owl": f"owl/sc{s['n']:02d}.png", "anim": s["anim"], "section": s["section"],
                        "sectionStart": bool(s["section_start"]), "from": bounds[i], "frames": bounds[i + 1] - bounds[i]})
-    return {"fps": fps, "total": bounds[-1], "scenes": scenes,
+    return {"fps": fps, "total": bounds[-1], "title": data.get("title", ""), "scenes": scenes,
             "captions": [{"from": round(c["start"] * fps), "to": round(c["end"] * fps), "text": c["text"]} for c in caps]}
 
 
 def require_photos(ep: str, data: dict) -> None:
     """Foto sehnesi fotosuz render olunmur - images merhelesi yeniden cekmelidir."""
     missing = [os.path.join(ep, "img", f"sc{s['n']:02d}.png") for s in data["scenes"]
-               if s["type"] == "photo" and not os.path.isfile(os.path.join(ep, "img", f"sc{s['n']:02d}.png"))]
+               if s["type"] in PHOTO_TYPES and not os.path.isfile(os.path.join(ep, "img", f"sc{s['n']:02d}.png"))]
     if missing:
         raise FileNotFoundError(f"foto yoxdur: {', '.join(missing)} - python run.py --resume ile yeniden cekilir")
 
@@ -50,7 +51,7 @@ def public_dir(ep: str, data: dict) -> str:
     shutil.copytree(FONTS, os.path.join(pub, "fonts"), dirs_exist_ok=True)
     for s in data["scenes"]:
         n = f"sc{s['n']:02d}"
-        if s["type"] == "photo":
+        if s["type"] in PHOTO_TYPES:
             with Image.open(os.path.join(ep, "img", f"{n}.png")) as im:
                 w, h = im.size
                 im.convert("RGB").resize((1920, round(1920 * h / w)), Image.LANCZOS).save(

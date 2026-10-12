@@ -96,3 +96,12 @@ def test_gain_is_corrected_for_what_the_limiter_eats():
 def test_measure_cmd_includes_the_gain_and_limiter():
     m = " ".join(mix.measure_cmd("E", 3.5, gain_db=4.0))
     assert "volume=4.0dB" in m and "alimiter=" in m and "print_format=json" in m
+
+
+def test_intro_outro_props_carry_their_background_and_the_title():
+    data = {"title": "How Apps Pay", "scenes": [
+        {"n": 0, "type": "intro", "section": "", "section_start": False, "anim": None, "duration": 6.0},
+        {"n": 1, "type": "outro", "section": "", "section_start": False, "anim": None, "duration": 10.0}]}
+    p = render.props(data, [])
+    assert p["scenes"][0]["img"] == "img/sc00.jpg" and p["scenes"][1]["img"] == "img/sc01.jpg"
+    assert p["title"] == "How Apps Pay"

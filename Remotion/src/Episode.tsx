@@ -1,6 +1,7 @@
 import React from 'react';
 import {AbsoluteFill, Sequence, interpolate, useCurrentFrame} from 'remotion';
 import {AnimScene} from './AnimScene';
+import {IntroScene, OutroScene} from './Bookend';
 import {Captions} from './Captions';
 import {OwlLayer} from './OwlLayer';
 import {PhotoScene} from './PhotoScene';
@@ -18,17 +19,19 @@ const Enter: React.FC<{i: number; children: React.ReactNode}> = ({i, children}) 
   return <AbsoluteFill style={style}>{children}</AbsoluteFill>;
 };
 
-const SceneView: React.FC<{s: Scene}> = ({s}) => {
+const SceneView: React.FC<{s: Scene; title: string}> = ({s, title}) => {
+  if (s.type === 'intro' && s.img) return <IntroScene src={s.img} title={title} />;
+  if (s.type === 'outro' && s.img) return <OutroScene src={s.img} />;
   if (s.type === 'photo' && s.img) return <PhotoScene src={s.img} n={s.n} />;
   if (s.anim) return <AnimScene anim={s.anim} />;
   return <AbsoluteFill style={{background: `radial-gradient(circle at 30% 40%, ${COLORS.bg2}, ${COLORS.bg1})`}} />;
 };
 
-export const Episode: React.FC<Props> = ({scenes, captions}) => (
+export const Episode: React.FC<Props> = ({title, scenes, captions}) => (
   <AbsoluteFill style={{background: '#000'}}>
     {scenes.map((s, i) => (
       <Sequence key={s.n} from={s.from} durationInFrames={s.frames + (i < scenes.length - 1 ? ENTER : 0)}>
-        <Enter i={i}><SceneView s={s} /></Enter>
+        <Enter i={i}><SceneView s={s} title={title} /></Enter>
       </Sequence>
     ))}
     {scenes.filter((s) => s.sectionStart && s.section).map((s) => (

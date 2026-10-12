@@ -46,7 +46,8 @@ def chapters(scenes: list[dict], title: str) -> list[str]:
 
 def youtube_text(data: dict) -> str:
     tags = ", ".join(w.lower() for w in re.findall(r"[A-Za-z]+", data["title"]) if len(w) > 2)
-    desc = data["scenes"][0]["text"] if data["scenes"] else ""
+    content = [s for s in data["scenes"] if s.get("type") not in ("intro", "outro")]
+    desc = content[0]["text"] if content else ""
     chap = chapters(data["scenes"], data["title"])
     return "\n".join([data["title"], "", desc, "", *chap, "", f"Tags: {tags}"]) + "\n"
 

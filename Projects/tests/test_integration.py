@@ -44,6 +44,13 @@ def _png(color):
     return buf.getvalue()
 
 
+def _noise(seed):
+    import numpy as np
+    buf = io.BytesIO()
+    Image.fromarray((np.random.default_rng(seed).random((48, 64, 3)) * 255).astype("uint8")).save(buf, "PNG")
+    return buf.getvalue()
+
+
 def _ask(system, user):
     nums = [int(x.split(":")[0]) for x in user.split("SCENE ")[1:]]
     return {"scenes": [{"n": n, "photo_prompt": f"photo {n}", "owl": "waving hello", "anim": [
@@ -65,10 +72,13 @@ def test_offline_chain_produces_props_matching_types_ts(tmp_path):
     md.write_text(SCRIPT, encoding="utf-8")
     ep = tmp_path / "ep"
     ep.mkdir()
-    data = plan.plan_scenes(script.build(str(md)), ask=_ask)
+    book = {"greeting": "Hi! Welcome to ELI5 Business.", "farewell": "Thanks for watching, subscribe!",
+            "bg_prompt": "Phones on a desk", "owl_intro": "waving hello", "owl_outro": "waving goodbye"}
+    data = plan.add_bookends(plan.plan_scenes(script.build(str(md)), ask=_ask), ask=lambda s, u: dict(book))
     (ep / "scenes.json").write_text(json.dumps(data), encoding="utf-8")
 
-    images.render_photos(str(ep), gen=lambda p: _png((0, 0, 255)), workers=1, limiter=None, rewrite=None)
+    seeds = iter(range(1000))
+    images.render_photos(str(ep), gen=lambda p: _noise(next(seeds)), workers=1, limiter=None, rewrite=None)
     owl.render_owls(str(ep), edit=lambda p, r: _png((255, 0, 255)), workers=1, limiter=None, rewrite=None)
     data = json.loads((ep / "scenes.json").read_text(encoding="utf-8"))
     for s in data["scenes"]:
@@ -82,9 +92,10 @@ def test_offline_chain_produces_props_matching_types_ts(tmp_path):
     assert all(set(s) == _ts_keys("Scene") for s in props["scenes"])
     assert all(set(c) == _ts_keys("Caption") for c in props["captions"])
     types = [s["type"] for s in props["scenes"]]
-    assert "photo" in types and "anim" in types
+    assert "photo" in types and "anim" in types and types[0] == "intro" and types[-1] == "outro"
+    assert props["title"] == "How Free Apps Make Money"
     for s in props["scenes"]:
-        assert (s["img"] is not None) == (s["type"] == "photo")
+        assert (s["img"] is not None) == (s["type"] in ("photo", "intro", "outro"))
         assert (ep / "public" / s["owl"]).is_file()
         if s["img"]:
             assert (ep / "public" / s["img"]).is_file()

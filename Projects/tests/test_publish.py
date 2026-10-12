@@ -154,3 +154,13 @@ def test_existing_thumbnail_is_reused_on_retry(tmp_path):
         raise AssertionError("should not generate")
     publish.main(ep, gen=never, out_root=str(tmp_path / "out"), rewrite=None)
     assert os.path.isfile(os.path.join(ep, "published"))
+
+
+def test_description_skips_the_intro_greeting():
+    data = {"title": "T", "slug": "s", "scenes": [
+        {"n": 0, "type": "intro", "section": "", "section_start": False, "text": "Hi friends!", "duration": 6},
+        {"n": 1, "type": "photo", "section": "A", "section_start": True, "text": "Real start.", "duration": 5},
+        {"n": 2, "type": "outro", "section": "", "section_start": False, "text": "Bye!", "duration": 10}]}
+    t = publish.youtube_text(data)
+    assert "Real start." in t and "Hi friends!" not in t
+    assert publish.chapters(data["scenes"], "T") == ["0:00 T", "0:06 A"]
