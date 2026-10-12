@@ -18,9 +18,10 @@ SYSTEM = """You plan visuals for an explainer video. For EVERY scene return:
 - "photo_prompt": one realistic photograph (12-30 words) that shows what the narration and the section's VISUAL
   direction describe. Realistic documentary photo, natural light. No readable text, letters or logos in the photo.
   The owl mascot is drawn separately: NEVER put an owl, a mascot or a cartoon character in the photo - show real
-  people and real objects instead.
+  people and real objects instead. Every photo_prompt must be clearly different from every other scene of the
+  video (different place, people, objects or camera angle) - never repeat or lightly reword an earlier prompt.
 - "owl": what the cartoon owl presenter does in this scene (6-14 words): pose, expression and at most one prop that
-  fits the narration.
+  fits the narration. Every scene gets a different pose - never repeat a pose used in another scene.
 - "anim": a list of 5 animation ideas of DIFFERENT kinds for this scene. At least 2 of them must be text kinds
   (flow, list, versus, timeline) built from narration words. Every label, step, item, event, left and right
   must be an EXACT fragment copied from that scene's narration (same words, same order, at most 7 words) - never paraphrase,
@@ -103,15 +104,35 @@ def pick_anim(candidates: list[dict], text: str, prev_kind: str | None, counts: 
     return {**grounding.quote_for(text), "variant": variant}
 
 
+DEFAULT_POSES = [
+    "standing and explaining with one wing raised, friendly", "thinking with a wing on the chin",
+    "pointing to the side with a wing, excited", "holding a smartphone and looking at it, curious",
+    "holding a small notebook and a pencil, focused", "shrugging with both wings open, playful",
+    "giving a thumbs up with one wing, smiling", "holding a magnifying glass, investigating",
+    "leaning forward with wings on the knees, attentive", "counting on the feathers of one wing, explaining",
+    "holding a coffee mug, relaxed and smiling", "arms crossed confidently, smiling",
+]
+ANGLES = ["wide shot", "close-up", "over-the-shoulder view", "top-down view", "side view", "low-angle view",
+          "candid moment", "shallow depth of field"]
+USED_SHOWN = 40         # son N istifade olunmus photo/owl GPT-ye gosterilir
+
+
 def _user(scenes: list[dict], title: str, preferred: dict[int, str] | None = None,
-          rejected: dict[int, list] | None = None) -> str:
+          notes: dict[int, str] | None = None, used: list[str] | None = None) -> str:
     parts = [f"VIDEO: {title}"]
+    if used:
+        parts.append("ALREADY USED in other scenes (photo prompts and owl poses must be clearly different):\n"
+                     + "\n".join(f"- {u}" for u in used[-USED_SHOWN:]))
     for s in scenes:
         pref = f"\nPREFERRED KIND: {preferred[s['n']]}" if preferred and s["n"] in preferred else ""
-        rej = (f"\nREJECTED (contained words or numbers that are not in this narration - copy exact fragments "
-               f"instead): {json.dumps(rejected[s['n']], ensure_ascii=False)}" if rejected and s["n"] in rejected else "")
-        parts.append(f"SCENE {s['n']}: section={s['section']!r}\nVISUAL: {s['visual']}\nNARRATION: {s['text']}{pref}{rej}")
+        note = f"\n{notes[s['n']]}" if notes and s["n"] in notes else ""
+        parts.append(f"SCENE {s['n']}: section={s['section']!r}\nVISUAL: {s['visual']}\nNARRATION: {s['text']}{pref}{note}")
     return "\n\n".join(parts)
+
+
+def _rejected_note(cands: list) -> str:
+    return ("REJECTED (contained words or numbers that are not in this narration - copy exact fragments instead): "
+            + json.dumps(cands, ensure_ascii=False))
 
 
 def _item(r) -> tuple[int, dict] | None:
@@ -122,17 +143,17 @@ def _item(r) -> tuple[int, dict] | None:
 
 
 def _ask_batch(scenes: list[dict], title: str, ask, preferred: dict[int, str] | None = None,
-               rejected: dict[int, list] | None = None) -> dict[int, dict]:
+               notes: dict[int, str] | None = None, used: list[str] | None = None) -> dict[int, dict]:
     for attempt in range(1, BATCH_TRIES + 1):
         try:
-            res = ask(SYSTEM, _user(scenes, title, preferred, rejected))
+            res = ask(SYSTEM, _user(scenes, title, preferred, notes, used))
             pairs = (_item(r) for r in res.get("scenes", []))
             return dict(p for p in pairs if p)
         except Exception as e:  # noqa: BLE001 - plan ssenari sebebile dayanmir; balans xetasi istisnadir
             if llm.is_balance_error(e):
                 raise
             print(f"  plan: GPT xetasi cehd {attempt} ({str(e)[:120]})", flush=True)
-    print(f"  plan: sehne {scenes[0]['n']}-{scenes[-1]['n']} VISUAL + quote istifade olunur", flush=True)
+    print(f"  plan: sehne {scenes[0]['n']}-{scenes[-1]['n']} GPT cavab vermedi", flush=True)
     return {}
 
 
@@ -151,11 +172,92 @@ def _repair(scenes: list[dict], types: list[str], got: dict[int, dict], title: s
     if not bad:
         return
     rejected = {s["n"]: _cands(got.get(s["n"], {})) for s in bad}
-    for i in range(0, len(bad), batch):
-        for n, r in _ask_batch(bad[i:i + batch], title, ask, preferred, rejected).items():
-            if n in rejected:
-                got[n] = {**got.get(n, {}), "anim": _cands(r) + rejected[n]}
+    notes = {n: _rejected_note(c) for n, c in rejected.items()}
+    for n, r in _ask_all(_chunks(bad, batch), title, ask, preferred, got, notes).items():
+        got[n] = {**got.get(n, {}), "anim": _cands(r) + rejected[n]}
     print(f"  plan: {len(bad)} animasiya sehnesi redd sebebi ile yeniden soruldu", flush=True)
+
+
+def norm(s: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", str(s).lower()).split())
+
+
+def _used(got: dict[int, dict]) -> list[str]:
+    out: list[str] = []
+    for n in sorted(got):
+        out += [f"photo: {got[n].get('photo_prompt', '')}", f"owl: {got[n].get('owl', '')}"]
+    return out
+
+
+def _chunks(scenes: list[dict], batch: int) -> list[list[dict]]:
+    return [scenes[i:i + batch] for i in range(0, len(scenes), batch)]
+
+
+def _ask_all(chunks: list[list[dict]], title: str, ask, preferred: dict[int, str], got: dict[int, dict],
+             notes: dict[int, str] | None = None) -> dict[int, dict]:
+    """Batch-lar ardicil; her batch evvelkilerin photo/owl-larini ALREADY USED kimi gorur."""
+    out: dict[int, dict] = {}
+    for chunk in chunks:
+        wanted = {s["n"] for s in chunk}
+        res = _ask_batch(chunk, title, ask, preferred, notes, _used({**got, **out}))
+        out.update({n: r for n, r in res.items() if n in wanted})
+    return out
+
+
+def _duplicates(scenes: list[dict], got: dict[int, dict]) -> dict[int, str]:
+    """Evvelki sehne ile eyni photo_prompt ve ya owl pozasi olan sehneler -> GPT ucun qeyd."""
+    first: dict[str, int] = {}
+    notes: dict[int, str] = {}
+    for s in scenes:
+        r = got.get(s["n"], {})
+        for key in ("photo_prompt", "owl"):
+            v = norm(r.get(key, ""))
+            if not v:
+                continue
+            if f"{key}:{v}" in first:
+                notes[s["n"]] = notes.get(s["n"], "DUPLICATE:") + (
+                    f" your {key} repeats scene {first[f'{key}:{v}']} ({r[key]!r}) - write a clearly different one.")
+            else:
+                first[f"{key}:{v}"] = s["n"]
+    return notes
+
+
+def _dedupe(scenes: list[dict], got: dict[int, dict], title: str, ask, preferred: dict[int, str], batch: int) -> None:
+    notes = _duplicates(scenes, got)
+    if not notes:
+        return
+    dup = [s for s in scenes if s["n"] in notes]
+    for n, r in _ask_all(_chunks(dup, batch), title, ask, preferred, got, notes).items():
+        got[n] = {**got.get(n, {}), "photo_prompt": r.get("photo_prompt") or "", "owl": r.get("owl") or ""}
+    print(f"  plan: {len(dup)} sehnenin tekrar foto/poza promptu yeniden yazildi", flush=True)
+
+
+def _first_sentence(text: str) -> str:
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    return " ".join(parts[0].split()[:20]) if parts and parts[0] else ""
+
+
+def unique_guard(scenes: list[dict]) -> None:
+    """GPT-den sonra da bos / tekrar qalan photo_prompt: sehnenin oz VISUAL + ilk cumlesi (+ bucaq);
+    owl: DEFAULT_POSES-dan istifade olunmayani."""
+    seen_p: set[str] = set()
+    seen_o: set[str] = set()
+    for s in scenes:
+        p = s.get("photo_prompt") or ""
+        if not norm(p) or norm(p) in seen_p:
+            base = photo_safe(f"{s.get('visual', '')} {_first_sentence(s.get('text', ''))}".strip())[:300]
+            p, i = base, 0
+            while norm(p) in seen_p:
+                p = f"{base}, {ANGLES[i % len(ANGLES)]}" + (f" {i // len(ANGLES) + 1}" if i >= len(ANGLES) else "")
+                i += 1
+            s["photo_prompt"] = p
+        seen_p.add(norm(p))
+        o = s.get("owl") or ""
+        if not norm(o) or norm(o) in seen_o:
+            free = [x for x in DEFAULT_POSES if norm(x) not in seen_o]
+            o = free[0] if free else f"{DEFAULT_POSES[len(seen_o) % len(DEFAULT_POSES)]}, variation {len(seen_o)}"
+            s["owl"] = o
+        seen_o.add(norm(o))
 
 
 def plan_scenes(data: dict, ask=ask_gpt, batch: int = 6) -> dict:
@@ -165,16 +267,19 @@ def plan_scenes(data: dict, ask=ask_gpt, batch: int = 6) -> dict:
     for s, t in zip(scenes, types):
         if t == "anim":
             preferred[s["n"]] = kind_order(len(preferred))[0]
-    got: dict[int, dict] = {}
-    for i in range(0, len(scenes), batch):
-        got.update(_ask_batch(scenes[i:i + batch], data["title"], ask, preferred))
+    got = _ask_all(_chunks(scenes, batch), data["title"], ask, preferred, {})
+    missing = [s for s in scenes if s["n"] not in got]
+    if missing:
+        print(f"  plan: GPT {len(missing)} sehneni buraxdi - yeniden sorusulur", flush=True)
+        got.update(_ask_all(_chunks(missing, batch), data["title"], ask, preferred, got))
     _repair(scenes, types, got, data["title"], ask, preferred, batch)
+    _dedupe(scenes, got, data["title"], ask, preferred, batch)
     n_anim, counts, prev, k = types.count("anim"), {}, None, 0
     for s, t in zip(scenes, types):
         r = got.get(s["n"], {})
         s["type"] = t
-        s["photo_prompt"] = photo_safe(str(r.get("photo_prompt") or s["visual"] or s["text"]))[:400]
-        s["owl"] = str(r.get("owl") or "standing and explaining, friendly")[:200]
+        s["photo_prompt"] = photo_safe(str(r.get("photo_prompt") or ""))[:400]
+        s["owl"] = str(r.get("owl") or "")[:200]
         s["anim"] = None
         if t == "anim":
             cands = _cands(r)
@@ -183,6 +288,7 @@ def plan_scenes(data: dict, ask=ask_gpt, batch: int = 6) -> dict:
             s["anim"] = pick_anim(cands, s["text"], prev, counts, n_anim, k % 2)
             counts[s["anim"]["kind"]] = counts.get(s["anim"]["kind"], 0) + 1
             prev, k = s["anim"]["kind"], k + 1
+    unique_guard(scenes)
     return {**data, "scenes": scenes}
 
 
