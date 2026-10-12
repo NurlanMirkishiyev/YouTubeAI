@@ -216,3 +216,64 @@ def test_unique_guard_makes_leftovers_unique():
     assert len({plan.norm(s["photo_prompt"]) for s in scenes}) == 3
     assert len({plan.norm(s["owl"]) for s in scenes}) == 3
     assert all("owl" not in s["photo_prompt"].lower() for s in scenes)
+
+
+BOOK = {"greeting": "Hi friends, welcome to ELI5 Business! Today: how free apps make money.",
+        "farewell": "Thanks for watching! If this helped, subscribe and hit the bell for more simple business stories.",
+        "bg_prompt": "Smartphones with colorful apps on a wooden desk", "owl_intro": "waving hello holding a phone",
+        "owl_outro": "waving goodbye and pointing to a subscribe button"}
+
+
+def test_intro_and_outro_wrap_the_planned_scenes():
+    data = plan.plan_scenes(_data(5), ask=lambda s, u: {"scenes": []})
+    got = plan.add_bookends(data, ask=lambda s, u: dict(BOOK))["scenes"]
+    assert got[0]["type"] == "intro" and got[0]["n"] == 0 and got[0]["text"] == BOOK["greeting"]
+    assert got[-1]["type"] == "outro" and got[-1]["n"] == 6 and got[-1]["text"] == BOOK["farewell"]
+    assert got[0]["photo_prompt"] == got[-1]["photo_prompt"] == BOOK["bg_prompt"]
+    assert got[0]["owl"] == BOOK["owl_intro"] and got[-1]["owl"] == BOOK["owl_outro"]
+    assert got[0]["section"] == "" and got[0]["section_start"] is False and got[0]["anim"] is None
+    assert [s["type"] for s in got[1:-1]] == plan.assign_types(5)
+
+
+def test_add_bookends_is_idempotent():
+    data = plan.add_bookends(plan.plan_scenes(_data(2), ask=lambda s, u: {"scenes": []}), ask=lambda s, u: dict(BOOK))
+    again = plan.add_bookends(data, ask=lambda s, u: (_ for _ in ()).throw(AssertionError("no second call")))
+    assert [s["type"] for s in again["scenes"]].count("intro") == 1
+
+
+def test_bookend_prompt_gets_the_title_and_opening_narration():
+    seen = []
+    plan.bookends("How Free Apps Make Billions", ["Imagine an app you use every day."],
+                  ask=lambda s, u: seen.append((s, u)) or dict(BOOK))
+    assert "How Free Apps Make Billions" in seen[0][1] and "Imagine an app" in seen[0][1]
+    assert "ELI5 Business" in seen[0][0]
+
+
+def test_overlong_texts_are_retried_then_capped():
+    calls = []
+    long = "Hello there friend. " + "word " * 40
+
+    def ask(system, user):
+        calls.append(user)
+        return {**BOOK, "greeting": long, "farewell": "Bye now. " + "more " * 40}
+    b = plan.bookends("T", ["x"], ask)
+    assert len(calls) == 2 and "TOO LONG" in calls[1]
+    assert len(b["greeting"].split()) <= plan.GREETING_MAX and b["greeting"] == "Hello there friend."
+    assert len(b["farewell"].split()) <= plan.FAREWELL_MAX and "subscribe" in b["farewell"].lower()
+
+
+def test_bookend_photo_never_shows_the_owl():
+    b = plan.bookends("T", ["x"], lambda s, u: {**BOOK, "bg_prompt": "The owl mascot at a desk with phones"})
+    assert "owl" not in b["bg_prompt"].lower()
+
+
+def test_bookend_gpt_failure_raises_after_one_retry():
+    import pytest
+    n = {"n": 0}
+
+    def ask(system, user):
+        n["n"] += 1
+        raise RuntimeError("down")
+    with pytest.raises(RuntimeError):
+        plan.bookends("T", ["x"], ask)
+    assert n["n"] == 2

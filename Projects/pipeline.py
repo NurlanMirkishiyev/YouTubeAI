@@ -132,7 +132,8 @@ DERIVED_FILES = ("scenes.json", "narration.wav", "captions.json", "music.wav", "
 
 
 def _texts(data: dict) -> list[tuple]:
-    return [(s.get("section"), s.get("text")) for s in data["scenes"]]
+    """Yalniz ssenari sehneleri (intro/outro GPT metnidir, ssenari deyisikliyi sayilmir)."""
+    return [(s.get("section"), s.get("text")) for s in data["scenes"] if s.get("type") not in ("intro", "outro")]
 
 
 def _reset_episode(ep: str, slug: str) -> None:

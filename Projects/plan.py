@@ -292,12 +292,90 @@ def plan_scenes(data: dict, ask=ask_gpt, batch: int = 6) -> dict:
     return {**data, "scenes": scenes}
 
 
+GREETING_MAX, FAREWELL_MAX = 16, 26
+CTA = "Subscribe for more!"
+BOOKEND_SYSTEM = """You write the INTRO and OUTRO lines spoken by the cartoon owl host of the YouTube channel
+"ELI5 Business" (simple business explainers). Use the video title and its opening narration to stay on topic.
+- "greeting": the owl greets the viewer, names the channel ELI5 Business and says what today's video is about
+  (max 16 words, friendly, no numbers or facts that are not in the title or narration).
+- "farewell": the owl thanks the viewer, says goodbye in a way that fits the topic and asks them to subscribe
+  (max 26 words, must contain the word "subscribe").
+- "bg_prompt": one realistic photograph (12-30 words) for the background of the intro and outro that fits the
+  topic. No readable text, letters or logos. NEVER an owl, mascot or cartoon character.
+- "owl_intro": the owl's pose for the greeting (6-14 words): waving hello, with at most one prop that fits the topic.
+- "owl_outro": the owl's pose for the farewell (6-14 words): waving goodbye or pointing up to a subscribe button.
+Answer ONLY JSON."""
+BOOKEND_SCHEMA = _obj(greeting=_STR, farewell=_STR, bg_prompt=_STR, owl_intro=_STR, owl_outro=_STR)
+
+
+def ask_bookends(system: str, user: str) -> dict:
+    return llm.chat_json(system, user, schema=BOOKEND_SCHEMA, max_tokens=800)
+
+
+def _cap(text: str, limit: int) -> str:
+    """Cumle serhedinde limit-e qeder kesir; birinci cumle de uzundursa ilk limit soz."""
+    out: list[str] = []
+    for sent in re.split(r"(?<=[.!?])\s+", " ".join(str(text).split())):
+        if len(" ".join(out + [sent]).split()) > limit:
+            break
+        out.append(sent)
+    return " ".join(out) if out else " ".join(str(text).split()[:limit]).rstrip(",;:") + "."
+
+
+def _with_cta(text: str) -> str:
+    if "subscribe" in text.lower():
+        return text
+    return f"{_cap(text, FAREWELL_MAX - len(CTA.split()))} {CTA}"
+
+
+def bookends(title: str, texts: list[str], ask=ask_bookends) -> dict:
+    """Intro salami / outro sagollasmasi (ssenariden kenar yegane metn - istifadeci 2026-10-13)."""
+    user = f"VIDEO TITLE: {title}\nOPENING NARRATION: {' '.join(texts)[:1200]}"
+    res: dict = {}
+    for attempt in (1, 2):
+        try:
+            res = ask(BOOKEND_SYSTEM, user)
+        except Exception as e:  # noqa: BLE001
+            if llm.is_balance_error(e) or attempt == 2:
+                raise
+            print(f"  plan: intro/outro GPT xetasi ({str(e)[:100]}) - yeniden", flush=True)
+            continue
+        long = [k for k, lim in (("greeting", GREETING_MAX), ("farewell", FAREWELL_MAX))
+                if len(str(res.get(k, "")).split()) > lim]
+        if not long or attempt == 2:
+            break
+        user += f"\nTOO LONG last time: {', '.join(long)} - keep greeting <= {GREETING_MAX} words, " \
+                f"farewell <= {FAREWELL_MAX} words."
+    return {"greeting": _cap(res.get("greeting", ""), GREETING_MAX),
+            "farewell": _with_cta(_cap(res.get("farewell", ""), FAREWELL_MAX)),
+            "bg_prompt": photo_safe(str(res.get("bg_prompt", "")))[:400],
+            "owl_intro": str(res.get("owl_intro", ""))[:200] or "waving hello, friendly",
+            "owl_outro": str(res.get("owl_outro", ""))[:200] or "waving goodbye, smiling"}
+
+
+def _bookend(n: int, kind: str, text: str, b: dict) -> dict:
+    return {"n": n, "type": kind, "section": "", "section_start": False, "visual": "", "text": text,
+            "photo_prompt": b["bg_prompt"], "owl": b[f"owl_{kind}"], "anim": None, "duration": 0.0}
+
+
+def add_bookends(data: dict, ask=ask_bookends) -> dict:
+    scenes = data["scenes"]
+    if scenes and scenes[0].get("type") == "intro":
+        return data
+    content = [s for s in scenes if s.get("type") not in ("intro", "outro")]
+    b = bookends(data["title"], [s["text"] for s in content[:3]], ask)
+    last = max((s["n"] for s in content), default=0)
+    return {**data, "scenes": [_bookend(0, "intro", b["greeting"], b), *content,
+                               _bookend(last + 1, "outro", b["farewell"], b)]}
+
+
 def main(ep: str) -> None:
     path = f"{ep}/scenes.json"
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    out = plan_scenes(data)
+    out = add_bookends(plan_scenes(data))
     generate.atomic_json(path, out)
     kinds = [s["anim"]["kind"] for s in out["scenes"] if s["anim"]]
-    print(f"  plan: {len(out['scenes'])} sehne, animasiya {len(kinds)}: "
+    print(f"  plan: {len(out['scenes']) - 2} sehne + intro/outro, animasiya {len(kinds)}: "
           + ", ".join(f"{k}x{kinds.count(k)}" for k in sorted(set(kinds))), flush=True)
+    print(f"  plan: intro: {out['scenes'][0]['text']}\n  plan: outro: {out['scenes'][-1]['text']}", flush=True)

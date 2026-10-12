@@ -198,3 +198,15 @@ def test_images_done_also_needs_intro_and_outro_backgrounds(tmp_path):
     _write(tmp_path / "img" / "sc00.png")
     _write(tmp_path / "img" / "sc02.png")
     assert done(str(tmp_path))
+
+
+def test_bookends_do_not_count_as_a_script_change(tmp_path, monkeypatch):
+    _fake_build(monkeypatch, tmp_path, "same")
+    ep = tmp_path / "Episodes" / "s"
+    _scenes_json(ep, [{"n": 0, "type": "intro", "section": "", "text": "Hi!"},
+                      {"n": 1, "section": "A", "text": "same", "type": "photo"},
+                      {"n": 2, "type": "outro", "section": "", "text": "Bye, subscribe!"}])
+    _write(ep / "narration.wav")
+    logs = []
+    pipeline.start("x", log=logs.append)
+    assert (ep / "narration.wav").exists() and not any("deyisib" in m for m in logs)
