@@ -2,36 +2,39 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
-## Cari vəziyyət
-- 2026-10-12: v1 tam silindi (yalnız bayquş hissələri qaldı). v2 `pipeline-v2` branch-ında (master-ə merge YOX,
-  push YOX). Plan: `docs/superpowers/plans/2026-10-12-pipeline-v2.md`, spec:
-  `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`.
-- **Task 0–13 TAMAM** (hər biri task review + fix round, hamısı təmiz). 81 test keçir. Bütün qərarlar (Ruling) və
-  təxirə salınmış kiçik qeydlər: SDD ledger `.superpowers/sdd/2026-10-12-pipeline-v2/progress.md` (git-ignored, diskdə).
-- 2026-10-12 (davam): final review fix dalğası TAMAM, commit 775f040 (107 test, tsc OK). Fallback-lər silindi
-  (generate.py: retry + təhlükəsizlik rəddində prompt yenidən yazılır + tükənsə xəta). Scoped re-review: Critical
-  yox, ready for E2E; Important (balansda paralel növbə) düzəldi (e400940).
-- E2E-də tapılan: plan GPT `anim`-i obyekt yox, ad siyahısı qaytarırdı → hamısı quote. Düzəliş: strict JSON schema
-  (e400940), dəqiq fraqment + rədd səbəbi ilə 2-ci keçid + sadalamadan list (f76de76). Nəticə: 24 animasiyadan 4 quote.
-- E2E-də daha 2 problem tapılıb düzəldi: fotolarda real bayquş (VISUAL-da "owl mascot") → photo_safe + prompt
-  qaydası (37c9f64); səs −15.9 LUFS → mix gain limiterdən sonra iterativ ölçülür, −14.2 LUFS (2038233). 4 addımlı
-  flow sözləri qırmır. 124 test, tsc OK.
-- **E2E İLK VİDEO HAZIR:** `Hazir_Videolar/how-free-apps-make-billions-without-charging-you/` (12:30, 1080p,
-  60 səhnə: 36 foto + 24 animasiya, bayquş hər kadrda, thumbnail, youtube.txt fəsillərlə). Flow düzəlişi üçün
-  render+mix+publish yenidən işlədi (00:06): −14.2 LUFS, peak −1.0 dBFS, 12:30, kadrlar yoxlanıb.
-
-- **2026-10-13: unikal şəkillər + intro/outro — master-də, BÜTÜN videolar üçün standart (istifadəçi təsdiqi)** ( spec `docs/superpowers/specs/2026-10-13-unique-images-intro-outro-design.md`,
-  plan `docs/superpowers/plans/2026-10-13-unique-images-intro-outro.md`): plan buraxılan səhnələri yenidən soruşur,
-  ALREADY USED + DUPLICATE təmiri + `unique_guard`; images dHash (≤8 bit = eyni) → "fərqli kompozisiya" ilə yenidən;
-  intro (≥6 s, salam) / outro (≥10 s, sağollaşma + SUBSCRIBE düyməsi) — `plan.add_bookends`, Remotion `Bookend.tsx`.
-  145 test, tsc OK. Mini E2E (`how-a-coffee-shop-makes-money`, 43 s): intro/outro kadrları yoxlanıb, −14.0 LUFS.
+## Cari vəziyyət (2026-10-13, PAUZA — istifadəçi: "hər şeyi yaddaşa yaz, sonra davam edəcəyik")
+- **Pipeline v2 tam işlək, `master`-də, GitHub-a push olunub** (`NurlanMirkishiyev/YouTubeAI`, son commit 3ea5fb9).
+  Açıq branch yoxdur. 145 test keçir, `npx tsc --noEmit` təmiz. Git tarixçəsi istifadəçi istəyi ilə təmizlənib
+  (v1 tarixçəsi GitHub-da yoxdur); tam köhnə tarixçənin lokal ehtiyatı: `C:\YouTubeAI_backup\YouTubeAI_full_history.bundle`.
+- **Hər video üçün standart (istifadəçi 2026-10-13 bəyəndi və hamısına tətbiq etdirdi):**
+  - Intro (≥6 s): bayquş mövzuya uyğun salamlayır (GPT mətni, səsli), bulanıq mövzu fonu + "ELI5 BUSINESS" + başlıq
+    söz-söz animasiyası, böyük bayquş (820px).
+  - Outro (≥10 s): bayquş sağollaşır + subscribe çağırışı, "Thanks for watching!" + SUBSCRIBE düyməsi klik → SUBSCRIBED,
+    zəng yellənir; outro bayquşu propsuz (əl edir, yuxarı işarə edir).
+  - Eyni şəkil yoxdur: plan buraxılan səhnələri yenidən soruşur, ALREADY USED + DUPLICATE təmiri + `unique_guard`;
+    images dHash ≤8 bit → "fərqli kompozisiya" ilə yenidən çəkir.
+  - Spec/plan: `docs/superpowers/specs|plans/2026-10-13-unique-images-intro-outro*`.
+- Əsas pipeline qaydaları: foto/bayquş/musiqi/thumbnail/intro-outro fonu fallback-siz; plan GPT strict json_schema;
+  animasiya mətni narrasiyadan dəqiq fraqment (≤7 söz); fotoda bayquş yox (`photo_safe`); mix −14 LUFS (iterativ gain).
+- Hazır videolar (`Hazir_Videolar\`):
+  - `how-free-apps-make-billions-without-charging-you` — 12:30, 60 səhnə, −14.2 LUFS. **Intro/outro-SUZ** (köhnə
+    formatda; o zaman bu xüsusiyyət yox idi) və orada 3 cüt eyni promptlu foto var (sc1/3, sc5/6, sc16/18).
+  - `how-a-coffee-shop-makes-money` — 43 s **test** videosu (mini E2E, intro/outro yoxlaması üçün). Lazım deyilsə silinə bilər
+    (+ `Episodes\how-a-coffee-shop-makes-money`).
 
 ## Növbəti dəqiq addım (davam edəndə)
-1. (Tamam) Yenidən render yoxlanıb.
-2. (Tamam 2026-10-13) v2 master-ə merge + GitHub-a push olundu; pipeline-v2 branch-ı silindi. İş indi master-dədir.
-   İstifadəçinin istəyi ilə git tarixçəsi təmizləndi: v1 tarixçəsi silindi (force-push, tək root commit 11a7683),
-   köhnə v1 plan/spec sənədləri silindi. Tam köhnə tarixçənin ehtiyatı:
-   `C:\YouTubeAI_backup\YouTubeAI_full_history.bundle` (lazım deyilsə istifadəçi silə bilər).
+1. İstifadəçidən soruş: ilk videonu (`how-free-apps...`) yeni formatda (intro/outro + dublikat fotolar yenidən)
+   hazırlayaq? Yol: `Episodes\how-free-apps...\scenes.json`-a `plan.add_bookends` tətbiq et, dublikat promptlu
+   fotoların (sc03, sc06, sc18) promptunu `plan.unique_guard`/GPT ilə yenilə və png-lərini sil; `voice/`, `narration.wav`,
+   `captions.json`, `*.srt`, `music.wav` (müddət dəyişir), `video_raw.mp4`, `<slug>.mp4`, `published`, `props.json` sil;
+   sonra `python run.py --resume how-free-apps-make-billions-without-charging-you` (WMI ilə). Sonda kadrlar/LUFS yoxla.
+2. Test videosunu (`how-a-coffee-shop-makes-money`) silmək istəyib-istəmədiyini soruş.
+3. Yeni video: `Video: <ssenari>` (CLAUDE.md Tetik) — intro/outro avtomatikdir.
+
+## Tarixçə (qısa)
+- 2026-10-12: v1 silindi, v2 dizayn + Task 0–13 + final review fix dalğası; ilk E2E video (3 problem tapılıb düzəldi:
+  plan json_schema, fotoda real bayquş, LUFS). v2 master-ə merge + push, git tarixçəsi təmizləndi.
+- 2026-10-13: unikal şəkillər + intro/outro (brainstorm → spec → plan → TDD → mini E2E), master-ə merge + push.
 
 ## Təkrarlanmamalı yanlış yollar
 | Nə | Düzgün yol |
@@ -54,6 +57,7 @@ Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenis
 | Mərhələ bitdi deyə nəticəyə inanmaq | Sonda ffprobe müddət + `ebur128` LUFS + kontakt-vərəq kadrlar + thumbnail-a bax |
 
 ## İcra jurnalı
+- 2026-10-13: unikal şəkillər + intro/outro master-də (bütün videolar üçün standart); pauza.
 - 2026-10-12 gecə: fix dalğası + E2E; ilk video hazır (5 commit: 775f040..2038233).
 - 2026-10-12: Task 0–13 tamam, 81 test; final review göndərildi; istifadəçi E2E-ni saxlatdı.
 - 2026-10-12: Task 0–10 tamam (hər biri task review + fix round); Task 11, 12 düzəlişdə; Task 13 (qaydalar) yazıldı.
