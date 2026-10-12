@@ -12,7 +12,12 @@ Dizayn: `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`. Canlı vəziy
 ## Prinsiplər
 - Ssenari yoxlanmır və dəyişdirilmir: nə yazılıbsa sözbəsöz oxunur. Ssenaridən kənar heç nə əlavə olunmur
   (ekrandakı rəqəm/yazı yalnız səhnə danışığından, bölmə adından, başlıqdan).
-- Səhnələrin 60%-i foto, 40%-i Remotion animasiyası; animasiyalar səhnədən səhnəyə fərqlidir.
+  **Yeganə istisna (istifadəçi 2026-10-13):** videonun başında bayquş mövzuya uyğun salamlayır (intro, ≥6 s),
+  sonunda sağollaşır və subscribe-a çağırır (outro, ≥10 s) — mətn GPT ilə (`plan.add_bookends`), səsli + altyazılı;
+  fon (gpt-image-2) və iki bayquş pozası da fallback-siz.
+- Səhnələrin 60%-i foto, 40%-i Remotion animasiyası (intro/outro xaric); animasiyalar səhnədən səhnəyə fərqlidir.
+- Eyni şəkil olmur: plan təkrarlanan foto promptu / bayquş pozasını yenidən yazdırır, images dHash ilə çox oxşar
+  fotonu "fərqli kompozisiya" ilə yenidən çəkir.
 - Heç bir mərhələ ssenari səbəbilə videonu dayandırmır (ssenari yoxlanmır).
 - **Qəti, əvəzlənməyən proseslər (istifadəçi 2026-10-12):** foto (gpt-image-2), səhnə bayquşu (gpt-image-2), musiqi
   (Stable Audio), thumbnail (gpt-image-2) HEÇ VAXT fallback ilə əvəz olunmur (foto → sitat animasiyası YOX, bayquş →
