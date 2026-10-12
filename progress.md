@@ -23,6 +23,9 @@ Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenis
 ## Növbəti dəqiq addım (davam edəndə)
 1. (Tamam) Yenidən render yoxlanıb.
 2. (Tamam 2026-10-13) v2 master-ə merge + GitHub-a push olundu; pipeline-v2 branch-ı silindi. İş indi master-dədir.
+   İstifadəçinin istəyi ilə git tarixçəsi təmizləndi: v1 tarixçəsi silindi (force-push, tək root commit 11a7683),
+   köhnə v1 plan/spec sənədləri silindi. Tam köhnə tarixçənin ehtiyatı:
+   `C:\YouTubeAI_backup\YouTubeAI_full_history.bundle` (lazım deyilsə istifadəçi silə bilər).
 
 ## Təkrarlanmamalı yanlış yollar
 | Nə | Düzgün yol |
