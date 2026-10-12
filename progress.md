@@ -20,6 +20,12 @@ Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenis
   60 səhnə: 36 foto + 24 animasiya, bayquş hər kadrda, thumbnail, youtube.txt fəsillərlə). Flow düzəlişi üçün
   render+mix+publish yenidən işlədi (00:06): −14.2 LUFS, peak −1.0 dBFS, 12:30, kadrlar yoxlanıb.
 
+- **2026-10-13: unikal şəkillər + intro/outro** (branch `intro-outro`, spec `docs/superpowers/specs/2026-10-13-unique-images-intro-outro-design.md`,
+  plan `docs/superpowers/plans/2026-10-13-unique-images-intro-outro.md`): plan buraxılan səhnələri yenidən soruşur,
+  ALREADY USED + DUPLICATE təmiri + `unique_guard`; images dHash (≤8 bit = eyni) → "fərqli kompozisiya" ilə yenidən;
+  intro (≥6 s, salam) / outro (≥10 s, sağollaşma + SUBSCRIBE düyməsi) — `plan.add_bookends`, Remotion `Bookend.tsx`.
+  145 test, tsc OK. Mini E2E (`how-a-coffee-shop-makes-money`, 43 s): intro/outro kadrları yoxlanıb, −14.0 LUFS.
+
 ## Növbəti dəqiq addım (davam edəndə)
 1. (Tamam) Yenidən render yoxlanıb.
 2. (Tamam 2026-10-13) v2 master-ə merge + GitHub-a push olundu; pipeline-v2 branch-ı silindi. İş indi master-dədir.
@@ -43,6 +49,8 @@ Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenis
 | Flow qutusunda `overflowWrap:'anywhere'` ("somethin g") və ya `hyphens:'auto'` ("pic-tures") | `break-word` + 4 addımda 280px border-box, 34px şrift |
 | Plan pis çıxanda run-u images-ə buraxmaq (pul boşa gedir) | Plan bitən kimi `scenes.json`-da növ paylanmasına bax (quote ≤ ~5/24); pisdirsə dərhal dayandır, `scenes.json` + `img/` sil, yenidən başlat |
 | Foto/bayquş xətası üçün bütün epizodu yenidən çəkmək | Yalnız pis fotoların promptunu düzəlt, həmin `img/scNN.png`-ləri sil, `--resume` (qalanı keçilir) |
+| Bayquşa "subscribe button-a işarə et" pozası vermək (gpt-image qırmızı qutu çəkir) | "waving goodbye, pointing up, no props/buttons" |
+| `pipeline._texts` ilə intro/outro mətnini ssenari ilə müqayisə etmək (hər run reset olardı) | `_texts` intro/outro-nu keçir |
 | Mərhələ bitdi deyə nəticəyə inanmaq | Sonda ffprobe müddət + `ebur128` LUFS + kontakt-vərəq kadrlar + thumbnail-a bax |
 
 ## İcra jurnalı

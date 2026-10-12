@@ -303,7 +303,8 @@ BOOKEND_SYSTEM = """You write the INTRO and OUTRO lines spoken by the cartoon ow
 - "bg_prompt": one realistic photograph (12-30 words) for the background of the intro and outro that fits the
   topic. No readable text, letters or logos. NEVER an owl, mascot or cartoon character.
 - "owl_intro": the owl's pose for the greeting (6-14 words): waving hello, with at most one prop that fits the topic.
-- "owl_outro": the owl's pose for the farewell (6-14 words): waving goodbye or pointing up to a subscribe button.
+- "owl_outro": the owl's pose for the farewell (6-14 words): waving goodbye with one wing and pointing up with the
+  other, smiling. No props, no buttons, no signs (the subscribe button is drawn separately).
 Answer ONLY JSON."""
 BOOKEND_SCHEMA = _obj(greeting=_STR, farewell=_STR, bg_prompt=_STR, owl_intro=_STR, owl_outro=_STR)
 
@@ -350,7 +351,7 @@ def bookends(title: str, texts: list[str], ask=ask_bookends) -> dict:
             "farewell": _with_cta(_cap(res.get("farewell", ""), FAREWELL_MAX)),
             "bg_prompt": photo_safe(str(res.get("bg_prompt", "")))[:400],
             "owl_intro": str(res.get("owl_intro", ""))[:200] or "waving hello, friendly",
-            "owl_outro": str(res.get("owl_outro", ""))[:200] or "waving goodbye, smiling"}
+            "owl_outro": str(res.get("owl_outro", ""))[:200] or "waving goodbye with one wing and pointing up with the other, smiling"}
 
 
 def _bookend(n: int, kind: str, text: str, b: dict) -> dict:
