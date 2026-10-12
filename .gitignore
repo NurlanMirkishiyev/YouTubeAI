@@ -1,0 +1,19 @@
+# boyuk / generasiya olunan
+Episodes/
+Hazir_Videolar/
+**/.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+# sirler
+.env
+# TTS / MusicGen: yalniz konfiq
+TTS/*
+!TTS/config/
+MusicGen/*
+# Remotion
+Remotion/node_modules/
+Remotion/out/
+# is qovlugu (plan ucun)
+.superpowers/
+Character/ELI5_Owl/sprites_hd/

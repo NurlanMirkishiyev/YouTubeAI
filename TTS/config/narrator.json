@@ -1,0 +1,7 @@
+{
+  "engine": "kokoro",
+  "lang_code": "a",
+  "voice": "am_fenrir",
+  "speed": 1.0,
+  "sample_rate": 24000
+}
