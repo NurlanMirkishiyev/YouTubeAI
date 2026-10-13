@@ -2,12 +2,14 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
-## Aktiv run (2026-10-14 00:2x) — DAYANIB: OpenAI balansı bitib
-- Ssenari: `Ssenariler\eli5_business_why_expensive_brands_make_people_want_them.md`,
-  slug `eli5-business-why-expensive-brands-make-people-want-their-products-even-more`.
-- Plan OK (94 səhnə: intro + 55 foto + 37 anim + outro; quote 13, ardıcıl deyil). Fotolar hazır (img/ 57 fayl).
-- Owl mərhələsi: 40 bayquş hazır, sonra HTTP 429 (balans). Kredit əlavə olunandan sonra:
-  `python run.py --resume eli5-business-why-expensive-brands-make-people-want-their-products-even-more` (WMI ilə).
+## Son run (2026-10-14) — expensive-brands: HAZIR, amma QÜSURLU (istifadəçi qərarı gözlənilir)
+- `Hazir_Videolar\eli5-business-why-expensive-brands-make-people-want-their-products-even-more\` — 20:18, −14.2 LUFS,
+  bayquş hər kadrda, thumbnail OK.
+- **Qüsur:** ssenari formatı fərqlidir: `**Voiceover**` (iki nöqtəsiz başlıq) + `**Visuals:** ...` (cəm, böyük-kiçik hərf).
+  `script.py` yalnız `**VISUAL:**`-ı label sayır → "Voiceover", "Visuals: ...", "Cut to ...", "Add: ..." kimi rejissor
+  qeydləri (26 sətir) danışıq kimi oxunub, altyazıda və animasiyalarda görünür. Video ~12 dəq olmalı idi, 20 dəq çıxdı.
+- Düzəliş təklifi: parser `Visuals?`/`On-screen text` label-lərini VISUAL, tək `**Voiceover**` sətrini başlıq kimi
+  qəbul etsin (TDD) → script/plan/… yenidən (foto/bayquş yenidən çəkilir = OpenAI xərci).
 
 ## Cari vəziyyət (2026-10-13, PAUZA — istifadəçi: "hər şeyi yaddaşa yaz, sonra davam edəcəyik")
 - **Pipeline v2 tam işlək, `master`-də, GitHub-a push olunub** (`NurlanMirkishiyev/YouTubeAI`, son commit 3ea5fb9).
