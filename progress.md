@@ -2,6 +2,13 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## Aktiv run (2026-10-14 00:2x) — DAYANIB: OpenAI balansı bitib
+- Ssenari: `Ssenariler\eli5_business_why_expensive_brands_make_people_want_them.md`,
+  slug `eli5-business-why-expensive-brands-make-people-want-their-products-even-more`.
+- Plan OK (94 səhnə: intro + 55 foto + 37 anim + outro; quote 13, ardıcıl deyil). Fotolar hazır (img/ 57 fayl).
+- Owl mərhələsi: 40 bayquş hazır, sonra HTTP 429 (balans). Kredit əlavə olunandan sonra:
+  `python run.py --resume eli5-business-why-expensive-brands-make-people-want-their-products-even-more` (WMI ilə).
+
 ## Cari vəziyyət (2026-10-13, PAUZA — istifadəçi: "hər şeyi yaddaşa yaz, sonra davam edəcəyik")
 - **Pipeline v2 tam işlək, `master`-də, GitHub-a push olunub** (`NurlanMirkishiyev/YouTubeAI`, son commit 3ea5fb9).
   Açıq branch yoxdur. 145 test keçir, `npx tsc --noEmit` təmiz. Git tarixçəsi istifadəçi istəyi ilə təmizlənib
