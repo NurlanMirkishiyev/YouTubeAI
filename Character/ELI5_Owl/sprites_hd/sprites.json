@@ -1,0 +1,50 @@
+{
+  "front": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\front.png",
+    "w": 1108,
+    "h": 1604,
+    "bust": false
+  },
+  "three_q": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\three_q.png",
+    "w": 1020,
+    "h": 1592,
+    "bust": false
+  },
+  "side": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\side.png",
+    "w": 828,
+    "h": 1536,
+    "bust": false
+  },
+  "happy": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\happy.png",
+    "w": 760,
+    "h": 968,
+    "bust": true
+  },
+  "thinking": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\thinking.png",
+    "w": 800,
+    "h": 916,
+    "bust": true
+  },
+  "confident": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\confident.png",
+    "w": 800,
+    "h": 940,
+    "bust": true
+  },
+  "chart": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\chart.png",
+    "w": 1552,
+    "h": 1248,
+    "bust": false
+  },
+  "box": {
+    "file": "C:\\YouTubeAI\\Character\\ELI5_Owl\\sprites_hd\\box.png",
+    "w": 1120,
+    "h": 1396,
+    "bust": false
+  }
+}
