@@ -2,6 +2,11 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-14 (3-cü dəyişiklik) — premium animasiyalar (193 test, tsc təmiz)
+- Tema (GPT, 6 palitra) + ikonlar (36, GPT seçir, grounding yoxlayır) + yeni Remotion komponentləri (Backdrop/kit/
+  Anims/TextAnims). 8 növ × 2 variant scratch-da render edilib yoxlanıb (gold, electric); 150 kadr ≈ 13 s render.
+- Real GPT smoke test: tema "gold", ikonlar uyğun. Köhnə epizodlar (theme yoxdur) "royal" ilə render olunur.
+
 ## 2026-10-14 (2-ci sessiya) — 3 düzəliş (TDD, 185 test, tsc təmiz; master-ə commit + push)
 1. **Ümumi ssenari parser-i** (`script.py`): etiket lüğəti SPEECH/DIRECTION/META + meta bölmələr; `**Voiceover**`,
    `**Visuals:**`, `[..]`, `### X`, `X:` və s. tanınır; "Scene N —" və "(00:00–00:55)" bölmə adından silinir;

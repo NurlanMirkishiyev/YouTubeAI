@@ -103,3 +103,14 @@ def test_offline_chain_produces_props_matching_types_ts(tmp_path):
             assert s["anim"]["kind"] and "variant" in s["anim"]
     assert props["total"] == props["scenes"][-1]["from"] + props["scenes"][-1]["frames"]
     assert (ep / "video_raw.mp4").exists()
+
+
+def test_icon_and_theme_names_match_remotion():
+    import grounding
+    icons = open(os.path.join(ROOT, "Remotion", "src", "anim", "Icon.tsx"), encoding="utf-8").read()
+    body = re.search(r"const ICONS: Record<string, Shape\[\]> = \{(.*?)\n\};", icons, re.S).group(1)
+    ts_icons = set(re.findall(r"^\s*'?([a-z-]+)'?:", body, re.M))
+    assert ts_icons == set(grounding.ICONS)
+    theme = open(os.path.join(ROOT, "Remotion", "src", "theme.ts"), encoding="utf-8").read()
+    body = re.search(r"PALETTES: Record<string, Palette> = \{(.*?)\n\};", theme, re.S).group(1)
+    assert set(re.findall(r"^\s*([a-z]+):", body, re.M)) == set(plan.THEMES)

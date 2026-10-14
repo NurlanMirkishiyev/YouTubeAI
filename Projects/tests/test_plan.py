@@ -277,3 +277,24 @@ def test_bookend_gpt_failure_raises_after_one_retry():
     with pytest.raises(RuntimeError):
         plan.bookends("T", ["x"], ask)
     assert n["n"] == 2
+
+
+def test_theme_is_picked_once_from_the_known_palettes():
+    data = {"title": "Why Luxury Brands Win", "scenes": [{"n": 1, "text": "Luxury bags cost more."}]}
+    got = plan.with_theme(data, ask=lambda s, u: {"theme": "gold"})
+    assert got["theme"] == "gold"
+    assert plan.with_theme(got, ask=lambda s, u: (_ for _ in ()).throw(AssertionError("no call")))["theme"] == "gold"
+
+
+def test_unknown_or_failed_theme_uses_the_default_palette():
+    data = {"title": "T", "scenes": [{"n": 1, "text": "x"}]}
+    assert plan.with_theme(data, ask=lambda s, u: {"theme": "neon-pink"})["theme"] == plan.THEMES[0]
+
+    def boom(s, u):
+        raise RuntimeError("down")
+    assert plan.with_theme(data, ask=boom)["theme"] == plan.THEMES[0]
+
+
+def test_every_anim_schema_asks_for_an_icon():
+    for sch in plan.ANIM_SCHEMAS:
+        assert "icon" in sch["properties"] and sch["properties"]["icon"]["enum"] == list(plan.grounding.ICONS)

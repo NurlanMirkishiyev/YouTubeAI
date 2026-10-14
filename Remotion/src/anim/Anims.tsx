@@ -1,157 +1,203 @@
 import React from 'react';
-import {interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
-import {COLORS, FONT} from '../theme';
+import {interpolate, useCurrentFrame} from 'remotion';
 import {Anim} from '../types';
+import {Badge, Burst, clamp, fmt, glass, gradText, iconAt, ramp, Shine, txt, useCount, usePal, useSpr} from './kit';
+import {Flow, List, Timeline, Versus} from './TextAnims';
 
-type P = {a: Anim};
-const clamp = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
-const txt = (size: number, color = COLORS.text, weight = 800): React.CSSProperties =>
-  ({fontFamily: FONT, fontWeight: weight, fontSize: size, color, lineHeight: 1.15});
-
-const useIn = (delay = 0) => {
-  const f = useCurrentFrame();
-  const {fps} = useVideoConfig();
-  return spring({frame: f - delay, fps, config: {damping: 16, stiffness: 120}});
-};
-// variant 0: asagidan qalxir; variant 1: soldan surusur
-const enter = (v: number, t: number): React.CSSProperties =>
-  v ? {opacity: t, transform: `translateX(${(1 - t) * -80}px)`} : {opacity: t, transform: `translateY(${(1 - t) * 60}px)`};
-const fmt = (v: number) => (Number.isInteger(v) ? v.toLocaleString('en-US') : v.toLocaleString('en-US', {maximumFractionDigits: 2}));
+// Reqemli animasiyalar (counter, bars, percent) + quote. Her novun 2 varianti var (a.variant); hec biri girisden
+// sonra donmur (nefes alan halqa, isiq zolagi, yavas yellenme). Butun yazi/reqem a-dan gelir (danisiqdan).
+export type P = {a: Anim};
 
 const Counter: React.FC<P> = ({a}) => {
+  const p = usePal();
   const f = useCurrentFrame();
-  const t = useIn();
-  const v = interpolate(f, [5, 45], [0, a.value], clamp);
-  const shown = Number.isInteger(a.value) ? Math.round(v) : Math.round(v * 100) / 100;
+  const shown = useCount(a.value);
+  const done = interpolate(f, [52, 58, 66], [1, 1.07, 1], clamp);
+  const label = ramp(f, 30, 50);
+  const num = (
+    <div style={{...txt(a.variant ? 170 : 200), ...gradText(p), transform: `scale(${done})`, whiteSpace: 'nowrap'}}>
+      {a.prefix}{fmt(shown)}{a.suffix}
+    </div>
+  );
+  const lab = (
+    <div style={{opacity: label, transform: `translateY(${(1 - label) * 24}px)`}}>
+      <div style={{...txt(54, 'rgba(255,255,255,0.88)', 600), maxWidth: 900}}>{a.label}</div>
+      <div style={{height: 6, borderRadius: 3, marginTop: 16, width: `${label * 260}px`, maxWidth: '100%',
+        background: `linear-gradient(90deg, ${p.a1}, ${p.a2})`, boxShadow: `0 0 18px ${p.glow}`,
+        marginLeft: a.variant ? 0 : 'auto', marginRight: a.variant ? 0 : 'auto'}} />
+    </div>
+  );
+  if (a.variant) {
+    return (
+      <div style={{display: 'flex', alignItems: 'center', gap: 56, paddingLeft: 40}}>
+        <div style={{position: 'relative'}}><Burst size={520} /><Badge icon={a.icon} size={200} rings /></div>
+        <div>{num}{lab}</div>
+      </div>
+    );
+  }
   return (
-    <div style={{textAlign: 'center', ...enter(a.variant, t)}}>
-      <div style={txt(190, COLORS.accent)}>{a.prefix}{fmt(shown)}{a.suffix}</div>
-      <div style={txt(56, COLORS.soft, 600)}>{a.label}</div>
+    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 18}}>
+      <div style={{position: 'relative'}}><Burst size={520} /><Badge icon={a.icon} size={150} rings /></div>
+      {num}{lab}
+    </div>
+  );
+};
+
+const BarRow: React.FC<{it: {label: string; value: number}; k: number; max: number; icon?: string}> = ({it, k, max, icon}) => {
+  const p = usePal();
+  const f = useCurrentFrame();
+  const d = 10 + k * 9;
+  const grow = ramp(f, d, d + 34);
+  const v = useCount(it.value, d, d + 34);
+  return (
+    <div style={{display: 'flex', alignItems: 'center', gap: 26, opacity: ramp(f, d - 6, d + 4)}}>
+      <Badge icon={icon} size={78} delay={d - 4} />
+      <div style={{flex: 1}}>
+        <div style={{...txt(38, 'rgba(255,255,255,0.9)', 600), marginBottom: 10}}>{it.label}</div>
+        <div style={{display: 'flex', alignItems: 'center', gap: 22}}>
+          <div style={{flex: 1, height: 46, borderRadius: 23, background: 'rgba(255,255,255,0.08)', overflow: 'hidden'}}>
+            <div style={{position: 'relative', overflow: 'hidden', height: '100%', borderRadius: 23,
+              width: `${Math.max(4, grow * (it.value / max) * 100)}%`,
+              background: `linear-gradient(90deg, ${k % 2 ? p.a2 : p.tint}, ${p.a1})`, boxShadow: `0 0 26px ${p.glow}`}}>
+              <Shine every={90} delay={d + 34} />
+            </div>
+          </div>
+          <div style={{...txt(46), ...gradText(p), minWidth: 150, textAlign: 'right'}}>{fmt(v)}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Column: React.FC<{it: {label: string; value: number}; k: number; max: number; icon?: string}> = ({it, k, max, icon}) => {
+  const p = usePal();
+  const f = useCurrentFrame();
+  const d = 10 + k * 9;
+  const grow = ramp(f, d, d + 36);
+  const v = useCount(it.value, d, d + 36);
+  return (
+    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width: 230, gap: 14}}>
+      <div style={{...txt(52), ...gradText(p), opacity: ramp(f, d + 4, d + 14)}}>{fmt(v)}</div>
+      <div style={{height: 400, display: 'flex', alignItems: 'flex-end'}}>
+        <div style={{position: 'relative', overflow: 'hidden', width: 140, borderRadius: '22px 22px 6px 6px',
+          height: Math.max(10, grow * (it.value / max) * 400),
+          background: `linear-gradient(0deg, ${k % 2 ? p.a2 : p.tint}, ${p.a1})`, boxShadow: `0 0 34px ${p.glow}`}}>
+          <Shine every={95} delay={d + 36} />
+        </div>
+      </div>
+      <Badge icon={icon} size={70} delay={d} />
+      <div style={{...txt(34, 'rgba(255,255,255,0.9)', 600), textAlign: 'center', opacity: ramp(f, d, d + 12)}}>{it.label}</div>
     </div>
   );
 };
 
 const Bars: React.FC<P> = ({a}) => {
-  const f = useCurrentFrame();
-  const max = Math.max(...a.items.map((i: any) => i.value)) || 1;
+  const p = usePal();
+  const s = useSpr(0, 90);
+  const max = Math.max(...a.items.map((i: {value: number}) => i.value)) || 1;
+  const card: React.CSSProperties = {...glass(p), padding: a.variant ? '40px 50px' : '44px 54px',
+    opacity: s, transform: `translateY(${(1 - s) * 50}px) scale(${0.96 + 0.04 * s})`};
+  if (a.variant) {
+    return (
+      <div style={{...card, display: 'flex', gap: 40, alignItems: 'flex-end'}}>
+        {a.items.map((it: {label: string; value: number}, k: number) => <Column key={k} it={it} k={k} max={max} icon={iconAt(a, k)} />)}
+      </div>
+    );
+  }
   return (
-    <div style={{display: 'flex', flexDirection: 'column', gap: 34, width: 1150}}>
-      {a.items.map((it: any, k: number) => {
-        const t = interpolate(f, [8 + k * 8, 38 + k * 8], [0, 1], clamp);
-        return (
-          <div key={k} style={{opacity: Math.min(1, t * 3)}}>
-            <div style={txt(42, COLORS.soft, 600)}>{it.label}</div>
-            <div style={{display: 'flex', alignItems: 'center', gap: 20}}>
-              <div style={{height: 64, borderRadius: 10, background: k % 2 ? COLORS.accent : COLORS.bar,
-                width: `${t * (it.value / max) * 80}%`, opacity: a.variant ? t : 1}} />
-              <div style={txt(48)}>{fmt(it.value)}</div>
-            </div>
-          </div>
-        );
+    <div style={{...card, width: 1240, display: 'flex', flexDirection: 'column', gap: 30}}>
+      {a.items.map((it: {label: string; value: number}, k: number) => <BarRow key={k} it={it} k={k} max={max} icon={iconAt(a, k)} />)}
+    </div>
+  );
+};
+
+const Donut: React.FC<{value: number}> = ({value}) => {
+  const p = usePal();
+  const f = useCurrentFrame();
+  const v = useCount(value, 6, 54);
+  const r = 200, c = 2 * Math.PI * r;
+  return (
+    <svg width={500} height={500} style={{overflow: 'visible'}}>
+      <defs>
+        <linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={p.a2} /><stop offset="1" stopColor={p.a1} /></linearGradient>
+      </defs>
+      <circle cx={250} cy={250} r={238} fill="none" stroke={p.a2} strokeOpacity={0.35} strokeWidth={2}
+        strokeDasharray="4 14" transform={`rotate(${f * 0.5} 250 250)`} />
+      <circle cx={250} cy={250} r={r} stroke="rgba(255,255,255,0.09)" strokeWidth={42} fill="none" />
+      <circle cx={250} cy={250} r={r} stroke="url(#dg)" strokeWidth={42} fill="none" strokeLinecap="round"
+        strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)} transform="rotate(-90 250 250)"
+        style={{filter: `drop-shadow(0 0 18px ${p.glow})`}} />
+      <text x={250} y={285} textAnchor="middle" style={txt(112)} fill="#fff">{Math.round(v)}%</text>
+    </svg>
+  );
+};
+
+const Waffle: React.FC<{value: number}> = ({value}) => {
+  const p = usePal();
+  const f = useCurrentFrame();
+  const filled = useCount(value, 6, 60);
+  return (
+    <div style={{display: 'grid', gridTemplateColumns: 'repeat(10, 38px)', gap: 8}}>
+      {Array.from({length: 100}, (_, i) => {
+        const on = i < Math.round(filled);
+        const pop = on ? interpolate(f - (6 + (i / Math.max(1, value)) * 54), [0, 8], [0.4, 1], clamp) : 1;
+        return <div key={i} style={{width: 38, height: 38, borderRadius: 9, transform: `scale(${pop})`,
+          background: on ? `linear-gradient(135deg, ${p.a2}, ${p.a1})` : 'rgba(255,255,255,0.08)',
+          boxShadow: on ? `0 0 14px ${p.glow}` : 'none'}} />;
       })}
     </div>
   );
 };
 
 const Percent: React.FC<P> = ({a}) => {
+  const p = usePal();
   const f = useCurrentFrame();
-  const p = interpolate(f, [6, 50], [0, a.value], clamp);
-  const r = 190, c = 2 * Math.PI * r;
-  const t = useIn();
+  const s = useSpr(0, 100);
+  const lab = ramp(f, 24, 44);
+  const v = useCount(a.value, 6, 60);
   return (
-    <div style={{display: 'flex', alignItems: 'center', gap: 70, ...enter(a.variant, t)}}>
-      <svg width={460} height={460}>
-        <circle cx={230} cy={230} r={r} stroke="#24365e" strokeWidth={40} fill="none" />
-        <circle cx={230} cy={230} r={r} stroke={COLORS.accent} strokeWidth={40} fill="none" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - p / 100)} transform="rotate(-90 230 230)" />
-        <text x={230} y={262} textAnchor="middle" style={txt(96)} fill="#fff">{Math.round(p)}%</text>
-      </svg>
-      <div style={{...txt(60), maxWidth: 520}}>{a.label}</div>
-    </div>
-  );
-};
-
-// flow: 4 addim SAFE_RIGHT-dan sola sigsin (1920 - 470 - 80 = 1370 px): 4x280 (border-box) + 3 ox + 6 ara
-const FLOW = {3: {box: 330, font: 46, gap: 28, arrow: 70}, 4: {box: 280, font: 34, gap: 16, arrow: 56}};
-const Steps: React.FC<{items: string[]; arrows: boolean; variant: number}> = ({items, arrows, variant}) => {
-  const f = useCurrentFrame();
-  const fl = items.length >= 4 ? FLOW[4] : FLOW[3];
-  return (
-    <div style={{display: 'flex', flexDirection: arrows ? 'row' : 'column', alignItems: arrows ? 'center' : 'flex-start', gap: arrows ? fl.gap : 28}}>
-      {items.map((s, k) => {
-        const t = interpolate(f, [k * 12, k * 12 + 14], [0, 1], clamp);
-        return (
-          <React.Fragment key={k}>
-            {arrows && k > 0 ? <div style={{...txt(fl.arrow, COLORS.accent), opacity: t}}>→</div> : null}
-            <div style={{...enter(variant, t), ...txt(arrows ? fl.font : 58), background: arrows ? '#1d2c4f' : 'transparent',
-              padding: arrows ? '22px 24px' : 0, borderRadius: 16, maxWidth: arrows ? fl.box : 1100,
-              boxSizing: 'border-box', minWidth: 0, overflowWrap: 'break-word'}}>
-              {arrows ? s : <span><span style={{color: COLORS.accent}}>●</span> {s}</span>}
-            </div>
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-};
-
-const Versus: React.FC<P> = ({a}) => {
-  const l = useIn(), r = useIn(10), m = useIn(20);
-  const box = (s: string, t: number, side: number): React.CSSProperties => ({...txt(58), width: 520, padding: 40,
-    textAlign: 'center', borderRadius: 20, background: side ? '#3a2a12' : '#152a52', opacity: t,
-    transform: a.variant ? `scale(${0.8 + 0.2 * t})` : `translateX(${(1 - t) * (side ? 120 : -120)}px)`});
-  return (
-    <div style={{display: 'flex', alignItems: 'center', gap: 40}}>
-      <div style={box(a.left, l, 0)}>{a.left}</div>
-      <div style={{...txt(80, COLORS.accent), opacity: m}}>VS</div>
-      <div style={box(a.right, r, 1)}>{a.right}</div>
-    </div>
-  );
-};
-
-const Timeline: React.FC<P> = ({a}) => {
-  const f = useCurrentFrame();
-  const line = interpolate(f, [0, 40], [0, 100], clamp);
-  return (
-    <div style={{width: 1200, position: 'relative', height: 300}}>
-      <div style={{position: 'absolute', top: 140, left: 0, height: 8, width: `${line}%`, background: COLORS.soft}} />
-      {a.events.map((e: string, k: number) => {
-        const n = a.events.length;
-        const x = (k / Math.max(1, n - 1)) * 100;
-        const shift = n < 2 ? '0%' : k === 0 ? '0%' : k === n - 1 ? '-100%' : '-50%';
-        const align = k === n - 1 && n > 1 ? 'right' : k === 0 || n < 2 ? 'left' : 'center';
-        const t = interpolate(f, [10 + k * 12, 24 + k * 12], [0, 1], clamp);
-        return (
-          <div key={k} style={{position: 'absolute', left: `${x}%`, top: a.variant && k % 2 ? 175 : 30, opacity: t, width: 260,
-            transform: `translateX(${shift})`, textAlign: align}}>
-            <div style={{width: 34, height: 34, borderRadius: 17, background: COLORS.accent,
-              marginTop: a.variant && k % 2 ? -52 : 92,
-              marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : 0,
-              marginRight: align === 'center' ? 'auto' : 0}} />
-            <div style={{...txt(38), marginTop: 12}}>{e}</div>
-          </div>
-        );
-      })}
+    <div style={{display: 'flex', alignItems: 'center', gap: 80, opacity: s, transform: `scale(${0.9 + 0.1 * s})`}}>
+      {a.variant ? <Waffle value={a.value} /> : <Donut value={a.value} />}
+      <div style={{maxWidth: 560, opacity: lab, transform: `translateX(${(1 - lab) * 40}px)`}}>
+        <Badge icon={a.icon} size={96} delay={20} />
+        {a.variant ? <div style={{...txt(150), ...gradText(p), marginTop: 18}}>{Math.round(v)}%</div> : null}
+        <div style={{...txt(60), marginTop: 22}}>{a.label}</div>
+      </div>
     </div>
   );
 };
 
 const Quote: React.FC<P> = ({a}) => {
+  const p = usePal();
   const f = useCurrentFrame();
-  const words = String(a.text ?? '').split(' ');
+  const words = String(a.text ?? '').split(' ').filter(Boolean);
+  const key = words.reduce((best, w, i) => (w.replace(/\W/g, '').length > words[best].replace(/\W/g, '').length ? i : best), 0);
+  const size = words.length > 14 ? 62 : 76;
+  const mark = ramp(f, 0, 18);
   return (
-    <div style={{...txt(76), maxWidth: 1250, borderLeft: `12px solid ${COLORS.accent}`, paddingLeft: 40}}>
-      {words.map((w, k) => {
-        const t = interpolate(f, [k * 2, k * 2 + 8], [0, 1], clamp);
-        return <span key={k} style={{opacity: t, display: 'inline-block', marginRight: 18,
-          transform: a.variant ? `translateY(${(1 - t) * 24}px)` : `scale(${0.85 + 0.15 * t})`}}>{w}</span>;
-      })}
+    <div style={{position: 'relative', maxWidth: 1250, textAlign: a.variant ? 'center' : 'left', paddingLeft: a.variant ? 0 : 50}}>
+      <div style={{...txt(300), ...gradText(p), height: 150, lineHeight: 1, marginBottom: 10, opacity: 0.9 * mark,
+        transform: `scale(${0.6 + 0.4 * mark})`, transformOrigin: a.variant ? 'center' : 'left'}}>“</div>
+      {a.variant ? null : <div style={{position: 'absolute', left: 0, top: 160, bottom: 0, width: 10, borderRadius: 5,
+        background: `linear-gradient(${p.a1}, ${p.a2})`, transform: `scaleY(${mark})`, transformOrigin: 'top'}} />}
+      <div style={{...txt(size), position: 'relative'}}>
+        {words.map((w, k) => {
+          const t = ramp(f, 6 + k * 3, 18 + k * 3);
+          const hl = k === key ? ramp(f, 14 + words.length * 3, 30 + words.length * 3) : 0;
+          return (
+            <span key={k} style={{display: 'inline-block', marginRight: size * 0.26, opacity: t, position: 'relative',
+              transform: `translateY(${(1 - t) * 30}px)`, filter: `blur(${(1 - t) * 8}px)`, color: hl > 0.5 ? '#0b0f1e' : '#fff'}}>
+              {k === key ? <span style={{position: 'absolute', left: -8, right: -8, top: '8%', bottom: '2%', borderRadius: 10,
+                background: `linear-gradient(90deg, ${p.a1}, ${p.a2})`, transform: `scaleX(${hl})`, transformOrigin: 'left', zIndex: -1}} /> : null}
+              {w}
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 };
 
 export const ANIMS: Record<string, React.FC<P>> = {
-  counter: Counter, bars: Bars, percent: Percent, versus: Versus, timeline: Timeline, quote: Quote,
-  flow: ({a}) => <Steps items={a.steps} arrows variant={a.variant} />,
-  list: ({a}) => <Steps items={a.items} arrows={false} variant={a.variant} />,
+  counter: Counter, bars: Bars, percent: Percent, quote: Quote, flow: Flow, list: List, versus: Versus, timeline: Timeline,
 };

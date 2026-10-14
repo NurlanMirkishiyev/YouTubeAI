@@ -93,3 +93,26 @@ def test_long_phrases_do_not_fit_the_screen_and_are_rejected():
     assert g.validate({"kind": "versus", "left": "person using the product",
                        "right": "the person paying for it are not always the same"}, text) is None
     assert g.validate({"kind": "versus", "left": "person using the product", "right": "person paying for it"}, text)
+
+
+def test_known_icons_pass_through_unknown_icon_is_dropped():
+    text = "Users pay with money."
+    assert g.validate({"kind": "versus", "left": "Users", "right": "money", "icon": "coin"}, text)["icon"] == "coin"
+    assert "icon" not in g.validate({"kind": "versus", "left": "Users", "right": "money", "icon": "zzz"}, text)
+
+
+def test_item_icons_must_match_the_items():
+    text = "Ads, subscriptions and purchases pay."
+    ok = g.validate({"kind": "list", "items": ["Ads", "subscriptions"], "icons": ["megaphone", "star"]}, text)
+    assert ok["icons"] == ["megaphone", "star"]
+    bad = g.validate({"kind": "list", "items": ["Ads", "subscriptions"], "icons": ["megaphone"]}, text)
+    assert "icons" not in bad and bad["items"] == ["Ads", "subscriptions"]
+
+
+def test_versus_and_bars_get_one_icon_per_side_or_bar():
+    text = "Users pay with money. Ads 5 and fees 7."
+    v = g.validate({"kind": "versus", "left": "Users", "right": "money", "icons": ["users", "money"]}, text)
+    assert v["icons"] == ["users", "money"]
+    b = g.validate({"kind": "bars", "items": [{"label": "Ads", "value": 5}, {"label": "fees", "value": 7}],
+                    "icons": ["megaphone", "tag"]}, text)
+    assert b["icons"] == ["megaphone", "tag"]

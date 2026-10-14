@@ -36,6 +36,10 @@ SYSTEM = """You plan visuals for an explainer video. For EVERY scene return:
   versus {left, right}
   timeline {events: [2-4 short phrases]}
   Labels and phrases are 1-5 words copied from the narration.
+  Every anim also has "icon": the one icon that best shows the meaning of this animation, and every kind has
+  "icons": one fitting icon per step / item / event / bar in the same order, versus gets [left icon, right icon]
+  (use [] for counter and percent).
+  Choose icons that match the meaning (luxury -> crown or diamond, price -> tag, growth -> chart-up, people -> users).
 Answer ONLY JSON: {"scenes": [{"n", "photo_prompt", "owl", "anim": [...]}]}"""
 
 
@@ -56,8 +60,11 @@ _STR, _NUM = {"type": "string"}, {"type": "number"}
 _STRS = {"type": "array", "items": _STR}
 
 
+_ICON = {"type": "string", "enum": list(grounding.ICONS)}
+
+
 def _kind(name: str, **props) -> dict:
-    return _obj(kind={"type": "string", "enum": [name]}, **props)
+    return _obj(kind={"type": "string", "enum": [name]}, **props, icon=_ICON, icons={"type": "array", "items": _ICON})
 
 
 ANIM_SCHEMAS = [
@@ -370,13 +377,40 @@ def add_bookends(data: dict, ask=ask_bookends) -> dict:
                                _bookend(last + 1, "outro", b["farewell"], b)]}
 
 
+THEMES = ("royal", "gold", "emerald", "electric", "sunset", "crimson")   # Remotion/src/theme.ts PALETTES
+THEME_SYSTEM = ("Pick the colour theme that best fits this explainer video's topic. royal: general business and "
+                "strategy; gold: luxury, premium, wealth; emerald: money, finance, investing, saving; electric: tech, "
+                "apps, internet, AI; sunset: consumers, food, retail, lifestyle; crimson: risk, competition, failure, "
+                "danger. Answer ONLY JSON: {\"theme\": \"...\"}")
+THEME_SCHEMA = _obj(theme={"type": "string", "enum": list(THEMES)})
+
+
+def ask_theme(system: str, user: str) -> dict:
+    return llm.chat_json(system, user, schema=THEME_SCHEMA, max_tokens=50)
+
+
+def with_theme(data: dict, ask=ask_theme) -> dict:
+    """Videonun reng temasi (bir defe). Namelum / GPT xetasi -> standart tema (balans xetasi istisna: dayanir)."""
+    if data.get("theme") in THEMES:
+        return data
+    try:
+        sample = " ".join(s.get("text", "") for s in data["scenes"][:3])[:800]
+        theme = ask(THEME_SYSTEM, f"TITLE: {data['title']}\nOPENING: {sample}").get("theme")
+    except Exception as e:  # noqa: BLE001
+        if llm.is_balance_error(e):
+            raise
+        theme = None
+    return {**data, "theme": theme if theme in THEMES else THEMES[0]}
+
+
 def main(ep: str) -> None:
     path = f"{ep}/scenes.json"
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    out = add_bookends(plan_scenes(data))
+    out = with_theme(add_bookends(plan_scenes(data)))
     generate.atomic_json(path, out)
     kinds = [s["anim"]["kind"] for s in out["scenes"] if s["anim"]]
     print(f"  plan: {len(out['scenes']) - 2} sehne + intro/outro, animasiya {len(kinds)}: "
           + ", ".join(f"{k}x{kinds.count(k)}" for k in sorted(set(kinds))), flush=True)
+    print(f"  plan: tema: {out['theme']}", flush=True)
     print(f"  plan: intro: {out['scenes'][0]['text']}\n  plan: outro: {out['scenes'][-1]['text']}", flush=True)

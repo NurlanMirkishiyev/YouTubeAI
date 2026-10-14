@@ -1,12 +1,13 @@
 import React from 'react';
 import {AbsoluteFill, Sequence, interpolate, useCurrentFrame} from 'remotion';
 import {AnimScene} from './AnimScene';
+import {ThemeCtx} from './anim/kit';
 import {IntroScene, OutroScene} from './Bookend';
 import {Captions} from './Captions';
 import {OwlLayer} from './OwlLayer';
 import {PhotoScene} from './PhotoScene';
 import {SectionTitle} from './SectionTitle';
-import {COLORS, ENTER, W} from './theme';
+import {COLORS, ENTER, W, palette} from './theme';
 import {Props, Scene} from './types';
 
 const Enter: React.FC<{i: number; children: React.ReactNode}> = ({i, children}) => {
@@ -23,23 +24,26 @@ const SceneView: React.FC<{s: Scene; title: string}> = ({s, title}) => {
   if (s.type === 'intro' && s.img) return <IntroScene src={s.img} title={title} />;
   if (s.type === 'outro' && s.img) return <OutroScene src={s.img} />;
   if (s.type === 'photo' && s.img) return <PhotoScene src={s.img} n={s.n} />;
-  if (s.anim) return <AnimScene anim={s.anim} />;
+  if (s.anim) return <AnimScene anim={s.anim} n={s.n} />;
   return <AbsoluteFill style={{background: `radial-gradient(circle at 30% 40%, ${COLORS.bg2}, ${COLORS.bg1})`}} />;
 };
 
-export const Episode: React.FC<Props> = ({title, scenes, captions}) => (
-  <AbsoluteFill style={{background: '#000'}}>
-    {scenes.map((s, i) => (
-      <Sequence key={s.n} from={s.from} durationInFrames={s.frames + (i < scenes.length - 1 ? ENTER : 0)}>
-        <Enter i={i}><SceneView s={s} title={title} /></Enter>
-      </Sequence>
-    ))}
-    {scenes.filter((s) => s.sectionStart && s.section).map((s) => (
-      <Sequence key={`t${s.n}`} from={s.from} durationInFrames={Math.min(95, s.frames)}>
-        <SectionTitle text={s.section} />
-      </Sequence>
-    ))}
-    <OwlLayer scenes={scenes} />
-    <Captions captions={captions} />
-  </AbsoluteFill>
+// theme: videonun mövzusuna uyğun palitra (plan.with_theme) - animasiya fonu, kartlar, parıltı.
+export const Episode: React.FC<Props> = ({title, theme, scenes, captions}) => (
+  <ThemeCtx.Provider value={palette(theme)}>
+    <AbsoluteFill style={{background: '#000'}}>
+      {scenes.map((s, i) => (
+        <Sequence key={s.n} from={s.from} durationInFrames={s.frames + (i < scenes.length - 1 ? ENTER : 0)}>
+          <Enter i={i}><SceneView s={s} title={title} /></Enter>
+        </Sequence>
+      ))}
+      {scenes.filter((s) => s.sectionStart && s.section).map((s) => (
+        <Sequence key={`t${s.n}`} from={s.from} durationInFrames={Math.min(95, s.frames)}>
+          <SectionTitle text={s.section} />
+        </Sequence>
+      ))}
+      <OwlLayer scenes={scenes} />
+      <Captions captions={captions} />
+    </AbsoluteFill>
+  </ThemeCtx.Provider>
 );

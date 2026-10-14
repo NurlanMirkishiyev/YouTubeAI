@@ -32,7 +32,8 @@ def props(data: dict, caps: list[dict], fps: int = 30) -> dict:
         scenes.append({"n": s["n"], "type": s["type"], "img": f"img/sc{s['n']:02d}.jpg" if s["type"] in PHOTO_TYPES else None,
                        "owl": f"owl/sc{s['n']:02d}.png", "anim": s["anim"], "section": s["section"],
                        "sectionStart": bool(s["section_start"]), "from": bounds[i], "frames": bounds[i + 1] - bounds[i]})
-    return {"fps": fps, "total": bounds[-1], "title": data.get("title", ""), "scenes": scenes,
+    return {"fps": fps, "total": bounds[-1], "title": data.get("title", ""), "theme": data.get("theme") or "royal",
+            "scenes": scenes,
             "captions": [{"from": round(c["start"] * fps), "to": round(c["end"] * fps), "text": c["text"],
                           "words": [{"from": round(w["start"] * fps), "to": round(w["end"] * fps), "text": w["text"]}
                                     for w in c.get("words", [])]} for c in caps]}

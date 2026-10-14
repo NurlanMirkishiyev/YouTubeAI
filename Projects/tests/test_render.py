@@ -16,6 +16,11 @@ def test_props_frames_follow_voice_durations():
     assert p["scenes"][1]["owl"] == "owl/sc02.png" and p["captions"][0] == {"from": 0, "to": 30, "text": "Hi", "words": []}
 
 
+def test_props_carry_the_video_theme_with_a_default():
+    assert render.props(DATA, [])["theme"] == "royal"
+    assert render.props({**DATA, "theme": "gold"}, [])["theme"] == "gold"
+
+
 def test_props_carry_word_frames_for_highlighting():
     cap = {"start": 0.0, "end": 1.0, "text": "Hi there", "words": [
         {"start": 0.1, "end": 0.4, "text": "Hi"}, {"start": 0.4, "end": 0.9, "text": "there"}]}

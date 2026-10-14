@@ -13,6 +13,11 @@ DIGITS = re.compile(r"(\d[\d,]*(?:\.\d+)?)(?:\s*(thousand|million|billion|trilli
 WORD = re.compile(r"[a-z]+(?:-[a-z]+)?", re.I)
 MAX_ITEMS = 4
 MAX_PHRASE_WORDS = 7
+# Remotion/src/anim/Icon.tsx ile eyni siyahi. Ikon yazi deyil - menaya uygun simvoldur (grounding teleb etmir).
+ICONS = ("money", "coin", "chart-up", "chart-down", "users", "user", "phone", "cart", "bag", "tag", "crown",
+         "diamond", "star", "clock", "calendar", "globe", "building", "factory", "bulb", "target", "shield",
+         "heart", "lock", "gift", "rocket", "megaphone", "check", "warning", "scale", "gear", "truck", "store",
+         "brain", "eye", "handshake", "spark")
 
 
 def _spoken(text: str) -> set[float]:
@@ -95,6 +100,20 @@ def _strs(xs, text: str) -> list[str] | None:
 
 
 def validate(spec: dict, text: str) -> dict | None:
+    out = _validate(spec, text)
+    if not out or out["kind"] == "quote":
+        return out
+    if spec.get("icon") in ICONS:
+        out["icon"] = spec["icon"]
+    items = out.get("steps") or out.get("items") or out.get("events") or (
+        [out["left"], out["right"]] if out["kind"] == "versus" else None)
+    icons = spec.get("icons")
+    if isinstance(items, list) and isinstance(icons, list) and len(icons) >= len(items)             and all(i in ICONS for i in icons[:len(items)]):
+        out["icons"] = icons[:len(items)]
+    return out
+
+
+def _validate(spec: dict, text: str) -> dict | None:
     if not isinstance(spec, dict) or spec.get("kind") not in KINDS:
         return None
     kind, nums = spec["kind"], numbers_in(text)
