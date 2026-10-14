@@ -9,7 +9,9 @@ from typing import Callable, TypeVar
 
 import llm
 
-ATTEMPTS = 4
+ATTEMPTS = 6
+SIMPLER = (" [Rejected again: make it a very simple, calm, everyday scene on the same topic - no violence, "
+           "no weapons, no real brands or logos, no famous people.]")
 T = TypeVar("T")
 
 
@@ -20,6 +22,7 @@ class GenerationFailed(Exception):
 def with_retry(fn: Callable[[str], T], prompt: str, *, rewrite: Callable[[str], str] | None, label: str,
                attempts: int = ATTEMPTS) -> T:
     last = ""
+    safety = 0
     for i in range(attempts):
         try:
             return fn(prompt)
@@ -29,8 +32,9 @@ def with_retry(fn: Callable[[str], T], prompt: str, *, rewrite: Callable[[str], 
             last = str(e)[:160]
             print(f"  {label} cehd {i + 1}/{attempts}: {last}", flush=True)
             if llm.is_safety_error(e) and rewrite and i < attempts - 1:
+                safety += 1
                 try:
-                    prompt = rewrite(prompt)
+                    prompt = rewrite(prompt + (SIMPLER if safety > 1 else ""))
                     print(f"  {label}: prompt yeniden yazildi - {prompt[:100]}", flush=True)
                 except Exception as re_err:  # noqa: BLE001
                     if llm.is_balance_error(re_err):
@@ -80,3 +84,21 @@ def atomic_json(path: str, data) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
+
+
+def run_cmd(cmd: list[str], timeout: float, cwd: str | None = None) -> None:
+    """Xarici proses (Remotion, Kokoro, Stable Audio, ffmpeg) - ilisib qalmasin: muddet kecende butun proses agaci
+    (npx -> node -> chrome) oldurulur ve TimeoutExpired qaldirilir (merhele yeniden cehd edir)."""
+    import subprocess
+    p = subprocess.Popen(cmd, cwd=cwd)
+    try:
+        code = p.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True)
+        else:
+            p.kill()
+        p.wait(timeout=30)
+        raise
+    if code:
+        raise subprocess.CalledProcessError(code, cmd)

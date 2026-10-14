@@ -302,3 +302,15 @@ def test_real_expensive_brands_script_has_no_stage_directions():
     spoken = " ".join(s["text"] for s in data["scenes"])
     for bad in ("Voiceover", "Visuals", "On-screen text", "Pacing", "WHY PAY MORE"):
         assert bad not in spoken
+
+
+@pytest.mark.parametrize("speech", ["**NARRATOR (V.O.):**", "**Voiceover 2:**", "**Narration (Owl)**", "**[VOICEOVER]**"])
+def test_decorated_speech_labels_are_recognised(speech):
+    md = f"# T\n\n## A\n\n{speech}\n\nHello there friend.\n\n**Visuals (B-roll):** a street\n"
+    assert _spoken(md) == "Hello there friend."
+
+
+def test_script_whose_labels_yield_no_scenes_is_read_as_plain_text():
+    md = "# T\n\n**Voiceover**\n\n## Part one\n\nThis is the only narration.\n"
+    data = script.parse(md, "x")
+    assert " ".join(p for s in data["sections"] for p in s["paragraphs"]) == "This is the only narration."

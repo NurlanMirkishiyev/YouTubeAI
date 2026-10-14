@@ -22,6 +22,18 @@ def pad_to(wav: np.ndarray, sr: int, seconds: float) -> np.ndarray:
     return np.concatenate([wav, np.zeros(need, dtype=wav.dtype)]) if need > 0 else wav
 
 
+def audio_chunks(results) -> list[tuple[np.ndarray, list]]:
+    """Kokoro neticeleri -> [(audio, tokens)]; sessiz / bos parca atilir (sehne cokmur)."""
+    out = []
+    for r in results:
+        if r.audio is None:
+            continue
+        a = np.asarray(r.audio, dtype=np.float32).reshape(-1)
+        if a.size:
+            out.append((a, r.tokens or []))
+    return out
+
+
 def word_times(chunks: list[tuple], sr: int) -> list[dict]:
     """[(tokens, audio_uzunlugu), ...] -> [{"w", "s", "e"}] sehne sesinin evvelinden (saniye). Durgu/vaxtsiz token atilir."""
     out, offset = [], 0.0
@@ -51,10 +63,11 @@ def main(ep: str) -> None:
         if os.path.isfile(wav_path):
             wav, _ = sf.read(wav_path, dtype="float32")
         else:
-            results = list(pipe(to_speech(s["text"]), voice=cfg["voice"], speed=cfg["speed"]))
-            chunks = [np.asarray(r.audio, dtype=np.float32) for r in results]
+            text = to_speech(s["text"]).strip()
+            pieces = audio_chunks(pipe(text, voice=cfg["voice"], speed=cfg["speed"])) if text else []
+            chunks = [a for a, _ in pieces]
             generate.atomic_json(os.path.join(ep, "voice", f"sc{s['n']:02d}.words.json"),
-                                 word_times([(r.tokens, len(a)) for r, a in zip(results, chunks)], sr))
+                                 word_times([(t, len(a)) for a, t in pieces], sr))
             wav = np.concatenate(chunks + [np.zeros(int(TAIL_S * sr), dtype=np.float32)])
             wav = pad_to(wav, sr, MIN_S.get(s.get("type"), 0.0))
             sf.write(generate.tmp_path(wav_path), wav, sr)

@@ -94,3 +94,40 @@ def test_last_attempt_does_not_waste_a_rewrite():
     with pytest.raises(generate.GenerationFailed):
         generate.with_retry(fn, "cat", rewrite=lambda p: rewrites.append(p) or p, label="x", attempts=2)
     assert len(rewrites) == 1
+
+
+def test_repeated_safety_rejections_ask_for_a_simpler_scene_on_the_same_topic():
+    seen = []
+
+    def fn(p):
+        raise llm.LLMError("HTTP 400: moderation_blocked")
+
+    def rewrite(p):
+        seen.append(p)
+        return "rewritten " + str(len(seen))
+    with pytest.raises(generate.GenerationFailed):
+        generate.with_retry(fn, "a bank robbery scene", rewrite=rewrite, label="t")
+    assert generate.ATTEMPTS >= 6
+    assert generate.SIMPLER not in seen[0] and all(generate.SIMPLER in p for p in seen[1:])
+
+
+def test_run_cmd_kills_a_hung_process_tree_and_raises():
+    import subprocess
+    import sys
+    import time
+    t0 = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired):
+        generate.run_cmd([sys.executable, "-c", "import time; time.sleep(60)"], timeout=2)
+    assert time.monotonic() - t0 < 20
+
+
+def test_run_cmd_raises_on_a_failing_command():
+    import subprocess
+    import sys
+    with pytest.raises(subprocess.CalledProcessError):
+        generate.run_cmd([sys.executable, "-c", "raise SystemExit(3)"], timeout=30)
+
+
+def test_run_cmd_returns_on_success():
+    import sys
+    generate.run_cmd([sys.executable, "-c", "print('ok')"], timeout=30)

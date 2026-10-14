@@ -22,7 +22,7 @@ def test_done_stages_are_skipped_and_failures_retry_once(tmp_path):
     stages = [pipeline.Stage("a", lambda ep: True, lambda ep: calls.append("a")),
               pipeline.Stage("b", lambda ep: False, ok),
               pipeline.Stage("c", lambda ep: False, flaky_run)]
-    pipeline.run_stages(str(tmp_path), stages, log=lambda m: None)
+    pipeline.run_stages(str(tmp_path), stages, log=lambda m: None, sleep=lambda s: None)
     assert calls == ["b", "c"] and flaky["n"] == 2
 
 
@@ -36,26 +36,49 @@ def test_script_file_is_found_by_name_in_the_scripts_folder():
     assert p.endswith("eli5_business_how_free_apps_make_billions_script.md")
 
 
-def test_empty_openai_balance_stops_at_once_without_retry(tmp_path):
-    n = {"n": 0}
+def test_empty_balance_waits_and_continues_when_credit_is_added(tmp_path):
+    n, logs, sleeps = {"n": 0}, [], []
+
+    def broke_twice(ep):
+        n["n"] += 1
+        if n["n"] <= 2:
+            raise llm.LLMError("OpenAI balansi bitib: insufficient_quota")
+    stages = [pipeline.Stage("images", lambda ep: False, broke_twice)]
+    pipeline.run_stages(str(tmp_path), stages, log=logs.append, sleep=sleeps.append)
+    assert n["n"] == 3 and sleeps == [pipeline.BALANCE_WAIT_S] * 2
+    assert any("XEBERDARLIQ" in m and "balans" in m.lower() for m in logs)
+
+
+def test_balance_that_never_returns_stops_after_the_wait_limit(tmp_path):
     logs = []
 
     def broke(ep):
-        n["n"] += 1
         raise llm.LLMError("OpenAI balansi bitib: insufficient_quota")
     stages = [pipeline.Stage("images", lambda ep: False, broke)]
     with pytest.raises(SystemExit) as ei:
-        pipeline.run_stages(str(tmp_path), stages, log=logs.append)
-    assert ei.value.code == 1 and n["n"] == 1
-    text = "\n".join(logs)
-    assert "OpenAI balansi bitib" in text and "--resume" in text
+        pipeline.run_stages(str(tmp_path), stages, log=logs.append, sleep=lambda s: None)
+    assert ei.value.code == 1 and "--resume" in logs[-1] and "balans" in logs[-1].lower()
 
 
-def test_second_failure_exits_with_code_1(tmp_path):
+def test_transient_failures_are_retried_with_growing_waits(tmp_path):
+    n, sleeps = {"n": 0}, []
+
+    def flaky(ep):
+        n["n"] += 1
+        if n["n"] < pipeline.STAGE_ATTEMPTS:
+            raise RuntimeError("network down")
+    stages = [pipeline.Stage("x", lambda ep: False, flaky)]
+    pipeline.run_stages(str(tmp_path), stages, log=lambda m: None, sleep=sleeps.append)
+    assert n["n"] == pipeline.STAGE_ATTEMPTS and sleeps == list(pipeline.RETRY_WAITS_S[:pipeline.STAGE_ATTEMPTS - 1])
+    assert sleeps == sorted(sleeps)
+
+
+def test_stage_that_always_fails_exits_with_code_1_and_resume_hint(tmp_path):
+    logs = []
     stages = [pipeline.Stage("x", lambda ep: False, lambda ep: (_ for _ in ()).throw(RuntimeError("boom")))]
     with pytest.raises(SystemExit) as ei:
-        pipeline.run_stages(str(tmp_path), stages, log=lambda m: None)
-    assert ei.value.code == 1
+        pipeline.run_stages(str(tmp_path), stages, log=logs.append, sleep=lambda s: None)
+    assert ei.value.code == 1 and "--resume" in logs[-1]
 
 
 def test_no_args_prints_usage_and_exits_2(capsys):
@@ -158,7 +181,7 @@ def test_published_is_the_episode_marker_not_the_output_folder(tmp_path, monkeyp
 def test_music_failure_raises_and_never_skips_music(tmp_path, monkeypatch):
     def fail(*a, **k):
         raise RuntimeError("gpu")
-    monkeypatch.setattr(pipeline.subprocess, "run", fail)
+    monkeypatch.setattr(pipeline.generate, "run_cmd", fail)
     with pytest.raises(RuntimeError):
         pipeline._music(str(tmp_path))
     assert not (tmp_path / "music.skip").exists()
@@ -218,3 +241,16 @@ def test_start_warns_about_direction_like_narration_but_continues(tmp_path, monk
     ep = pipeline.start("x", log=logs.append)
     assert any("XEBERDARLIQ" in m and "Cut to a phone screen." in m for m in logs)
     assert os.path.isfile(os.path.join(ep, "scenes.json"))
+
+
+def test_main_keeps_the_computer_awake_during_the_run(tmp_path, monkeypatch):
+    import json
+    ep = tmp_path / "Episodes" / "s"
+    ep.mkdir(parents=True)
+    (ep / "scenes.json").write_text(json.dumps({"title": "T", "slug": "s", "scenes": []}))
+    monkeypatch.setattr(pipeline, "ROOT", str(tmp_path))
+    monkeypatch.setattr(pipeline, "STAGES", [])
+    calls = []
+    monkeypatch.setattr(pipeline, "keep_awake", lambda on: calls.append(on))
+    pipeline.main(["--resume", "s"])
+    assert calls == [True, False]

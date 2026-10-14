@@ -23,6 +23,11 @@ STYLES = (
 )
 
 
+def pick_device(cuda_ok: bool) -> tuple[str, str]:
+    """GPU varsa cuda/float16; yoxdursa (driver xetasi) CPU/float32 - yavas, amma musiqi yene cekilir."""
+    return ("cuda", "float16") if cuda_ok else ("cpu", "float32")
+
+
 def clips_needed(total_s: float) -> int:
     return max(1, min(MAX_CLIPS, math.ceil(total_s / (CLIP_S - FADE_S))))
 
@@ -39,8 +44,11 @@ def main(ep: str) -> None:
     total = sum(s["duration"] for s in data["scenes"])
     seed = int.from_bytes(hashlib.sha1(data["slug"].encode()).digest()[:4], "big")
     style = STYLES[seed % len(STYLES)]
+    device, dtype = pick_device(torch.cuda.is_available())
+    if device == "cpu":
+        print("  musiqi: CUDA yoxdur - CPU-da cekilir (yavas)", flush=True)
     pipe = StableAudioPipeline.from_pretrained(snapshot_download(MODEL, allow_patterns=MODEL_FILES),
-                                               torch_dtype=torch.float16).to("cuda")
+                                               torch_dtype=getattr(torch, dtype)).to(device)
     parts_dir = os.path.join(ep, "music_parts")
     os.makedirs(parts_dir, exist_ok=True)
     paths = []
@@ -48,7 +56,7 @@ def main(ep: str) -> None:
         p = os.path.join(parts_dir, f"part{i + 1:02d}.wav")
         if not os.path.isfile(p):
             audio = pipe(style, negative_prompt=NEGATIVE, num_inference_steps=STEPS, audio_end_in_s=CLIP_S,
-                         generator=torch.Generator("cuda").manual_seed(seed + i)).audios[0]
+                         generator=torch.Generator(device).manual_seed(seed + i)).audios[0]
             sf.write(p[:-4] + ".tmp.wav", audio.T.float().cpu().numpy(), pipe.vae.sampling_rate)
             os.replace(p[:-4] + ".tmp.wav", p)
         paths.append(p)

@@ -15,6 +15,7 @@ MUSIC_DB = -20
 TARGET_LUFS = -14.0
 LIMIT = 0.79                     # ~ -2 dBTP: AAC-den sonra peak -1 dBFS-den asagi
 TOLERANCE_LU, SOLVE_TRIES = 0.3, 5
+FFMPEG_TIMEOUT_S = 3600            # ilisme qorumasi
 MIX = (f"[2:a]volume={MUSIC_DB}dB[m];[m][1:a]sidechaincompress=threshold=0.05:ratio=6:attack=20:release=400[md];"
        "[1:a][md]amix=inputs=2:duration=first:normalize=0")
 
@@ -61,7 +62,7 @@ def cmd(ep: str, slug: str, seconds: float, gain_db: float, out: str | None = No
 
 def narration_seconds(ep: str) -> float:
     r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
-                        os.path.join(ep, "narration.wav")], capture_output=True, text=True, check=True)
+                        os.path.join(ep, "narration.wav")], capture_output=True, text=True, check=True, timeout=120)
     return float(r.stdout.strip())
 
 
@@ -75,11 +76,11 @@ def main(ep: str) -> None:
 
     def measure(gain: float) -> float:
         r = subprocess.run(measure_cmd(ep, seconds, gain), capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", check=True)
+                           errors="replace", check=True, timeout=FFMPEG_TIMEOUT_S)
         lufs = parse_input_i(r.stderr)
         print(f"  mix: gain {gain:+.2f} dB -> {lufs:.1f} LUFS", flush=True)
         return lufs
     gain = solve_gain(measure)
     out = os.path.join(ep, f"{slug}.mp4")
-    subprocess.run(cmd(ep, slug, seconds, gain, out=generate.tmp_path(out)), check=True)
+    subprocess.run(cmd(ep, slug, seconds, gain, out=generate.tmp_path(out)), check=True, timeout=FFMPEG_TIMEOUT_S)
     os.replace(generate.tmp_path(out), out)

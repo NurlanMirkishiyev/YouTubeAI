@@ -119,3 +119,18 @@ def test_intro_and_outro_backgrounds_are_drawn(tmp_path):
     n = iter(range(100))
     images.render_photos(ep, gen=lambda p: _noise(next(n)), workers=1, limiter=None, rewrite=None)
     assert all((tmp_path / "img" / f"sc{i:02d}.png").exists() for i in (1, 2, 3))
+
+
+def test_each_duplicate_retry_asks_for_a_new_camera_angle(tmp_path):
+    ep = tmp_path / "ep"
+    (ep / "img").mkdir(parents=True)
+    import json
+    (ep / "scenes.json").write_text(json.dumps({"scenes": [{"n": 1, "type": "photo", "photo_prompt": "a shop"}]}))
+    (ep / "img" / "sc09.png").write_bytes(_noise(0))
+    seen = []
+
+    def gen(p):
+        seen.append(p)
+        return _noise(0) if len(seen) < 3 else _noise(7)
+    images.render_photos(str(ep), gen=gen, workers=1, limiter=None, rewrite=None)
+    assert len(seen) == 3 and len({p for p in seen}) == 3

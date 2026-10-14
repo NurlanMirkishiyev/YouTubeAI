@@ -52,7 +52,11 @@ def clean(text: str) -> str:
 
 
 def _norm(name: str) -> str:
-    name = name.lower().replace(".", "").replace("’", "").replace("'", "")
+    """'NARRATOR (V.O.)' / '[VOICEOVER]' / 'Voiceover 2' -> 'narrator' / 'voiceover' / 'voiceover'."""
+    bare = re.sub(r"[(\[][^()\[\]]*[)\]]", " ", name)
+    name = (bare if bare.strip() else name.strip("[]() ")).lower()
+    name = re.sub(r"\s*#?\d+\s*$", "", name)
+    name = name.replace(".", "").replace("’", "").replace("'", "")
     return " ".join(re.sub(r"[-_/]", " ", name).split())
 
 
@@ -186,6 +190,13 @@ def parse(markdown: str, fallback_title: str) -> dict:
         else:
             pre.append(ln)
     marked = any(label(b)[0] == "speech" for b in _blocks(lines))
+    out = _parse(title, pre, heads, marked, fallback_title)
+    if marked and not out["sections"]:        # etiketler danisiq vermedi -> etiketsiz kimi oxunur (video dayanmir)
+        out = _parse(title, pre, heads, False, fallback_title)
+    return out
+
+
+def _parse(title: str, pre: list[str], heads: list, marked: bool, fallback_title: str) -> dict:
     sections: list[dict] = []
     video_title, idea, idea_text = "", "", ""
     if not marked:

@@ -90,12 +90,18 @@ def test_render_writes_to_a_tmp_file_then_renames(tmp_path):
     (tmp_path / "captions.json").write_text("[]")
     seen = []
 
+    cmds, kws = [], []
+
     def runner(cmd, **k):
         out = cmd[5]
         seen.append(out)
+        cmds.append(cmd)
+        kws.append(k)
         open(out, "wb").write(b"mp4")
     render.main(str(tmp_path), runner=runner)
     assert seen[0].endswith("video_raw.tmp.mp4") and (tmp_path / "video_raw.mp4").read_bytes() == b"mp4"
+    assert any(a.startswith("--timeout=") and int(a.split("=")[1]) >= 120000 for a in cmds[0])
+    assert kws[0]["timeout"] == render.render_timeout(105)
 
 
 def test_gain_is_corrected_for_what_the_limiter_eats():

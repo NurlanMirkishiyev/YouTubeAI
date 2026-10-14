@@ -5,7 +5,6 @@ import json
 import math
 import os
 import shutil
-import subprocess
 
 from PIL import Image
 
@@ -63,7 +62,18 @@ def public_dir(ep: str, data: dict) -> str:
     return pub
 
 
-def main(ep: str, runner=subprocess.run) -> None:
+RENDER_BASE_S, RENDER_PER_FRAME_S = 900, 0.35     # ilisme qorumasi: 17 deq video ~ 3 saat limit (adi render ~45 deq)
+
+
+def _run(cmd: list[str], cwd: str, check: bool, timeout: float) -> None:
+    generate.run_cmd(cmd, timeout=timeout, cwd=cwd)
+
+
+def render_timeout(total_frames: int) -> float:
+    return RENDER_BASE_S + RENDER_PER_FRAME_S * total_frames
+
+
+def main(ep: str, runner=_run) -> None:
     ep = os.path.abspath(ep)
     with open(os.path.join(ep, "scenes.json"), encoding="utf-8") as f:
         data = json.load(f)
@@ -72,11 +82,12 @@ def main(ep: str, runner=subprocess.run) -> None:
     require_photos(ep, data)
     pub = public_dir(ep, data)
     pp = os.path.join(ep, "props.json")
+    pr = props(data, caps)
     with open(pp, "w", encoding="utf-8") as f:
-        json.dump(props(data, caps), f, ensure_ascii=False)
+        json.dump(pr, f, ensure_ascii=False)
     npx = "npx.cmd" if os.name == "nt" else "npx"
     out = os.path.join(ep, "video_raw.mp4")
     runner([npx, "remotion", "render", "src/index.ts", "Episode", generate.tmp_path(out),
-            f"--props={pp}", f"--public-dir={pub}", "--muted", "--codec=h264", "--crf=18", "--log=info"],
-           cwd=REMOTION, check=True)
+            f"--props={pp}", f"--public-dir={pub}", "--muted", "--codec=h264", "--crf=18", "--log=info", "--timeout=120000"],
+           cwd=REMOTION, check=True, timeout=render_timeout(pr["total"]))
     os.replace(generate.tmp_path(out), out)

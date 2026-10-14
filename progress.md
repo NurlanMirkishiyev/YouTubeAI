@@ -2,6 +2,16 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-14 (4) — dayanıqlıq + real mini E2E (211 test, tsc təmiz, GitHub-a push)
+- Mərhələ: 5 cəhd + artan gözləmə; OpenAI balansı bitəndə XEBERDARLIQ + hər 10 dəq yoxlama (6 saat); şəkil 6 cəhd +
+  sadələşən prompt; dublikat foto → yeni bucaq; `generate.run_cmd` (timeout + proses ağacını öldürmə) render/voice/
+  music/mix-də; Remotion `--timeout=120000`; Kokoro boş parça atlanır; musiqi CUDA yoxdursa CPU; thumbnail yazısı GPT
+  xətasında başlıqdan; `NARRATOR (V.O.)`/`[VOICEOVER]`/`Voiceover 2` tanınır; 0 səhnə → etiketsiz oxunuş; keep_awake.
+- Real E2E (test ssenarisi, 51 s): bütün 10 mərhələ keçdi, −14.2 LUFS, tema sunset, ikonlu counter, söz izləyən
+  altyazı, bold thumbnail "FREE COFFEE?". E2E voice-da mənim bug-ımı tapdı (`parts` dəyişəni üstələnmişdi) → retry
+  özü bərpa etdi, kod düzəldi + `voice.main` reqressiya testi. Test videosu silindi.
+- **Pipeline hazırdır** — növbəti: istifadəçi mövzu verəcək (`Video: <ssenari>`).
+
 ## 2026-10-14 (3-cü dəyişiklik) — premium animasiyalar (193 test, tsc təmiz)
 - Tema (GPT, 6 palitra) + ikonlar (36, GPT seçir, grounding yoxlayır) + yeni Remotion komponentləri (Backdrop/kit/
   Anims/TextAnims). 8 növ × 2 variant scratch-da render edilib yoxlanıb (gold, electric); 150 kadr ≈ 13 s render.
@@ -85,6 +95,7 @@ Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenis
 | Foto/bayquş xətası üçün bütün epizodu yenidən çəkmək | Yalnız pis fotoların promptunu düzəlt, həmin `img/scNN.png`-ləri sil, `--resume` (qalanı keçilir) |
 | Bayquşa "subscribe button-a işarə et" pozası vermək (gpt-image qırmızı qutu çəkir) | "waving goodbye, pointing up, no props/buttons" |
 | `pipeline._texts` ilə intro/outro mətnini ssenari ilə müqayisə etmək (hər run reset olardı) | `_texts` intro/outro-nu keçir |
+| Eyni funksiyada köhnə dəyişən adını yeni mənada işlətmək (`voice.main` `parts`) | Yeni ad + testsiz `main`-ə saxta asılılıqlarla test |
 | Mərhələ bitdi deyə nəticəyə inanmaq | Sonda ffprobe müddət + `ebur128` LUFS + kontakt-vərəq kadrlar + thumbnail-a bax |
 
 ## İcra jurnalı

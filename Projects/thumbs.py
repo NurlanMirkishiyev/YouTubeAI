@@ -79,7 +79,12 @@ def hook_text(data: dict, chat=llm.chat_json) -> str:
         return data["thumbnail_text"].upper()
     title = data["title"]
     for _ in range(2):
-        text = str(chat(HOOK_SYSTEM, title, max_tokens=60).get("text") or "").strip()
+        try:
+            text = str(chat(HOOK_SYSTEM, title, max_tokens=60).get("text") or "").strip()
+        except Exception as e:  # noqa: BLE001 - yazi basliqdan da olur; balans xetasi istisnadir
+            if llm.is_balance_error(e):
+                raise
+            continue
         if 1 < len(text.split()) <= 4 and _is_fragment(text, title):
             return text.upper()
     return title.upper()

@@ -122,3 +122,18 @@ def test_pipeline_thumbnail_uses_the_saved_style(tmp_path, monkeypatch):
 
 def test_saved_choice_is_bold():
     assert thumbs.chosen_style() == "bold"
+
+
+def test_hook_text_survives_a_gpt_error_with_the_title():
+    def boom(*a, **k):
+        raise RuntimeError("network")
+    assert thumbs.hook_text({"title": "Free Apps"}, chat=boom) == "FREE APPS"
+
+
+def test_hook_text_still_stops_on_an_empty_balance():
+    import llm
+
+    def broke(*a, **k):
+        raise llm.LLMError("OpenAI balansi bitib: quota")
+    with pytest.raises(llm.LLMError):
+        thumbs.hook_text({"title": "Free Apps"}, chat=broke)

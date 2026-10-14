@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -59,12 +58,15 @@ def _planned(ep: str) -> bool:
     return os.path.isfile(os.path.join(ep, "scenes.json")) and all(s["type"] for s in _scenes(ep)["scenes"])
 
 
+VOICE_TIMEOUT_S, MUSIC_TIMEOUT_S = 3 * 3600, 5 * 3600     # ilisme qorumasi (adi: ~5 deq / ~10 deq)
+
+
 def _voice(ep: str) -> None:
-    subprocess.run([TTS_PY, os.path.join(HERE, "voice.py"), ep], check=True)
+    generate.run_cmd([TTS_PY, os.path.join(HERE, "voice.py"), ep], timeout=VOICE_TIMEOUT_S)
 
 
 def _music(ep: str) -> None:
-    subprocess.run([MUSIC_PY, os.path.join(HERE, "music.py"), ep], check=True)
+    generate.run_cmd([MUSIC_PY, os.path.join(HERE, "music.py"), ep], timeout=MUSIC_TIMEOUT_S)
 
 
 def _voiced(ep: str) -> bool:
@@ -95,25 +97,56 @@ STAGES = [
 _published = _f("published")
 
 
-def run_stages(ep: str, stages=STAGES, log=print) -> None:
+STAGE_ATTEMPTS = 5
+RETRY_WAITS_S = (30, 120, 300, 600)          # kecici xeta (sebeke, GPU, render) - artan gozleme
+BALANCE_WAIT_S, BALANCE_TRIES = 600, 36      # balans bitende her 10 deq yoxlanir, 6 saata qeder
+
+
+def _run_stage(ep: str, st: Stage, log, sleep, resume: str) -> None:
+    """Merhele fayllari resume-dur: tekrar cehd yalniz catismayan hisseni edir (pul tekrar xerclenmir)."""
+    failures = balance = 0
+    while True:
+        try:
+            st.run(ep)
+            return
+        except Exception as e:  # noqa: BLE001
+            if llm.is_balance_error(e):
+                balance += 1
+                if balance > BALANCE_TRIES:
+                    log(f"DAYANDI: OpenAI balansi {BALANCE_TRIES * BALANCE_WAIT_S // 3600} saatdir bosdur ({st.name}). "
+                        f"Balansi doldurub davam: {resume}")
+                    raise SystemExit(1)
+                log(f"XEBERDARLIQ: OpenAI balansi bitib ({st.name}) - balansi artirin; pipeline her "
+                    f"{BALANCE_WAIT_S // 60} deq yoxlayir ve ozu davam edir ({balance}/{BALANCE_TRIES})")
+                sleep(BALANCE_WAIT_S)
+                continue
+            failures += 1
+            log(f"  {st.name} xetasi (cehd {failures}/{STAGE_ATTEMPTS}): {str(e)[:300]}")
+            if failures >= STAGE_ATTEMPTS:
+                log(f"DAYANDI: {st.name}. Davam: {resume}")
+                raise SystemExit(1)
+            wait = RETRY_WAITS_S[min(failures - 1, len(RETRY_WAITS_S) - 1)]
+            log(f"  {st.name}: {wait} s sonra yeniden (hazir hisseler saxlanilir)")
+            sleep(wait)
+
+
+def keep_awake(on: bool) -> None:
+    """Uzun run zamani Windows yuxuya getmesin (proses olmesin). Basqa OS-de hec ne etmir."""
+    if os.name != "nt":
+        return
+    import ctypes
+    es_continuous, es_system_required = 0x80000000, 0x00000001
+    ctypes.windll.kernel32.SetThreadExecutionState(es_continuous | (es_system_required if on else 0))
+
+
+def run_stages(ep: str, stages=STAGES, log=print, sleep=time.sleep) -> None:
     resume = f"python run.py --resume {os.path.basename(ep)}"
     for i, st in enumerate(stages, 1):
         if st.done(ep):
             log(f"[{i}/{len(stages)}] {st.name}: hazirdir - kecilir")
             continue
         log(f"[{i}/{len(stages)}] {st.name} ... ({time.strftime('%H:%M:%S')})")
-        for attempt in (1, 2):
-            try:
-                st.run(ep)
-                break
-            except Exception as e:  # noqa: BLE001
-                log(f"  {st.name} xetasi (cehd {attempt}): {str(e)[:300]}")
-                if llm.is_balance_error(e):
-                    log(f"DAYANDI: OpenAI balansi bitib ({st.name}). Balansi doldurub davam: {resume}")
-                    raise SystemExit(1)
-                if attempt == 2:
-                    log(f"DAYANDI: {st.name}. Davam: {resume}")
-                    raise SystemExit(1)
+        _run_stage(ep, st, log, sleep, resume)
 
 
 def find_script(name: str) -> str:
@@ -187,5 +220,9 @@ def main(argv: list[str]) -> None:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(msg + "\n")
     log(f"=== {os.path.basename(ep)} ===")
-    run_stages(ep, STAGES, log)
+    keep_awake(True)
+    try:
+        run_stages(ep, STAGES, log)
+    finally:
+        keep_awake(False)
     log("BITDI")

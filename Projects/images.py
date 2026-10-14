@@ -22,6 +22,8 @@ STYLE = (" Realistic documentary photograph, natural light, sharp detail, 16:9. 
 PHOTO_TYPES = ("photo", "intro", "outro")
 DUP_BITS = 8                    # 64 bitlik dHash-de bu qeder ve ya az ferq -> eyni sekil sayilir
 VARY = " Different composition, camera angle and setting."
+ANGLES = ("", " Wide shot from far away.", " Close-up detail shot.", " Low-angle view.", " Top-down view.",
+          " Side view, shallow depth of field.")
 
 
 class DuplicateImage(Exception):
@@ -56,7 +58,7 @@ def _one(path: str, prompt: str, gen, limiter, rewrite, seen: Seen) -> None:
     def draw(p: str) -> None:
         if limiter:
             limiter.acquire()
-        data = gen(p + STYLE + (VARY * min(tries["dup"], 1)))
+        data = gen(p + STYLE + (VARY * min(tries["dup"], 1)) + ANGLES[tries["dup"] % len(ANGLES)])
         twin = seen.claim(path, dhash(data))
         if twin:
             tries["dup"] += 1

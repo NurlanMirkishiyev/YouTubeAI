@@ -37,7 +37,12 @@ Dizayn: `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`. Canlı vəziy
   (Stable Audio), thumbnail (gpt-image-2) HEÇ VAXT fallback ilə əvəz olunmur (foto → sitat animasiyası YOX, bayquş →
   sprite YOX, musiqisiz video YOX, thumbnail → ilk foto YOX). Alınmasa: retry; şəkil təhlükəsizlik səbəbilə rədd
   olunsa prompt eyni mövzuda yenidən yazılıb çəkilir; hamısı tükənsə run dayanır, səbəbi deyilir, `--resume` həmin
-  hissəni yenidən çəkir. OpenAI balansı bitəndə də dayanır — istifadəçiyə de, kredit əlavə olunandan sonra `--resume`.
+  hissəni yenidən çəkir.
+- **Dayanıqlıq (istifadəçi 2026-10-14: "heç bir ilişmə/dayanma olmasın"):** mərhələ xətası → 5 cəhd, gözləmə
+  30 s/2/5/10 dəq (hazır fayllar keçilir, pul təkrar getmir); şəkil 6 cəhd, təkrar təhlükəsizlik reddində prompt
+  sadələşir; eyni foto → hər cəhddə yeni bucaq; bütün xarici proseslər timeout ilə (`generate.run_cmd`, proses
+  ağacı öldürülür → retry); run zamanı Windows yuxuya getmir (`keep_awake`). **OpenAI balansı bitəndə** run
+  dayanmır: `XEBERDARLIQ` yazır, hər 10 dəq yoxlayır (6 saata qədər) — istifadəçiyə dərhal de ki, balansı artırsın.
 
 ## Tetik
 `Video: <ssenari faylı>` (`Ssenariler\` içində, `.md`-siz də olar) → sualsız:
