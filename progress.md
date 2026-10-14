@@ -2,6 +2,18 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-15 — 6 yeni rəng palitrası (istifadəçi istəyi, başqa dəyişiklik YOX)
+- `theme.ts` PALETTES + `plan.THEMES`/`THEME_SYSTEM`: teal (sağlamlıq/xidmət), violet (media/əyləncə/abunə), amber
+  (enerji/sənaye/avto), rose (gözəllik/moda/sosial), ocean (səyahət/aviasiya/ticarət), mint (startap/kiçik biznes).
+  Cəmi 12 tema. tsc təmiz, 208 test keçir; 6 palitra airlines epizodunda still render ilə yoxlandı.
+- Qeyd: `test_script_file_is_found_by_name...` uğursuzdur, çünki köhnə ssenari faylı `Ssenariler\`-dən silinib (kodla bağlı deyil).
+  Dəyişikliklər commit olunmayıb.
+
+## 2026-10-15 — airlines videosu HAZIR
+- `Hazir_Videolar\how-airlines-make-money-selling-the-same-seat-for-different-prices\` — 14:32, 74 səhnə, tema emerald,
+  −14.2 LUFS, bayquş yoxlanan kadrlarda var, bold thumbnail "SELLING THE SAME SEAT". Run ~63 dəq (23:41→00:44),
+  retry/XEBERDARLIQ olmadı.
+
 ## 2026-10-14 (4) — dayanıqlıq + real mini E2E (211 test, tsc təmiz, GitHub-a push)
 - Mərhələ: 5 cəhd + artan gözləmə; OpenAI balansı bitəndə XEBERDARLIQ + hər 10 dəq yoxlama (6 saat); şəkil 6 cəhd +
   sadələşən prompt; dublikat foto → yeni bucaq; `generate.run_cmd` (timeout + proses ağacını öldürmə) render/voice/

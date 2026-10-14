@@ -377,11 +377,15 @@ def add_bookends(data: dict, ask=ask_bookends) -> dict:
                                _bookend(last + 1, "outro", b["farewell"], b)]}
 
 
-THEMES = ("royal", "gold", "emerald", "electric", "sunset", "crimson")   # Remotion/src/theme.ts PALETTES
+THEMES = ("royal", "gold", "emerald", "electric", "sunset", "crimson",
+          "teal", "violet", "amber", "rose", "ocean", "mint")   # Remotion/src/theme.ts PALETTES
 THEME_SYSTEM = ("Pick the colour theme that best fits this explainer video's topic. royal: general business and "
                 "strategy; gold: luxury, premium, wealth; emerald: money, finance, investing, saving; electric: tech, "
                 "apps, internet, AI; sunset: consumers, food, retail, lifestyle; crimson: risk, competition, failure, "
-                "danger. Answer ONLY JSON: {\"theme\": \"...\"}")
+                "danger; teal: health, wellness, insurance, services; violet: media, entertainment, gaming, "
+                "subscriptions, creativity; amber: energy, industry, manufacturing, cars, logistics; rose: beauty, "
+                "fashion, social media, relationships; ocean: travel, airlines, shipping, global trade; mint: startups, "
+                "small business, side hustles, growth. Answer ONLY JSON: {\"theme\": \"...\"}")
 THEME_SCHEMA = _obj(theme={"type": "string", "enum": list(THEMES)})
 
 
