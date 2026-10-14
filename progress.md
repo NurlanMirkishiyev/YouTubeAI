@@ -2,6 +2,13 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-15 (son) — PIPELINE TAMAMLANIB, yalnız video hazırlanır
+- İstifadəçi: "pipeline mənim üçün kifayətdir, bundan sonra ancaq videolar". Pipeline-ı özbaşına dəyişmə.
+- Tam bərpa GitHub-dan: commit d70dbad — `sprites_hd` əlavə olundu, `setup/requirements-*.txt` + `setup/README.md`
+  (bərpa təlimatı). Fresh clone-da 209 test keçdi.
+- Lokal: 2 köhnə ssenarinin silinməsi commit OLUNMAYIB (qəsdən; test onlardan birini axtarır).
+- **Növbəti:** `Video: <ssenari>` → CLAUDE.md Tetik.
+
 ## 2026-10-15 — 6 yeni rəng palitrası (istifadəçi istəyi, başqa dəyişiklik YOX)
 - `theme.ts` PALETTES + `plan.THEMES`/`THEME_SYSTEM`: teal (sağlamlıq/xidmət), violet (media/əyləncə/abunə), amber
   (enerji/sənaye/avto), rose (gözəllik/moda/sosial), ocean (səyahət/aviasiya/ticarət), mint (startap/kiçik biznes).
