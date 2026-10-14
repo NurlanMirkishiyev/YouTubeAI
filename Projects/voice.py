@@ -22,6 +22,18 @@ def pad_to(wav: np.ndarray, sr: int, seconds: float) -> np.ndarray:
     return np.concatenate([wav, np.zeros(need, dtype=wav.dtype)]) if need > 0 else wav
 
 
+def word_times(chunks: list[tuple], sr: int) -> list[dict]:
+    """[(tokens, audio_uzunlugu), ...] -> [{"w", "s", "e"}] sehne sesinin evvelinden (saniye). Durgu/vaxtsiz token atilir."""
+    out, offset = [], 0.0
+    for tokens, n_samples in chunks:
+        for t in tokens or []:
+            if t.start_ts is None or t.end_ts is None or not any(ch.isalnum() for ch in t.text):
+                continue
+            out.append({"w": t.text, "s": round(offset + t.start_ts, 3), "e": round(offset + t.end_ts, 3)})
+        offset += n_samples / sr
+    return out
+
+
 def main(ep: str) -> None:
     import soundfile as sf
     with open(CONFIG, encoding="utf-8") as f:
@@ -39,7 +51,10 @@ def main(ep: str) -> None:
         if os.path.isfile(wav_path):
             wav, _ = sf.read(wav_path, dtype="float32")
         else:
-            chunks = [np.asarray(a, dtype=np.float32) for _, _, a in pipe(to_speech(s["text"]), voice=cfg["voice"], speed=cfg["speed"])]
+            results = list(pipe(to_speech(s["text"]), voice=cfg["voice"], speed=cfg["speed"]))
+            chunks = [np.asarray(r.audio, dtype=np.float32) for r in results]
+            generate.atomic_json(os.path.join(ep, "voice", f"sc{s['n']:02d}.words.json"),
+                                 word_times([(r.tokens, len(a)) for r, a in zip(results, chunks)], sr))
             wav = np.concatenate(chunks + [np.zeros(int(TAIL_S * sr), dtype=np.float32)])
             wav = pad_to(wav, sr, MIN_S.get(s.get("type"), 0.0))
             sf.write(generate.tmp_path(wav_path), wav, sr)

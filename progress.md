@@ -2,6 +2,23 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-14 (2-ci sessiya) — 3 düzəliş (TDD, 185 test, tsc təmiz; master-ə commit + push)
+1. **Ümumi ssenari parser-i** (`script.py`): etiket lüğəti SPEECH/DIRECTION/META + meta bölmələr; `**Voiceover**`,
+   `**Visuals:**`, `[..]`, `### X`, `X:` və s. tanınır; "Scene N —" və "(00:00–00:55)" bölmə adından silinir;
+   "## Video title" başlıq olur; "Thumbnail idea" → `thumbnail_idea` + sitat `thumbnail_text`. `script.suspicious` →
+   `run.log`-da `XEBERDARLIQ`. Free-apps ssenarisinin parse nəticəsi dəyişməyib (yoxlanıb).
+   **Fakt:** expensive-brands danışığı özü 2250 sözdür → video ~17 dəq olacaq (12 deyil); 20 dəq-in qalanı rejissor qeydləri idi.
+2. **Dinamik altyazı:** `voice.py` → `voice/scNN.words.json` (Kokoro token vaxtları); `captions.py` ekran sözlərini
+   difflib ilə uyğunlaşdırır ($15 → fifteen dollars); `Captions.tsx`: deyilən söz sarı + pop, deyilmiş ağ, qalan solğun,
+   6 sözlük hissələr. Köhnə epizodda words.json yoxdursa hərf uzunluğuna görə paylanır.
+3. **Thumbnail** (`thumbs.py`): 4 stil (bold/split/spotlight/frame), ayrıca ifadəli bayquş `owl/thumb.png`, fon
+   gpt-image-2 high, seçim `config/thumbnail.json` (daimi). Nümunələr: `Thumbnail_Numuneler\<slug>\secim.png`.
+   **İstifadəçi 2026-10-14 "1 - bold"-u seçdi** → `config/thumbnail.json` = bold; bütün yeni videolar bu stildə
+   (publish → thumbs.make → chosen_style). Dəyişmə yalnız istifadəçi istəsə.
+- Köhnə qüsurlu `eli5-business-why-expensive-...` epizodu + Hazir_Videolar qovluğu istifadəçi istəyi ilə SİLİNDİ.
+  Qeyd: silinmədən əvvəl Hazir_Videolar-da başqa video yox idi (free-apps / coffee-shop yalnız `Episodes\`-də qalıb).
+- Hamısı commit + push olundu. **Növbəti:** istifadəçi yeni video yaradacaq → `Video: <ssenari>` (Tetik).
+
 ## Son run (2026-10-14) — expensive-brands: HAZIR, amma QÜSURLU (istifadəçi qərarı gözlənilir)
 - `Hazir_Videolar\eli5-business-why-expensive-brands-make-people-want-their-products-even-more\` — 20:18, −14.2 LUFS,
   bayquş hər kadrda, thumbnail OK.

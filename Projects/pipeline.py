@@ -150,6 +150,8 @@ def _reset_episode(ep: str, slug: str) -> None:
 
 def start(script_path: str, log=print) -> str:
     data = script.build(find_script(script_path))
+    for n, sent in script.suspicious(data["scenes"]):    # yalniz xeberdarliq - ssenari video dayandirmir
+        log(f"XEBERDARLIQ sc{n:02d}: rejissor qeydine oxsayir, danisiq kimi oxunacaq: {sent[:120]}")
     ep = os.path.join(ROOT, "Episodes", data["slug"])
     os.makedirs(ep, exist_ok=True)
     sc_path = os.path.join(ep, "scenes.json")

@@ -50,3 +50,45 @@ def test_chunks_split_after_closing_quote():
 
 def test_chunks_split_after_closing_bracket():
     assert captions.chunks("a b (c.) d e", 7) == ["a b (c.)", "d e"]
+
+
+def test_every_caption_has_contiguous_word_timings_without_tts_timings():
+    caps = captions.build([{"n": 1, "text": "One two three four five six seven eight nine.", "duration": 4.35}])
+    words = [w for c in caps for w in c["words"]]
+    assert [w["text"] for w in words] == "One two three four five six seven eight nine.".split()
+    assert words[0]["start"] == 0.0 and all(a["end"] <= b["start"] + 1e-9 for a, b in zip(words, words[1:]))
+    for c in caps:
+        assert c["words"][0]["start"] >= c["start"] - 1e-9 and c["words"][-1]["end"] <= c["end"] + 1e-9
+
+
+def test_tts_timings_drive_words_even_when_numbers_are_spoken_as_words():
+    toks = [{"w": "It", "s": 0.1, "e": 0.3}, {"w": "costs", "s": 0.3, "e": 0.6}, {"w": "fifteen", "s": 0.6, "e": 0.9},
+            {"w": "dollars", "s": 0.9, "e": 1.2}, {"w": "today", "s": 1.4, "e": 1.8}]
+    caps = captions.build([{"n": 1, "text": "It costs $15 today.", "duration": 2.35}], timings={1: toks})
+    got = [(w["text"], w["start"], w["end"]) for w in caps[0]["words"]]
+    assert got == [("It", 0.1, 0.3), ("costs", 0.3, 0.6), ("$15", 0.6, 1.2), ("today.", 1.4, 1.8)]
+
+
+def test_unmatched_word_is_interpolated_between_neighbours():
+    toks = [{"w": "A", "s": 0.0, "e": 0.5}, {"w": "C", "s": 1.5, "e": 2.0}]
+    caps = captions.build([{"n": 1, "text": "A Zzz C", "duration": 2.35}], timings={1: toks})
+    a, z, c = caps[0]["words"]
+    assert a["end"] <= z["start"] < z["end"] <= c["start"]
+
+
+def test_scene_offsets_apply_to_tts_timings():
+    toks = [{"w": "Hi", "s": 0.2, "e": 0.6}]
+    caps = captions.build([{"n": 1, "text": "Yo.", "duration": 1.0}, {"n": 2, "text": "Hi", "duration": 1.0}],
+                          timings={2: toks})
+    assert caps[1]["words"][0]["start"] == 1.2 and caps[1]["words"][0]["end"] == 1.6
+
+
+def test_main_reads_word_timings_from_voice_dir(tmp_path):
+    import json
+    (tmp_path / "voice").mkdir()
+    (tmp_path / "voice" / "sc01.words.json").write_text(json.dumps([{"w": "Hi", "s": 0.25, "e": 0.5}]))
+    (tmp_path / "scenes.json").write_text(json.dumps(
+        {"slug": "s", "scenes": [{"n": 1, "text": "Hi", "duration": 1.0}]}))
+    captions.main(str(tmp_path))
+    caps = json.loads((tmp_path / "captions.json").read_text())
+    assert caps[0]["words"][0]["start"] == 0.25

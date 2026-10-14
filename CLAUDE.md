@@ -19,6 +19,15 @@ Dizayn: `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`. Canlı vəziy
 - Eyni şəkil olmur: plan təkrarlanan foto promptu / bayquş pozasını yenidən yazdırır, images dHash ilə çox oxşar
   fotonu "fərqli kompozisiya" ilə yenidən çəkir.
 - Heç bir mərhələ ssenari səbəbilə videonu dayandırmır (ssenari yoxlanmır).
+- **Ssenari formatı ümumidir (`script.py`):** yalnız danışıq oxunur. Danışıq etiketi (NARRATION/Voiceover/VO/Narrator/
+  Script/Host…), rejissor etiketi (VISUAL(S)/On-screen text/B-roll/SFX/Camera/`[..]`/`(..)`…) və meta etiket/bölmə
+  (Format, Video title, Thumbnail idea, Editing/Production notes, Core takeaway…) istənilən formada tanınır
+  (`**X:**`, `**X**:`, tək `**X**`, `### X`, `X:`). Yeni format çıxsa: lüğətə (SPEECH/DIRECTION/META) söz əlavə et + test.
+  Qalan şübhəli cümlə `run.log`-da `XEBERDARLIQ` kimi görünür (run dayanmır).
+- **Altyazı:** oxunan söz rənglə izlənir (Kokoro söz vaxtları `voice/scNN.words.json` → `captions.py` difflib uyğunlaşdırma).
+- **Thumbnail stili istifadəçi seçimidir** (`config/thumbnail.json`, `thumbs.STYLES`), özbaşına dəyişmə. Yazı:
+  ssenarinin "Thumbnail idea" sitatı, yoxdursa başlığın dəqiq fraqmenti. Bayquş: ayrıca poza `owl/thumb.png`.
+  Nümunə: `python Projects/thumbs.py samples <ssenari>` → `Thumbnail_Numuneler\`; seçim: `thumbs.py select <stil>`.
 - **Qəti, əvəzlənməyən proseslər (istifadəçi 2026-10-12):** foto (gpt-image-2), səhnə bayquşu (gpt-image-2), musiqi
   (Stable Audio), thumbnail (gpt-image-2) HEÇ VAXT fallback ilə əvəz olunmur (foto → sitat animasiyası YOX, bayquş →
   sprite YOX, musiqisiz video YOX, thumbnail → ilk foto YOX). Alınmasa: retry; şəkil təhlükəsizlik səbəbilə rədd
@@ -31,7 +40,7 @@ Dizayn: `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`. Canlı vəziy
    `Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine='cmd.exe /c "C:\YouTubeAI\Projects\.venv\Scripts\python.exe -u run.py "<fayl>" > C:\YouTubeAI\Episodes\_run.log 2>&1"'; CurrentDirectory='C:\YouTubeAI'}`
    20 s sonra prosesin sağ olduğunu yoxla.
 2. Monitor ilə `Episodes\<slug>\run.log`-u (mərhələlər) və `Episodes\_run.log`-u (stdout: cəhd/retry, `HAZIR`)
-   izlə: `\[[0-9]+/10\]|xetasi|DAYANDI|BITDI|HAZIR|alinmadi`.
+   izlə: `\[[0-9]+/10\]|xetasi|DAYANDI|BITDI|HAZIR|alinmadi|XEBERDARLIQ`.
 3. Kəsilsə: `python run.py --resume <slug>` (mərhələ faylı varsa keçilir).
 4. Bitəndə qısa yoxla: mp4 müddəti (ffprobe), −14 LUFS, bir neçə kadr (bayquş hər kadrda), thumbnail;
    `Hazir_Videolar\<slug>\` hazır olduğunu bildir.
@@ -43,6 +52,6 @@ Dizayn: `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`. Canlı vəziy
 ## Struktur
 `run.py` → `Projects/pipeline.py` mərhələləri: script → plan → images → owl → voice → captions → music → render →
 mix → publish. Modullar: `script, plan, grounding, images, owl, ratelimit, speech, voice, captions, music, render,
-mix, publish, pipeline, llm`. Remotion: `Remotion/src/` (Episode, PhotoScene, AnimScene, anim/Anims, OwlLayer,
+mix, publish, thumbs, pipeline, llm`. Remotion: `Remotion/src/` (Episode, PhotoScene, AnimScene, anim/Anims, OwlLayer,
 Captions, SectionTitle). `TTS/.venv` (Kokoro), `MusicGen/.venv` (Stable Audio). Açarlar `.env`-də — commit etmə.
 Cavab dili: azərbaycanca, qısa.

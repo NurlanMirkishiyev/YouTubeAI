@@ -33,7 +33,9 @@ def props(data: dict, caps: list[dict], fps: int = 30) -> dict:
                        "owl": f"owl/sc{s['n']:02d}.png", "anim": s["anim"], "section": s["section"],
                        "sectionStart": bool(s["section_start"]), "from": bounds[i], "frames": bounds[i + 1] - bounds[i]})
     return {"fps": fps, "total": bounds[-1], "title": data.get("title", ""), "scenes": scenes,
-            "captions": [{"from": round(c["start"] * fps), "to": round(c["end"] * fps), "text": c["text"]} for c in caps]}
+            "captions": [{"from": round(c["start"] * fps), "to": round(c["end"] * fps), "text": c["text"],
+                          "words": [{"from": round(w["start"] * fps), "to": round(w["end"] * fps), "text": w["text"]}
+                                    for w in c.get("words", [])]} for c in caps]}
 
 
 def require_photos(ep: str, data: dict) -> None:

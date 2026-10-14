@@ -210,3 +210,11 @@ def test_bookends_do_not_count_as_a_script_change(tmp_path, monkeypatch):
     logs = []
     pipeline.start("x", log=logs.append)
     assert (ep / "narration.wav").exists() and not any("deyisib" in m for m in logs)
+
+
+def test_start_warns_about_direction_like_narration_but_continues(tmp_path, monkeypatch):
+    _fake_build(monkeypatch, tmp_path, "Hello. Cut to a phone screen.")
+    logs = []
+    ep = pipeline.start("x", log=logs.append)
+    assert any("XEBERDARLIQ" in m and "Cut to a phone screen." in m for m in logs)
+    assert os.path.isfile(os.path.join(ep, "scenes.json"))

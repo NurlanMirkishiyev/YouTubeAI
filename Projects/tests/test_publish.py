@@ -2,7 +2,7 @@ import io
 import os
 import shutil
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 import pytest
 
@@ -44,7 +44,8 @@ def _thumb_ep(tmp_path):
     (ep / "owl").mkdir(parents=True)
     shutil.copyfile(os.path.join(publish.ROOT, "Character", "ELI5_Owl", "sprites_hd", "front.png"),
                     ep / "owl" / "sc01.png")
-    data = {"title": "How Free Apps Make Billions", "slug": "s", "scenes": [
+    shutil.copyfile(ep / "owl" / "sc01.png", ep / "owl" / "thumb.png")      # thumbnail bayqusu artiq cekilib
+    data = {"title": "How Free Apps Make Billions", "slug": "s", "thumbnail_text": "WHO PAYS?", "scenes": [
         {"n": 1, "type": "photo", "photo_prompt": "a phone on a desk", "section": "Hook", "section_start": True,
          "text": "Imagine an app.", "duration": 65.0}]}
     return str(ep), data
@@ -78,11 +79,14 @@ def test_thumbnail_reraises_empty_balance(tmp_path):
         publish.thumbnail(ep, data, gen=no_money, rewrite=None)
 
 
-def test_thumbnail_without_the_episode_owl_stops_instead_of_using_the_sprite(tmp_path):
+def test_thumbnail_owl_failure_stops_instead_of_using_the_sprite(tmp_path):
     ep, data = _thumb_ep(tmp_path)
-    os.remove(os.path.join(ep, "owl", "sc01.png"))
-    with pytest.raises(generate.GenerationFailed, match="owl"):
-        publish.thumbnail(ep, data, gen=lambda p: _png_bytes(), rewrite=None)
+    os.remove(os.path.join(ep, "owl", "thumb.png"))
+
+    def edit(p, r):
+        raise RuntimeError("down")
+    with pytest.raises(generate.GenerationFailed, match="bayqus"):
+        publish.thumbnail(ep, data, gen=lambda p: _png_bytes(), rewrite=None, edit=edit)
 
 
 def test_corrupt_background_payload_is_retried(tmp_path):
@@ -103,16 +107,6 @@ def test_safety_rejected_thumbnail_prompt_is_rewritten(tmp_path):
         return _png_bytes()
     publish.thumbnail(ep, data, gen=gen, rewrite=lambda p: p + " calm")
     assert len(seen) == 2
-
-
-def test_long_title_is_shrunk_and_capped_to_four_lines():
-    draw = ImageDraw.Draw(Image.new("RGB", (10, 10)))
-    title = "THE HIDDEN MATH BEHIND WHY EVERY FREE APP ON YOUR PHONE STILL MANAGES TO MAKE BILLIONS EVERY SINGLE YEAR"
-    size, lines = publish.fit_title(draw, title)
-    assert len(lines) <= 4
-    assert 60 + len(lines) * (size + 14) <= 690
-    assert all(draw.textlength(line, font=ImageFont.truetype(publish.FONT, size)) <= 760 for line in lines)
-    assert size >= publish.MIN_TITLE_SIZE
 
 
 def test_main_copies_outputs_to_out_root(tmp_path):
