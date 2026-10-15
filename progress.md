@@ -2,6 +2,11 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-15 (2) — 2 dəyişiklik (istifadəçi istəyi, TDD, 215 test)
+1. Thumbnail stili (bold) eyni; bayquş hər videoda mövzuya uyğun poza/prop ilə çəkilir (`thumbs.thumb_pose`).
+2. Musiqi: 12 həvəsləndirici stil, hər video başqa stil (`music.pick_style`, `config/music_history.json`).
+- 2 köhnə ssenari (free-apps, expensive-brands) silindi + commit; testlər artıq onlardan asılı deyil.
+
 ## 2026-10-15 (son) — PIPELINE TAMAMLANIB, yalnız video hazırlanır
 - İstifadəçi: "pipeline mənim üçün kifayətdir, bundan sonra ancaq videolar". Pipeline-ı özbaşına dəyişmə.
 - Tam bərpa GitHub-dan: commit d70dbad — `sprites_hd` əlavə olundu, `setup/requirements-*.txt` + `setup/README.md`

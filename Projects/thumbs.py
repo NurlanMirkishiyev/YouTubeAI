@@ -41,6 +41,8 @@ BG_MOOD = {"bold": "Bright, vivid, saturated colours, high contrast, main subjec
 BG_RULES = " Realistic photograph, 16:9, sharp focus. No text, no letters, no logos, no owl, no mascot."
 THUMB_POSE = ("extremely surprised and excited YouTube-thumbnail expression: eyes wide open, beak open in amazement, "
               "leaning forward, one wing pointing to the left, the other wing raised")
+TOPIC_PROP = ("holding or standing next to one simple, instantly recognisable prop that clearly represents the "
+              "video topic \"{title}\" (for example a typical object, product or tool from that topic)")
 HOOK_SYSTEM = ("You write YouTube thumbnail text. From the video title pick the 2-4 most clickable CONSECUTIVE words, "
                "copied EXACTLY from the title (no new words). Answer ONLY JSON: {\"text\": \"...\"}")
 
@@ -267,18 +269,23 @@ def background(data: dict, style: str, gen, rewrite) -> Image.Image:
     return generate.with_retry(draw, bg_prompt(data, style), rewrite=rewrite, label=f"thumbnail fonu ({style})")
 
 
-def thumb_owl(ep: str, edit, rewrite) -> Image.Image:
+def thumb_pose(data: dict) -> str:
+    """Ifade her video eyni (heyecanli), prop/poza movzuya uygun - gorunus (CHARACTER) deyismir."""
+    return f"{THUMB_POSE}, {TOPIC_PROP.format(title=data['title'])}"
+
+
+def thumb_owl(ep: str, edit, rewrite, pose: str = THUMB_POSE) -> Image.Image:
     path = os.path.join(ep, "owl", "thumb.png")
     if not os.path.isfile(path):                 # bir defe cekilir, sonra yeniden istifade
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        owl_mod._one(path, THUMB_POSE, edit, None, rewrite)
+        owl_mod._one(path, pose, edit, None, rewrite)
     return Image.open(path).convert("RGBA")
 
 
 def make(ep: str, data: dict, gen, edit, rewrite=llm.rewrite_safe, style: str | None = None,
          chat=llm.chat_json) -> Image.Image:
     style = style or chosen_style()
-    owl_img = thumb_owl(ep, edit, rewrite)
+    owl_img = thumb_owl(ep, edit, rewrite, thumb_pose(data))
     return compose(style, background(data, style, gen, rewrite), owl_img, hook_text(data, chat))
 
 
@@ -302,7 +309,7 @@ def samples(script_name: str, out_root: str = SAMPLES) -> str:
     data = script.build(find_script(script_name))
     out = os.path.join(out_root, data["slug"])
     os.makedirs(out, exist_ok=True)
-    owl_img = thumb_owl(out, _default_edit, llm.rewrite_safe)
+    owl_img = thumb_owl(out, _default_edit, llm.rewrite_safe, thumb_pose(data))
     text = hook_text(data)
     tiles = []
     for style in STYLES:

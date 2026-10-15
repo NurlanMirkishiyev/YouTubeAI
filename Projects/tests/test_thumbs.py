@@ -137,3 +137,16 @@ def test_hook_text_still_stops_on_an_empty_balance():
         raise llm.LLMError("OpenAI balansi bitib: quota")
     with pytest.raises(llm.LLMError):
         thumbs.hook_text({"title": "Free Apps"}, chat=broke)
+
+
+def test_thumbnail_owl_pose_is_about_the_video_topic():
+    pose = thumbs.thumb_pose({"title": "How Airlines Make Money"})
+    assert "How Airlines Make Money" in pose and "surprised" in pose and "prop" in pose
+
+
+def test_make_draws_the_thumbnail_owl_with_the_topic_pose(tmp_path):
+    ep, data = _ep(tmp_path)
+    prompts = []
+    thumbs.make(ep, data, gen=lambda p: _png(), edit=lambda p, r: prompts.append(p) or _magenta_owl(p, r),
+                rewrite=None, style="bold")
+    assert data["title"] in prompts[0]

@@ -31,9 +31,11 @@ def test_stage_order():
                                                  "render", "mix", "publish"]
 
 
-def test_script_file_is_found_by_name_in_the_scripts_folder():
-    p = pipeline.find_script("eli5_business_how_free_apps_make_billions_script")
-    assert p.endswith("eli5_business_how_free_apps_make_billions_script.md")
+def test_script_file_is_found_by_name_in_the_scripts_folder(tmp_path, monkeypatch):
+    (tmp_path / "Ssenariler").mkdir()
+    (tmp_path / "Ssenariler" / "my_topic.md").write_text("# T", encoding="utf-8")
+    monkeypatch.setattr(pipeline, "ROOT", str(tmp_path))
+    assert pipeline.find_script("my_topic").endswith("my_topic.md")
 
 
 def test_empty_balance_waits_and_continues_when_credit_is_added(tmp_path):
