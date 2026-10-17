@@ -2,6 +2,12 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-18 — rəng teması artıq təkrarlanmır (istifadəçi istəyi, TDD, 217 test)
+- Səbəb: son 2 video (AI mövzusu) hər ikisi `electric` (mavi) aldı. İndi `plan.with_theme` musiqi kimi işləyir:
+  `config/theme_history.json` ({slug: tema}), GPT yalnız istifadə olunmamış temalardan seçir (schema enum da
+  məhdud), 12-si bitəndə yeni dövr (son tema xaric), resume eyni temanı saxlayır. Tarixçəyə köhnə 3 video yazıldı
+  (emerald, electric, electric) → növbəti video bu ikisindən fərqli olacaq. Real GPT smoke: AI mövzusu → royal.
+
 ## 2026-10-17 — hidden-cost-of-ai videosu HAZIR
 - `Hazir_Videolar\the-hidden-cost-of-ai-why-intelligence-is-becoming-so-expensive\` — 17:28, −14.1 LUFS, 1920x1080,
   bayquş yoxlanan 5 kadrda var, bold thumbnail "HIDDEN COST OF AI" (bayquş kalkulyatorla). Run ~69 dəq (23:29→00:38),

@@ -1,3 +1,5 @@
+import json
+
 import plan
 
 TEXT = "Only 2% of users pay. Twenty thousand people pay five dollars each."
@@ -279,20 +281,41 @@ def test_bookend_gpt_failure_raises_after_one_retry():
     assert n["n"] == 2
 
 
-def test_theme_is_picked_once_from_the_known_palettes():
-    data = {"title": "Why Luxury Brands Win", "scenes": [{"n": 1, "text": "Luxury bags cost more."}]}
-    got = plan.with_theme(data, ask=lambda s, u: {"theme": "gold"})
+def test_theme_is_picked_once_from_the_known_palettes(tmp_path):
+    hist = str(tmp_path / "themes.json")
+    data = {"slug": "lux", "title": "Why Luxury Brands Win", "scenes": [{"n": 1, "text": "Luxury bags cost more."}]}
+    got = plan.with_theme(data, ask=lambda s, u, a: {"theme": "gold"}, path=hist)
     assert got["theme"] == "gold"
-    assert plan.with_theme(got, ask=lambda s, u: (_ for _ in ()).throw(AssertionError("no call")))["theme"] == "gold"
+    no_call = lambda s, u, a: (_ for _ in ()).throw(AssertionError("no call"))  # noqa: E731
+    assert plan.with_theme(got, ask=no_call, path=hist)["theme"] == "gold"
+    assert plan.with_theme({**data, "theme": None}, ask=no_call, path=hist)["theme"] == "gold"   # resume
 
 
-def test_unknown_or_failed_theme_uses_the_default_palette():
-    data = {"title": "T", "scenes": [{"n": 1, "text": "x"}]}
-    assert plan.with_theme(data, ask=lambda s, u: {"theme": "neon-pink"})["theme"] == plan.THEMES[0]
+def test_unknown_or_failed_theme_uses_an_unused_palette(tmp_path):
+    hist = str(tmp_path / "themes.json")
+    data = {"slug": "a", "title": "T", "scenes": [{"n": 1, "text": "x"}]}
+    assert plan.with_theme(data, ask=lambda s, u, a: {"theme": "neon-pink"}, path=hist)["theme"] == plan.THEMES[0]
 
-    def boom(s, u):
+    def boom(s, u, a):
         raise RuntimeError("down")
-    assert plan.with_theme(data, ask=boom)["theme"] == plan.THEMES[0]
+    assert plan.with_theme({**data, "slug": "b"}, ask=boom, path=hist)["theme"] == plan.THEMES[1]
+
+
+def test_theme_does_not_repeat_until_every_palette_is_used(tmp_path):
+    hist = str(tmp_path / "themes.json")
+    offered = []
+
+    def tech(system, user, allowed):
+        offered.append(allowed)
+        assert all(t in system for t in allowed)
+        return {"theme": "electric"}          # GPT her defe ayni temani isteyir
+    got = [plan.with_theme({"slug": f"v{i}", "title": "AI", "scenes": [{"n": 1, "text": "x"}]}, ask=tech,
+                           path=hist)["theme"] for i in range(len(plan.THEMES) + 1)]
+    assert got[0] == "electric" and "electric" not in offered[1]
+    assert sorted(got[:len(plan.THEMES)]) == sorted(plan.THEMES)       # 12 video = 12 ferqli tema
+    assert got[-1] != got[-2]                                           # yeni dovr: son tema tekrar olmur
+    with open(hist, encoding="utf-8") as f:
+        assert list(json.load(f)) == [f"v{i}" for i in range(len(plan.THEMES) + 1)]
 
 
 def test_every_anim_schema_asks_for_an_icon():
