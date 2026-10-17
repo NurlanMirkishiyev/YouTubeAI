@@ -2,6 +2,18 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-17 — hidden-cost-of-ai videosu HAZIR
+- `Hazir_Videolar\the-hidden-cost-of-ai-why-intelligence-is-becoming-so-expensive\` — 17:28, −14.1 LUFS, 1920x1080,
+  bayquş yoxlanan 5 kadrda var, bold thumbnail "HIDDEN COST OF AI" (bayquş kalkulyatorla). Run ~69 dəq (23:29→00:38),
+  retry/XEBERDARLIQ olmadı.
+- Ssenari `### Visual direction` başlığı ilə rejissor bölməsi yazır → tanınmırdı, qeydlər danışıq kimi oxunacaqdı.
+  `script.DIRECTION`-a "visual direction(s)/visual note(s)" əlavə olundu + test (216 keçir). Commit olunmayıb.
+  Parse: 78 səhnə, 2434 söz (~16 dəq), şübhəli 0. İlk (səhv) run plan mərhələsində dayandırıldı, yenidən başladı.
+
+## 2026-10-16 — business-software-automation-ai-tools videosu HAZIR
+- `Hazir_Videolar\business-software-automation-ai-tools\` — 12:52, −14.2 LUFS, bayquş yoxlanan kadrlarda var,
+  bold thumbnail "AUTOMATION & AI TOOLS" (bayquş noutbukla). Run ~65 dəq (23:21→00:27), XEBERDARLIQ/retry olmadı.
+
 ## 2026-10-15 (2) — 2 dəyişiklik (istifadəçi istəyi, TDD, 215 test)
 1. Thumbnail stili (bold) eyni; bayquş hər videoda mövzuya uyğun poza/prop ilə çəkilir (`thumbs.thumb_pose`).
 2. Musiqi: 12 həvəsləndirici stil, hər video başqa stil (`music.pick_style`, `config/music_history.json`).

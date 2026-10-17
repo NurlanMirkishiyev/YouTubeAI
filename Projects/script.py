@@ -33,7 +33,7 @@ DIRECTION = VISUAL | {
     "on screen text", "onscreen text", "on screen", "screen text", "text on screen", "text", "sfx", "sound",
     "sound effect", "sound effects", "music", "graphics", "graphic", "motion graphics", "animation", "animations",
     "transition", "cut to", "note", "notes", "editor note", "editors note", "director note", "direction",
-    "directions", "stage direction", "lower third", "caption", "captions", "title card", "end card", "overlay",
+    "directions", "stage direction", "visual direction", "visual directions", "visual notes", "visual note", "lower third", "caption", "captions", "title card", "end card", "overlay",
     "cue", "visual cue", "pause", "beat"}
 META = {"format", "language", "target runtime", "runtime", "narration language", "visual identity", "duration",
         "tone", "audience", "target audience", "thumbnail", "thumbnail idea", "thumbnail text", "video title",

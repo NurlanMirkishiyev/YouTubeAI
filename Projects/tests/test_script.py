@@ -269,6 +269,8 @@ def test_meta_sections_are_never_spoken_even_without_narration_labels():
     ("**Script:**", "[Cut to a phone screen]"),
     ("**Host:**", "(Music fades in)"),
     ("**Voiceover:**", "**Text on screen:** “WHY?”"),
+    ("### Voiceover", "### Visual direction\n- Owl mascot asks an AI a question on a laptop.\n"
+                      "- On-screen text: **“The interface is simple.”**"),
 ])
 def test_any_speech_and_direction_label_variant(speech, direction):
     md = f"# T\n\n## Part\n\n{speech}\n\nHello there friend.\n\n{direction}\n\n{speech}\n\nSecond line here.\n"
