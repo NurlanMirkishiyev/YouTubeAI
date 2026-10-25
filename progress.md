@@ -2,6 +2,24 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-20 — prevent-a-hack videosu HAZIR
+- `Hazir_Videolar\why-companies-spend-millions-to-prevent-a-hack-that-may-never-happen\` — 16:43, −14.2 LUFS,
+  1920x1080, tema `crimson` (sıra ilə), bayquş yoxlanan 4 kadrda var. Run ~63 dəq (23:23→00:26), retry/XEBERDARLIQ
+  olmadı. Thumbnail yazısı başlıq fraqmenti "SPEND MILLIONS TO PREVENT" (bayquş qalxanla). Növbəti tema: teal.
+
+## 2026-10-18 — tema artıq SIRA İLƏ (istifadəçi: "animasiyalar yaşıl oldu, fərqli rəng sıra ilə")
+- Səbəb: GPT `mint` seçdi — adı yeni, amma əvvəlki `emerald` kimi yaşıl. İndi `plan.next_theme`: son istifadə
+  olunan temadan sonrakı (THEMES sırası: royal, gold, emerald, electric, sunset, crimson, teal, violet, amber, rose,
+  ocean, mint), GPT çağırılmır. TDD: 3 yeni test, 217 keçir.
+- SaaS videosu `sunset` (electric-dən sonrakı) ilə yenidən render olundu (render → mix → publish, 13:00→13:30): 1038.9 s, −14.2 LUFS, 1920x1080; animasiyalar narıncı-bənövşəyi, bayquş hər kadrda, tam başlıqlı thumbnail saxlanıb. Növbəti video: crimson.
+
+## 2026-10-18 — saas-100-to-100k videosu HAZIR
+- `Hazir_Videolar\how-saas-companies-turn-100-customers-into-100-000-accounts\` — 17:19, −14.2 LUFS, 1920x1080,
+  bayquş yoxlanan 4 kadrda var, tema `mint` (yeni), musiqi cinematic build. Run ~69 dəq (11:39→12:50),
+  retry/XEBERDARLIQ olmadı. Thumbnail yazısı əvvəl "$100 CUSTOMERS INTO" idi (başlıq fraqmenti; ssenaridə
+  Thumbnail idea yox) → istifadəçi istəyi ilə tam başlıqla yenidən çəkildi (bold, 5 sətir, yeni fon, eyni bayquş;
+  bir dəfəlik skript, pipeline kodu dəyişməyib).
+
 ## 2026-10-18 — rəng teması artıq təkrarlanmır (istifadəçi istəyi, TDD, 217 test)
 - Səbəb: son 2 video (AI mövzusu) hər ikisi `electric` (mavi) aldı. İndi `plan.with_theme` musiqi kimi işləyir:
   `config/theme_history.json` ({slug: tema}), GPT yalnız istifadə olunmamış temalardan seçir (schema enum da

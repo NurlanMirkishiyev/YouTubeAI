@@ -380,26 +380,9 @@ def add_bookends(data: dict, ask=ask_bookends) -> dict:
 
 THEMES = ("royal", "gold", "emerald", "electric", "sunset", "crimson",
           "teal", "violet", "amber", "rose", "ocean", "mint")   # Remotion/src/theme.ts PALETTES
-THEME_HINTS = {
-    "royal": "general business and strategy", "gold": "luxury, premium, wealth",
-    "emerald": "money, finance, investing, saving", "electric": "tech, apps, internet, AI",
-    "sunset": "consumers, food, retail, lifestyle", "crimson": "risk, competition, failure, danger",
-    "teal": "health, wellness, insurance, services", "violet": "media, entertainment, gaming, subscriptions, creativity",
-    "amber": "energy, industry, manufacturing, cars, logistics", "rose": "beauty, fashion, social media, relationships",
-    "ocean": "travel, airlines, shipping, global trade", "mint": "startups, small business, side hustles, growth"}
-# Her video ferqli tema (THEME_HISTORY: hamisi istifade olunana qeder tekrar yoxdur; istifadeci 2026-10-18).
+# Her video novbeti tema, THEMES sirasi ile (istifadeci 2026-10-18: "ferqli reng, sira ile"); 12-den sonra yeni dovr.
 THEME_HISTORY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config",
                              "theme_history.json")
-
-
-def theme_system(allowed: list[str]) -> str:
-    hints = "; ".join(f"{t}: {THEME_HINTS[t]}" for t in allowed)
-    return ("Pick the colour theme that best fits this explainer video's topic. If no theme matches exactly, pick "
-            f"the closest mood. Allowed themes - {hints}. Answer ONLY JSON: {{\"theme\": \"...\"}}")
-
-
-def ask_theme(system: str, user: str, allowed: list[str]) -> dict:
-    return llm.chat_json(system, user, schema=_obj(theme={"type": "string", "enum": allowed}), max_tokens=50)
 
 
 def _theme_history(path: str) -> dict:
@@ -409,33 +392,21 @@ def _theme_history(path: str) -> dict:
         return json.load(f)
 
 
-def unused_themes(used: list[str]) -> list[str]:
-    """Hec bir videoda olmayan temalar; hamisi istifade olunubsa yeni dovr (son istifade olunan xaric)."""
+def next_theme(used: list[str]) -> str:
+    """Son istifade olunan temadan sonrakisi (sira ile); tarixce bosdursa ilk tema."""
     used = [t for t in used if t in THEMES]
-    since = used[len(used) - len(used) % len(THEMES):]                    # cari dovrun temalari
-    if used and not since:                                                # dovr yeni basladi
-        return [t for t in THEMES if t != used[-1]]
-    return [t for t in THEMES if t not in since]
+    return THEMES[(THEMES.index(used[-1]) + 1) % len(THEMES)] if used else THEMES[0]
 
 
-def with_theme(data: dict, ask=ask_theme, path: str = THEME_HISTORY) -> dict:
-    """Videonun reng temasi (bir defe): GPT yalniz istifade olunmamis temalardan movzuya uygununu secir.
-    Resume eyni temani saxlayir. Namelum / GPT xetasi -> ilk bos tema (balans xetasi istisna: dayanir)."""
+def with_theme(data: dict, path: str = THEME_HISTORY) -> dict:
+    """Videonun reng temasi (bir defe, sira ile). Resume eyni temani saxlayir."""
     if data.get("theme") in THEMES:
         return data
     slug = data.get("slug") or data["title"]
     hist = _theme_history(path)
     if hist.get(slug) in THEMES:
         return {**data, "theme": hist[slug]}
-    allowed = unused_themes(list(hist.values()))
-    try:
-        sample = " ".join(s.get("text", "") for s in data["scenes"][:3])[:800]
-        theme = ask(theme_system(allowed), f"TITLE: {data['title']}\nOPENING: {sample}", allowed).get("theme")
-    except Exception as e:  # noqa: BLE001
-        if llm.is_balance_error(e):
-            raise
-        theme = None
-    theme = theme if theme in allowed else allowed[0]
+    theme = next_theme(list(hist.values()))
     generate.atomic_json(path, {**hist, slug: theme})
     return {**data, "theme": theme}
 

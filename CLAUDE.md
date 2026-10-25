@@ -18,7 +18,7 @@ Dizayn: `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`. Canlı vəziy
 - Səhnələrin 60%-i foto, 40%-i Remotion animasiyası (intro/outro xaric); animasiyalar səhnədən səhnəyə fərqlidir.
 - **Premium animasiya (istifadəçi 2026-10-14):** hər video mövzuya uyğun rəng teması alır (`plan.with_theme`,
   royal/gold/emerald/electric/sunset/crimson/teal/violet/amber/rose/ocean/mint = `theme.ts` PALETTES; istifadəçi
-2026-10-18: tema təkrarlanmır — GPT yalnız `config/theme_history.json`-da hələ olmayan temalardan seçir, 12-si bitəndə yeni dövr); hər animasiyaya mənaya uyğun ikon(lar)
+2026-10-18: tema SIRA İLƏ — `plan.next_theme`: `config/theme_history.json`-dakı son temadan sonrakı, 12-si bitəndə yenidən royal; GPT seçmir); hər animasiyaya mənaya uyğun ikon(lar)
   (`grounding.ICONS` = `anim/Icon.tsx`, yazı deyil). Remotion: `anim/Backdrop` (canlı fon), `anim/kit` (şüşə kart,
   gradient yazı, Badge, Burst, Shine), `anim/Anims` + `anim/TextAnims` (8 növ × 2 variant); kadr heç vaxt donmur.
   Yeni ikon/tema: hər iki tərəfə əlavə et (`test_icon_and_theme_names_match_remotion`).
