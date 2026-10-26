@@ -31,7 +31,7 @@ Dizayn: `docs/superpowers/specs/2026-10-12-pipeline-v2-design.md`. Canlı vəziy
   (`**X:**`, `**X**:`, tək `**X**`, `### X`, `X:`). Yeni format çıxsa: lüğətə (SPEECH/DIRECTION/META) söz əlavə et + test.
   Qalan şübhəli cümlə `run.log`-da `XEBERDARLIQ` kimi görünür (run dayanmır).
 - **Altyazı:** oxunan söz rənglə izlənir (Kokoro söz vaxtları `voice/scNN.words.json` → `captions.py` difflib uyğunlaşdırma).
-- **Fon musiqisi (istifadəçi 2026-10-15):** hər video başqa stil (`music.STYLES`, 12 həvəsləndirici/enerjili stil; `music.pick_style` → `config/music_history.json`, hamısı bitənə qədər təkrar yoxdur, resume eyni stili saxlayır). Sakit/darıxdırıcı musiqi YOX.
+- **Fon musiqisi (istifadəçi 2026-10-26, 10-15-i əvəz edir):** SAKİT, diqqəti yayındırmayan fon musiqisi; hər video başqa stil (`music.STYLES`, 12 sakit stil: piano, lo-fi, akustik, ambient, marimba, jazz…; `music.pick_style` → `config/music_history.json`, hamısı bitənə qədər təkrar yoxdur, resume eyni stili saxlayır). Enerjili/yüksək/ağır nağaralı musiqi YOX (`NEGATIVE`).
 - **Thumbnail stili istifadəçi seçimidir** (`config/thumbnail.json`, `thumbs.STYLES`), özbaşına dəyişmə. Yazı:
   ssenarinin "Thumbnail idea" sitatı, yoxdursa başlığın dəqiq fraqmenti. Bayquş: ayrıca poza `owl/thumb.png` — ifadə heyəcanlı, poza/prop hər videoda mövzuya uyğun (`thumbs.thumb_pose`, istifadəçi 2026-10-15).
   Nümunə: `python Projects/thumbs.py samples <ssenari>` → `Thumbnail_Numuneler\`; seçim: `thumbs.py select <stil>`.

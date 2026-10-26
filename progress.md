@@ -2,6 +2,11 @@
 
 Sessiyanın əvvəlində oxunur, hər mərhələdən sonra yenilənir (ən yenisi yuxarıda).
 
+## 2026-10-26 — musiqi artıq SAKİT (istifadəçi: "sakit və diqqəti yayındırmayan, hər videoda fərqli")
+- `music.STYLES` 12 sakit stilə dəyişdi (enerjili pop/rock/future bass çıxarıldı), `NEGATIVE`-ə loud/aggressive/
+  heavy drums/busy melody əlavə olundu. Rotasiya eyni: tarixçədəki köhnə stillər siyahıda olmadığından növbəti
+  video 1-ci sakit stili (soft piano) alır. TDD: test yeniləndi, 217 keçir. Hazır videolar yenidən render olunmayıb.
+
 ## 2026-10-20 — prevent-a-hack videosu HAZIR
 - `Hazir_Videolar\why-companies-spend-millions-to-prevent-a-hack-that-may-never-happen\` — 16:43, −14.2 LUFS,
   1920x1080, tema `crimson` (sıra ilə), bayquş yoxlanan 4 kadrda var. Run ~63 dəq (23:23→00:26), retry/XEBERDARLIQ

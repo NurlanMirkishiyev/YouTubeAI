@@ -14,22 +14,23 @@ MODEL = "stabilityai/stable-audio-open-1.0"
 MODEL_FILES = ["model_index.json", "projection_model/*", "scheduler/*", "text_encoder/*", "tokenizer/*",
                "transformer/*", "vae/*"]
 CLIP_S, FADE_S, STEPS, MAX_CLIPS = 45.0, 3.0, 100, 8
-NEGATIVE = ("vocals, singing, speech, voice, low quality, distortion, noise, harsh, sad, melancholic, boring, "
-            "sleepy, dark, slow, monotonous")
-# Her video ferqli stil (HISTORY: hamisi istifade olunana qeder tekrar yoxdur); hamisi heveslendirici, enerjili.
+NEGATIVE = ("vocals, singing, speech, voice, low quality, distortion, noise, harsh, loud, aggressive, heavy drums, "
+            "busy melody, sudden changes, sad, melancholic, dark, scary, tense")
+# Her video ferqli stil (HISTORY: hamisi istifade olunana qeder tekrar yoxdur); hamisi sakit, diqqeti yayindirmayan
+# fon musiqisi (istifadeci 2026-10-26).
 STYLES = (
-    "Uplifting motivational corporate pop, bright piano, punchy claps, driving acoustic guitar, 120 BPM, instrumental",
-    "Energetic inspiring indie pop, ukulele, hand claps, glockenspiel, happy bouncy groove, 125 BPM, instrumental",
-    "Inspiring cinematic build, pulsing strings, bright piano, big uplifting drums, 118 BPM, instrumental",
-    "Upbeat motivational electronic pop, shiny synth plucks, punchy kick, positive energy, 124 BPM, instrumental",
-    "Uplifting funky groove, slap bass, bright electric guitar, tight drums, confident and fun, 112 BPM, instrumental",
-    "Energetic inspiring tropical house, marimba, warm synth, clap beat, sunny and positive, 115 BPM, instrumental",
-    "Driving motivational rock-pop, crunchy electric guitar, steady energetic drums, optimistic, 128 BPM, instrumental",
-    "Uplifting future bass, bright chords, playful synth melody, energetic beat, 130 BPM, instrumental",
-    "Inspiring piano pop, bouncy piano chords, upbeat drums, warm bass, hopeful and motivating, 116 BPM, instrumental",
-    "Energetic motivational hip-hop beat, punchy drums, bright brass stabs, confident groove, 95 BPM, instrumental",
-    "Uplifting folk pop, strummed acoustic guitar, whistles, stomps and claps, cheerful energy, 122 BPM, instrumental",
-    "Inspiring synthwave, driving arpeggios, bright lead synth, energetic drums, forward motion, 118 BPM, instrumental",
+    "Calm soft piano background, gentle warm pads, light and positive, no drums, 80 BPM, instrumental",
+    "Soft lo-fi chill beat, mellow Rhodes chords, gentle vinyl texture, relaxed and warm, 75 BPM, instrumental",
+    "Gentle acoustic guitar fingerpicking, soft ambient pads, calm and hopeful, 85 BPM, instrumental",
+    "Calm ambient electronic background, soft evolving synth pads, subtle light pulse, 90 BPM, instrumental",
+    "Soft minimal marimba and kalimba pattern, gentle warm bass, calm and curious, 95 BPM, instrumental",
+    "Gentle cinematic background, soft strings and felt piano, calm and reassuring, 70 BPM, instrumental",
+    "Mellow jazzy background, soft brushed drums, warm upright bass, relaxed piano, 88 BPM, instrumental",
+    "Calm corporate background, soft plucked synths, light shaker, clean and focused, 100 BPM, instrumental",
+    "Soft ambient guitar swells, gentle reverb, calm and spacious, slow and steady, 72 BPM, instrumental",
+    "Gentle chillhop background, soft muted guitar, light relaxed beat, warm and cozy, 82 BPM, instrumental",
+    "Calm music box and soft celesta melody, gentle pads, light and thoughtful, 90 BPM, instrumental",
+    "Soft downtempo electronic background, gentle bells, smooth relaxed groove, calm focus, 92 BPM, instrumental",
 )
 HISTORY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "music_history.json")
 

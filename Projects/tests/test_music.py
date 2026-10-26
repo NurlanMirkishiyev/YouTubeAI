@@ -13,13 +13,13 @@ def test_device_falls_back_to_cpu_without_cuda():
     assert music.pick_device(False) == ("cpu", "float32")
 
 
-def test_styles_are_motivating_not_sleepy():
-    assert len(music.STYLES) >= 10
+def test_styles_are_calm_and_unobtrusive():
+    assert len(music.STYLES) >= 10 and len(set(music.STYLES)) == len(music.STYLES)
     for s in music.STYLES:
         low = s.lower()
-        assert any(w in low for w in ("uplifting", "motivational", "energetic", "inspiring", "driving"))
-        assert not any(w in low for w in ("calm", "lo-fi", "mellow", "ambient", "minimal"))
-    for w in ("sad", "boring", "sleepy"):
+        assert any(w in low for w in ("calm", "soft", "gentle", "mellow", "ambient", "relaxed"))
+        assert not any(w in low for w in ("energetic", "punchy", "driving", "big", "upbeat", "130 bpm"))
+    for w in ("vocals", "loud", "aggressive", "heavy drums", "sad", "dark"):
         assert w in music.NEGATIVE
 
 
